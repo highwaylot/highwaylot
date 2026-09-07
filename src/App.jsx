@@ -152,7 +152,7 @@ const POPULAR_MAKES = ["Ford", "Toyota", "Honda", "Chevrolet", "Jeep", "Ram", "G
 // fetched live from NHTSA's free public vPIC API for whichever make is
 // picked — real data, no maintenance on our end. "Other" always available
 // as an escape hatch on both fields so nobody's ever blocked from listing.
-function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors }) {
+function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors, clearError }) {
   const [customMake, setCustomMake] = useState(Boolean(make) && !POPULAR_MAKES.includes(make));
   const [customModel, setCustomModel] = useState(false);
   const [models, setModels] = useState([]);
@@ -177,14 +177,14 @@ function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors }) {
     <>
       <Field label="Make" required error={errors.make}>
         {!customMake ? (
-          <select value={make} onChange={(e) => { if (e.target.value === "__other__") { setCustomMake(true); onMakeChange(""); } else { onMakeChange(e.target.value); setCustomModel(false); onModelChange(""); } }} style={inputStyle}>
+          <select value={make} onChange={(e) => { if (e.target.value === "__other__") { setCustomMake(true); onMakeChange(""); } else { onMakeChange(e.target.value); setCustomModel(false); onModelChange(""); clearError && clearError("make"); } }} style={inputStyle}>
             <option value="">Select make</option>
             {POPULAR_MAKES.map((m) => <option key={m} value={m}>{m}</option>)}
             <option value="__other__">Other (type it in)</option>
           </select>
         ) : (
           <div style={{ display: "flex", gap: 6 }}>
-            <input value={make} onChange={(e) => onMakeChange(e.target.value)} placeholder="Type the make" style={inputStyle} />
+            <input value={make} onChange={(e) => { onMakeChange(e.target.value); clearError && clearError("make"); }} placeholder="Type the make" style={inputStyle} />
             <button type="button" onClick={() => { setCustomMake(false); onMakeChange(""); }} style={smallBtn}>Use list</button>
           </div>
         )}
@@ -193,7 +193,7 @@ function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors }) {
         {!customMake && !customModel ? (
           <select
             value={model}
-            onChange={(e) => { if (e.target.value === "__other__") { setCustomModel(true); onModelChange(""); } else { onModelChange(e.target.value); } }}
+            onChange={(e) => { if (e.target.value === "__other__") { setCustomModel(true); onModelChange(""); } else { onModelChange(e.target.value); clearError && clearError("model"); } }}
             style={inputStyle}
             disabled={!make || loadingModels}
           >
@@ -203,7 +203,7 @@ function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors }) {
           </select>
         ) : (
           <div style={{ display: "flex", gap: 6 }}>
-            <input value={model} onChange={(e) => onModelChange(e.target.value)} placeholder="Type the model" style={inputStyle} />
+            <input value={model} onChange={(e) => { onModelChange(e.target.value); clearError && clearError("model"); }} placeholder="Type the model" style={inputStyle} />
             {!customMake && <button type="button" onClick={() => { setCustomModel(false); onModelChange(""); }} style={smallBtn}>Use list</button>}
           </div>
         )}
@@ -217,13 +217,13 @@ const inputStyle = { width: "100%", border: `1px solid ${C.line}`, borderRadius:
 
 function ListingCard({ listing, onOpen }) {
   return (
-    <div onClick={() => onOpen(listing.id)} style={{ background: C.card, border: listing.featured ? `2px solid ${C.yellow}` : `1px solid ${C.line}`, borderRadius: 6, cursor: "pointer", overflow: "hidden" }}>
+    <div onClick={() => onOpen(listing.id)} style={{ background: C.card, border: listing.featured ? `2px solid ${C.yellow}` : `1.5px solid ${C.line}`, borderRadius: 6, cursor: "pointer", overflow: "hidden" }}>
       <CarThumb make={listing.make} body={listing.body} />
       <div style={{ padding: "14px 14px 16px" }}>
         {listing.featured && <div style={{ marginBottom: 6 }}><Badge tone="yellow"><Star size={11} />Featured</Badge></div>}
         <div style={{ fontFamily: FONT_HEAD, fontSize: 17, color: C.ink, lineHeight: 1.25 }}>{listing.year} {listing.make} {listing.model}</div>
         <div style={{ fontSize: 13, color: C.steel, marginTop: 2 }}>{listing.trim}</div>
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.ink, marginTop: 8 }}>{fmtPrice(listing.price)}</div>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 22, color: C.ink, marginTop: 8 }}>{fmtPrice(listing.price)}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, fontSize: 12.5, color: C.steel }}>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Gauge size={13} />{fmtMiles(listing.mileage)}</span>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={13} />{listing.city}, {stateAbbr(listing.state)}</span>
@@ -323,11 +323,11 @@ function CategoryPage({ category, listings, openListing, setView }) {
 // ---------- Top nav ----------
 function TopBar({ view, setView, onPost }) {
   return (
-    <div style={{ background: C.ink, borderBottom: `3px solid ${C.yellow}` }}>
+    <div style={{ background: C.ink, borderBottom: `4px solid ${C.yellow}` }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 20, minHeight: 40 }}>
         <div onClick={() => setView({ name: "home" })} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
           <div style={{ width: 30, height: 30, background: C.yellow, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><CarIcon size={18} color={C.ink} strokeWidth={2.25} /></div>
-          <span style={{ fontFamily: FONT_HEAD, fontSize: "clamp(15px, 4vw, 20px)", letterSpacing: 0.5, color: "#fff", whiteSpace: "nowrap" }}>HIGHWAY LOT</span>
+          <span style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(15px, 4vw, 20px)", letterSpacing: 0.5, color: "#fff", whiteSpace: "nowrap" }}>HIGHWAYLOT</span>
         </div>
         <div style={{ display: "flex", gap: 16, flex: 1, flexWrap: "wrap" }}>
           <NavLink label="Browse" active={["home","listing","category"].includes(view.name)} onClick={() => setView({ name: "home" })} />
@@ -350,7 +350,7 @@ function Hero({ filters, setFilters, log }) {
   return (
     <div style={{ background: C.ink }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "44px 20px 24px" }}>
-        <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(26px, 6vw, 38px)", color: "#fff", margin: 0, lineHeight: 1.1, maxWidth: 560 }}>Buy and sell cars, coast to coast.</h1>
+        <h1 style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 6vw, 38px)", color: "#fff", margin: 0, lineHeight: 1.1, maxWidth: 560 }}>Buy and sell cars, coast to coast.</h1>
         <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 15, marginTop: 10, maxWidth: 480 }}>{seed.length.toLocaleString()}+ listings from private sellers and dealers across the United States.</p>
         <div style={{ background: "#fff", borderRadius: 6, marginTop: 22, padding: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ flex: "2 1 220px", display: "flex", alignItems: "center", gap: 8, borderRight: `1px solid ${C.line}`, paddingRight: 10 }}>
@@ -372,6 +372,23 @@ function Hero({ filters, setFilters, log }) {
   );
 }
 
+function PriceSlider({ value, onChange, log }) {
+  const MAX = 100000;
+  const current = value ? Number(value) : MAX;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 220 }}>
+      <span style={{ fontSize: 12.5, color: C.steel, whiteSpace: "nowrap" }}>Up to {current >= MAX ? "any price" : fmtPrice(current)}</span>
+      <input
+        type="range" min={5000} max={MAX} step={1000} value={current}
+        onChange={(e) => onChange(e.target.value)}
+        onMouseUp={() => log("filter_price", { max: current >= MAX ? "" : current })}
+        onTouchEnd={() => log("filter_price", { max: current >= MAX ? "" : current })}
+        style={{ flex: 1, minWidth: 100 }}
+      />
+    </div>
+  );
+}
+
 function FilterBar({ filters, setFilters, count, sort, setSort, log }) {
   const makes = Array.from(new Set(seed.map((c) => c.make))).sort();
   return (
@@ -381,8 +398,13 @@ function FilterBar({ filters, setFilters, count, sort, setSort, log }) {
         <select value={filters.make} onChange={(e) => { setFilters({ ...filters, make: e.target.value }); log("filter_make", { make: e.target.value }); }} style={selectStyle}>
           <option value="">Any make</option>{makes.map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
-        <select value={filters.price} onChange={(e) => { setFilters({ ...filters, price: e.target.value }); log("filter_price", { max: e.target.value }); }} style={selectStyle}>
-          <option value="">Any price</option><option value="20000">Under $20,000</option><option value="30000">Under $30,000</option><option value="40000">Under $40,000</option>
+        <PriceSlider value={filters.price} onChange={(v) => setFilters({ ...filters, price: v === String(100000) ? "" : v })} log={log} />
+        <select value={filters.mileage} onChange={(e) => { setFilters({ ...filters, mileage: e.target.value }); log("filter_mileage", { max: e.target.value }); }} style={selectStyle}>
+          <option value="">Any mileage</option>
+          <option value="30000">Under 30,000 mi</option>
+          <option value="60000">Under 60,000 mi</option>
+          <option value="100000">Under 100,000 mi</option>
+          <option value="150000">Under 150,000 mi</option>
         </select>
         <select value={filters.seller} onChange={(e) => setFilters({ ...filters, seller: e.target.value })} style={selectStyle}>
           <option value="">Any seller</option><option value="Private">Private party</option><option value="Dealer">Dealer</option>
@@ -393,8 +415,8 @@ function FilterBar({ filters, setFilters, count, sort, setSort, log }) {
           <option value="7">Last 7 days</option>
           <option value="30">Last 30 days</option>
         </select>
-        {(filters.query || filters.state || filters.make || filters.price || filters.seller || filters.age) && (
-          <button onClick={() => setFilters({ query: "", state: "", make: "", price: "", seller: "", age: "" })} style={{ ...selectStyle, cursor: "pointer", color: C.steel, display: "flex", alignItems: "center", gap: 4 }}><X size={13} /> Clear</button>
+        {(filters.query || filters.state || filters.make || filters.price || filters.mileage || filters.seller || filters.age) && (
+          <button onClick={() => setFilters({ query: "", state: "", make: "", price: "", mileage: "", seller: "", age: "" })} style={{ ...selectStyle, cursor: "pointer", color: C.steel, display: "flex", alignItems: "center", gap: 4 }}><X size={13} /> Clear</button>
         )}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 13, color: C.steel }}>{count} results</span>
@@ -409,7 +431,7 @@ function FilterBar({ filters, setFilters, count, sort, setSort, log }) {
 
 // ---------- Home ----------
 function Home({ setView, allListings, log, openListing }) {
-  const [filters, setFilters] = useState({ query: "", state: "", make: "", price: "", seller: "", age: "" });
+  const [filters, setFilters] = useState({ query: "", state: "", make: "", price: "", mileage: "", seller: "", age: "" });
   const [sort, setSort] = useState("new");
   const filtered = useMemo(() => {
     let list = allListings.filter((c) => {
@@ -417,6 +439,7 @@ function Home({ setView, allListings, log, openListing }) {
       if (filters.state && c.state !== filters.state) return false;
       if (filters.make && c.make !== filters.make) return false;
       if (filters.price && c.price > Number(filters.price)) return false;
+      if (filters.mileage && c.mileage > Number(filters.mileage)) return false;
       if (filters.seller && c.seller !== filters.seller) return false;
       if (filters.age) {
         const days = (Date.now() - new Date(c.created_at).getTime()) / 86400000;
@@ -456,7 +479,7 @@ function Home({ setView, allListings, log, openListing }) {
 function SavedSearchPrompt({ filters, log }) {
   const [email, setEmail] = useState("");
   const [saved, setSaved] = useState(false);
-  const hasFilters = filters.make || filters.state || filters.price;
+  const hasFilters = filters.make || filters.state || filters.price || filters.mileage;
 
   const submit = () => {
     if (!email.trim() || !email.includes("@")) return;
@@ -641,12 +664,12 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
           <div style={{ border: `1px solid ${C.line}`, borderRadius: 6, padding: 20 }}>
             <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.steel }}>{listing.year} {listing.make} {listing.model}</div>
             <div style={{ fontSize: 13, color: C.steel, marginTop: 2 }}>{listing.trim}</div>
-            <div style={{ fontFamily: FONT_HEAD, fontSize: "clamp(24px, 7vw, 30px)", color: C.ink, marginTop: 10 }}>{fmtPrice(listing.price)}</div>
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(24px, 7vw, 30px)", color: C.ink, marginTop: 10 }}>{fmtPrice(listing.price)}</div>
             {listing.fairness && (
               <div style={{ marginTop: 6 }}>
                 <FairnessBadge fairness={listing.fairness} />
                 <div style={{ fontSize: 11.5, color: C.steel, marginTop: 4 }}>
-                  {Math.abs(Math.round(listing.fairness.diffPct * 100))}% {listing.fairness.diffPct < 0 ? "below" : "above"} the average of {listing.fairness.compCount} similar {listing.fairness.compCount === 1 ? "listing" : "listings"} on Highway Lot
+                  {Math.abs(Math.round(listing.fairness.diffPct * 100))}% {listing.fairness.diffPct < 0 ? "below" : "above"} the average of {listing.fairness.compCount} similar {listing.fairness.compCount === 1 ? "listing" : "listings"} on HIGHWAYLOT
                 </div>
               </div>
             )}
@@ -672,7 +695,7 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
                 </div>
               )}
               <div style={{ fontSize: 11, color: C.steel, marginTop: 8, lineHeight: 1.5 }}>
-                Meet in a public place. Highway Lot doesn't handle payments or verify vehicles between buyers and sellers — see our <span style={{ textDecoration: "underline", cursor: "pointer" }} onClick={() => setView({ name: "terms" })}>terms</span>.
+                Meet in a public place. HIGHWAYLOT doesn't handle payments or verify vehicles between buyers and sellers — see our <span style={{ textDecoration: "underline", cursor: "pointer" }} onClick={() => setView({ name: "terms" })}>terms</span>.
               </div>
             </div>
             {!listing.featured && (
@@ -756,8 +779,9 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
   const [photos, setPhotos] = useState([]);
   const [damagePoints, setDamagePoints] = useState([]);
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
+  const [honeypot, setHoneypot] = useState(""); // bots fill this; real users never see it
   const [errors, setErrors] = useState({});
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const set = (k) => (e) => { setForm({ ...form, [k]: e.target.value }); if (errors[k]) setErrors({ ...errors, [k]: false }); };
 
   const addPhotos = (fileList) => {
     const files = Array.from(fileList).slice(0, 8 - photos.length);
@@ -774,6 +798,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
   }, [form.year, form.make, form.model, form.mileage, existingListings]);
 
   const submit = () => {
+    if (honeypot.trim() !== "") return; // bot filled the hidden field — silently drop, no error shown
     const req = ["year","make","model","price","mileage","city","state","phone","body"];
     const errs = {}; req.forEach((k) => { if (!String(form[k]).trim()) errs[k] = true; });
     if (photos.length < 3) errs.photos = true;
@@ -789,6 +814,12 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
       <span onClick={() => setView({ name: "home" })} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 12 }}><ChevronLeft size={15} /> Cancel</span>
       <h2 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: "0 0 4px" }}>Post your car</h2>
       <p style={{ color: C.steel, fontSize: 14, marginBottom: 24 }}>Listings are visible across the United States. Fields marked required.</p>
+
+      <input
+        type="text" name="company_website" value={honeypot} onChange={(e) => setHoneypot(e.target.value)}
+        tabIndex={-1} autoComplete="off" aria-hidden="true"
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+      />
 
       <Field label="Photos" required error={errors.photos}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
@@ -810,7 +841,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
 
       <div className="hl-form-grid" style={{ marginTop: 18 }}>
         <Field label="Year" required error={errors.year}><input value={form.year} onChange={set("year")} placeholder="2021" style={inputStyle} /></Field>
-        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm({ ...form, make: v })} onModelChange={(v) => setForm({ ...form, model: v })} errors={errors} />
+        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm({ ...form, make: v })} onModelChange={(v) => setForm({ ...form, model: v })} errors={errors} clearError={(k) => setErrors({ ...errors, [k]: false })} />
         <Field label="Trim"><input value={form.trim} onChange={set("trim")} placeholder="XLT" style={inputStyle} /></Field>
         <Field label="Price (USD)" required error={errors.price}><input value={form.price} onChange={set("price")} placeholder="24999" style={inputStyle} /></Field>
         <Field label="Mileage" required error={errors.mileage}><input value={form.mileage} onChange={set("mileage")} placeholder="42000" style={inputStyle} /></Field>
@@ -830,7 +861,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
         <div style={{ marginTop: 16, padding: 14, background: "#FFF3D6", borderRadius: 6, border: `1px solid ${C.yellow}` }}>
           <div style={{ fontSize: 13.5, color: C.yellowDark, fontWeight: 600, marginBottom: 4 }}>This looks like it might already be listed</div>
           <div style={{ fontSize: 12.5, color: "#6B4F00", marginBottom: 8 }}>
-            A {possibleDuplicate.year} {possibleDuplicate.make} {possibleDuplicate.model} with ~{fmtMiles(possibleDuplicate.mileage)} is already on Highway Lot ({possibleDuplicate.posted}). If this is a different car, just confirm below.
+            A {possibleDuplicate.year} {possibleDuplicate.make} {possibleDuplicate.model} with ~{fmtMiles(possibleDuplicate.mileage)} is already on HIGHWAYLOT ({possibleDuplicate.posted}). If this is a different car, just confirm below.
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#6B4F00", cursor: "pointer" }}>
             <input type="checkbox" checked={confirmDuplicate} onChange={(e) => setConfirmDuplicate(e.target.checked)} />
@@ -959,12 +990,27 @@ function QuizResults({ answers, allListings, openListing, setView }) {
   const bodyPref = BODY_MAP[answers.household] || "Sedan";
   const maxPrice = BUDGET_MAP[answers.budget] || 40000;
   const matches = allListings.filter((c) => c.body === bodyPref && c.price <= maxPrice).slice(0, 6);
+  const [shared, setShared] = useState(false);
+
+  const shareResult = async () => {
+    const text = `I'm a ${archetype.name} on HIGHWAYLOT! Find out what you are:`;
+    const url = `${window.location.origin}${window.location.pathname}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: "HIGHWAYLOT", text, url }); } catch (e) { /* user cancelled, ignore */ }
+    } else {
+      navigator.clipboard.writeText(`${text} ${url}`).then(() => { setShared(true); setTimeout(() => setShared(false), 2000); });
+    }
+  };
+
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "48px 20px 60px" }}>
       <div style={{ textAlign: "center", marginBottom: 30 }}>
         <div style={{ fontSize: 13, color: C.steel }}>Your result</div>
         <h2 style={{ fontFamily: FONT_HEAD, fontSize: 32, color: C.ink, margin: "6px 0" }}>You're a {archetype.name}</h2>
-        <p style={{ color: C.steel, fontSize: 14.5, maxWidth: 440, margin: "0 auto" }}>{archetype.blurb}</p>
+        <p style={{ color: C.steel, fontSize: 14.5, maxWidth: 440, margin: "0 auto 16px" }}>{archetype.blurb}</p>
+        <button onClick={shareResult} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
+          <Star size={15} /> {shared ? "Copied — go paste it!" : "Share my result"}
+        </button>
       </div>
       {matches.length === 0 ? (
         <div style={{ textAlign: "center", color: C.steel }}>No exact matches in your budget right now — try browsing all listings.</div>
@@ -1075,7 +1121,7 @@ function MechanicalChecklist({ issues, onChange }) {
 }
 
 // Depreciation-curve baseline, adjusted for mileage vs. expected mileage for
-// the car's age, then blended with real comps from Highway Lot's own listings
+// the car's age, then blended with real comps from HIGHWAYLOT's own listings
 // once there are enough of them. Confidence is shown honestly rather than
 // presenting an early, comp-starved guess as certain.
 function estimateValue(input, allListings, issues = {}) {
@@ -1118,7 +1164,7 @@ function ValueMyCar({ allListings, log, setView }) {
   const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
   const [errors, setErrors] = useState({});
-  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+  const set = (k) => (e) => { setForm({ ...form, [k]: e.target.value }); if (errors[k]) setErrors({ ...errors, [k]: false }); };
 
   const submit = async () => {
     const req = ["year", "make", "model", "mileage", "originalPrice"];
@@ -1141,11 +1187,11 @@ function ValueMyCar({ allListings, log, setView }) {
         <DollarSign size={22} color={C.ink} />
         <h2 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: 0 }}>What's your car worth?</h2>
       </div>
-      <p style={{ color: C.steel, fontSize: 14, marginBottom: 24 }}>A real estimate built from depreciation data and actual Highway Lot listings — not a guess.</p>
+      <p style={{ color: C.steel, fontSize: 14, marginBottom: 24 }}>A real estimate built from depreciation data and actual HIGHWAYLOT listings — not a guess.</p>
 
       <div className="hl-form-grid">
         <Field label="Year" required error={errors.year}><input value={form.year} onChange={set("year")} placeholder="2019" style={inputStyle} /></Field>
-        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm({ ...form, make: v })} onModelChange={(v) => setForm({ ...form, model: v })} errors={errors} />
+        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm({ ...form, make: v })} onModelChange={(v) => setForm({ ...form, model: v })} errors={errors} clearError={(k) => setErrors({ ...errors, [k]: false })} />
         <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={set("mileage")} placeholder="52000" style={inputStyle} /></Field>
         <Field label="Original price paid" required error={errors.originalPrice}><input value={form.originalPrice} onChange={set("originalPrice")} placeholder="28000" style={inputStyle} /></Field>
         <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
@@ -1165,14 +1211,14 @@ function ValueMyCar({ allListings, log, setView }) {
       {result && (
         <div style={{ marginTop: 28, border: `1px solid ${C.line}`, borderRadius: 8, padding: 24, textAlign: "center" }}>
           <div style={{ fontSize: 12.5, color: C.steel, textTransform: "uppercase", letterSpacing: 0.4 }}>Estimated value</div>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: "clamp(28px, 9vw, 40px)", color: C.ink, margin: "8px 0" }}>{fmtPrice(result.estimate)}</div>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(28px, 9vw, 40px)", color: C.ink, margin: "8px 0" }}>{fmtPrice(result.estimate)}</div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             <Badge tone={result.confidence === "High" ? "verified" : result.confidence === "Medium" ? "yellow" : "neutral"}>{result.confidence} confidence</Badge>
           </div>
           <div style={{ fontSize: 12.5, color: C.steel, marginTop: 12, lineHeight: 1.5 }}>
             {result.compCount > 0
-              ? `Based on depreciation modeling plus ${result.compCount} similar ${result.compCount === 1 ? "listing" : "listings"} currently on Highway Lot.`
-              : "Based on depreciation modeling only — no similar listings on Highway Lot yet to compare against. Estimates get sharper as more real cars get listed."}
+              ? `Based on depreciation modeling plus ${result.compCount} similar ${result.compCount === 1 ? "listing" : "listings"} currently on HIGHWAYLOT.`
+              : "Based on depreciation modeling only — no similar listings on HIGHWAYLOT yet to compare against. Estimates get sharper as more real cars get listed."}
           </div>
 
           {result.mechanicalDeduction > 0 && (
@@ -1251,14 +1297,14 @@ function ManagePage({ idParam, token, setView }) {
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
       <div style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.ink, marginBottom: 8 }}>This link isn't valid</div>
       <p style={{ color: C.steel, fontSize: 14 }}>Either the listing's already been removed, or this management link is incorrect.</p>
-      <button onClick={goHome} style={{ marginTop: 16, background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Back to Highway Lot</button>
+      <button onClick={goHome} style={{ marginTop: 16, background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Back to HIGHWAYLOT</button>
     </div>
   );
   if (status === "deleted") return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
       <div style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.ink, marginBottom: 8 }}>Listing deleted</div>
-      <p style={{ color: C.steel, fontSize: 14 }}>It's no longer visible on Highway Lot.</p>
-      <button onClick={goHome} style={{ marginTop: 16, background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Back to Highway Lot</button>
+      <p style={{ color: C.steel, fontSize: 14 }}>It's no longer visible on HIGHWAYLOT.</p>
+      <button onClick={goHome} style={{ marginTop: 16, background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Back to HIGHWAYLOT</button>
     </div>
   );
 
@@ -1276,7 +1322,7 @@ function ManagePage({ idParam, token, setView }) {
         <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: "#A32D2D", marginBottom: 6 }}>Danger zone</div>
         <button onClick={deleteListing} style={{ background: "#FBE4E3", color: "#A32D2D", border: "none", borderRadius: 4, padding: "10px 18px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Delete this listing</button>
       </div>
-      <span onClick={goHome} style={{ display: "inline-block", marginTop: 24, color: C.steel, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>Back to Highway Lot</span>
+      <span onClick={goHome} style={{ display: "inline-block", marginTop: 24, color: C.steel, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>Back to HIGHWAYLOT</span>
     </div>
   );
 }
@@ -1290,10 +1336,10 @@ function Terms({ setView }) {
       </div>
       <p style={{ color: C.steel, fontSize: 13, marginBottom: 20 }}>Plain-language summary — the full legal terms would live here before launch.</p>
       {[
-        ["We're a listing platform, not a party to any sale.", "Highway Lot connects buyers and sellers. We are not involved in, and do not facilitate, the actual exchange of money or the vehicle."],
+        ["We're a listing platform, not a party to any sale.", "HIGHWAYLOT connects buyers and sellers. We are not involved in, and do not facilitate, the actual exchange of money or the vehicle."],
         ["We don't verify listings.", "We don't inspect vehicles, confirm seller identity, or check vehicle history unless explicitly noted on a listing. Buyers are responsible for their own due diligence."],
-        ["No ID required to list or browse.", "You don't need to submit identification to use Highway Lot. Contact info is only shared when you choose to reveal it."],
-        ["Transactions are at your own risk.", "Meet in public, verify the vehicle in person, and use secure payment methods. Highway Lot does not mediate disputes between buyers and sellers."],
+        ["No ID required to list or browse.", "You don't need to submit identification to use HIGHWAYLOT. Contact info is only shared when you choose to reveal it."],
+        ["Transactions are at your own risk.", "Meet in public, verify the vehicle in person, and use secure payment methods. HIGHWAYLOT does not mediate disputes between buyers and sellers."],
       ].map(([title, body], i) => (
         <div key={i} style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 4 }}>{title}</div>
@@ -1308,9 +1354,9 @@ function Terms({ setView }) {
 // ---------- Footer ----------
 function Footer({ setView }) {
   return (
-    <div style={{ background: C.ink, borderTop: `3px solid ${C.yellow}`, marginTop: 40 }}>
+    <div style={{ background: C.ink, borderTop: `4px solid ${C.yellow}`, marginTop: 40 }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "26px 20px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12.5 }}>Highway Lot — buy and sell cars nationwide.</div>
+        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12.5 }}>HIGHWAYLOT — buy and sell cars nationwide.</div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <span onClick={() => setView({ name: "terms" })} style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>Terms</span>
           <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>United States only, for now.</div>
@@ -1418,7 +1464,7 @@ export default function App() {
   return (
     <div style={{ fontFamily: FONT_BODY, background: C.paper, minHeight: "100%" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
         select { -webkit-appearance: none; appearance: none; }
         .hl-detail-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 32px; }
         .hl-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
