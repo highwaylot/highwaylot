@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Search, MapPin, Gauge, Fuel, Calendar, X, Plus, ChevronLeft, ChevronRight,
   ShieldCheck, Phone, SlidersHorizontal, Car as CarIcon, Check, Star,
-  TrendingUp, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign
+  TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign, Info
 } from "lucide-react";
 import { supabase } from "./lib/supabaseClient";
 
@@ -40,6 +40,27 @@ seed = seed.map((c, i) => ({ ...c, id: i + 1 }));
 
 const fmtPrice = (n) => "$" + n.toLocaleString("en-US");
 const fmtMiles = (n) => n.toLocaleString("en-US") + " mi";
+
+// Compares a listing's price against real comps already on the site (same
+// make/model, within 2 model years). Needs at least 2 comps to say anything —
+// otherwise it honestly shows nothing rather than a guess.
+function estimateFairness(listing, allListings) {
+  const comps = allListings.filter((c) => c.id !== listing.id && c.make === listing.make && c.model === listing.model && Math.abs(c.year - listing.year) <= 2);
+  if (comps.length < 2) return null;
+  const avg = comps.reduce((s, c) => s + c.price, 0) / comps.length;
+  const diffPct = (listing.price - avg) / avg;
+  let verdict, tone;
+  if (diffPct <= -0.07) { verdict = "Good deal"; tone = "verified"; }
+  else if (diffPct >= 0.07) { verdict = "Above market"; tone = "yellow"; }
+  else { verdict = "Fair price"; tone = "neutral"; }
+  return { verdict, tone, diffPct, compCount: comps.length, avg };
+}
+
+function FairnessBadge({ fairness, size = "small" }) {
+  if (!fairness) return null;
+  const Icon = fairness.diffPct <= -0.07 ? TrendingDown : fairness.diffPct >= 0.07 ? TrendingUp : Info;
+  return <Badge tone={fairness.tone}><Icon size={11} />{fairness.verdict}</Badge>;
+}
 
 // ---------- Analytics ----------
 // Every call writes a real row into Supabase's `events` table. Fire-and-forget:
@@ -87,9 +108,10 @@ function ListingCard({ listing, onOpen }) {
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={13} />{listing.city}, {stateAbbr(listing.state)}</span>
         </div>
         <div style={{ fontSize: 11.5, color: C.steel, marginTop: 4 }}>Listed {listing.posted}</div>
-        <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+        <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
           {listing.verified && <Badge tone="verified"><ShieldCheck size={11} />Verified</Badge>}
           <Badge tone="neutral">{listing.seller}</Badge>
+          <FairnessBadge fairness={listing.fairness} />
         </div>
       </div>
     </div>
@@ -307,6 +329,105 @@ function Home({ setView, allListings, log, openListing }) {
   );
 }
 
+// ---------- Damage diagram ----------
+// Top-down 2D diagram, not a rotatable 3D model — true 3D would need licensed
+// car models and a 3D engine, which isn't realistic to fake with placeholder
+// assets. This gets the actual job done: click a spot, mark what's wrong there.
+function getShapeType(bodyType) {
+  if (bodyType === "Truck") return "truck";
+  if (bodyType === "SUV" || bodyType === "Wagon") return "suv";
+  return "sedan"; // covers Sedan, Coupe
+}
+function CarShapeSvg({ shape }) {
+  const wheels = (positions) => positions.map((p, i) => <rect key={i} x={p[0]} y={p[1]} width={14} height={22} rx={3} fill={C.steel} opacity={0.5} />);
+  if (shape === "truck") {
+    return (
+      <g>
+        <rect x={20} y={40} width={110} height={70} rx={10} fill="#EFEDE4" stroke={C.line} />
+        <rect x={140} y={50} width={160} height={55} rx={6} fill="#EFEDE4" stroke={C.line} />
+        {wheels([[35, 20], [35, 108], [250, 20], [250, 108]])}
+      </g>
+    );
+  }
+  if (shape === "suv") {
+    return (
+      <g>
+        <rect x={20} y={35} width={280} height={80} rx={16} fill="#EFEDE4" stroke={C.line} />
+        {wheels([[45, 18], [45, 110], [235, 18], [235, 110]])}
+      </g>
+    );
+  }
+  // sedan / coupe
+  return (
+    <g>
+      <path d="M 30 75 Q 30 45 70 42 L 110 30 Q 160 22 210 30 L 250 42 Q 290 45 290 75 Q 290 100 260 105 L 60 105 Q 30 100 30 75 Z" fill="#EFEDE4" stroke={C.line} />
+      {wheels([[55, 18], [55, 110], [225, 18], [225, 110]])}
+    </g>
+  );
+}
+function DamagePicker({ bodyType, points, onAddPoint, onRemovePoint, editable = true }) {
+  const svgRef = useRef(null);
+  const [pending, setPending] = useState(null);
+  const [note, setNote] = useState("");
+  const [severity, setSeverity] = useState("Minor");
+  const shape = getShapeType(bodyType);
+
+  const handleClick = (e) => {
+    if (!editable) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 320;
+    const y = ((e.clientY - rect.top) / rect.height) * 150;
+    setPending({ x, y });
+    setNote(""); setSeverity("Minor");
+  };
+  const confirm = () => {
+    if (!note.trim()) return;
+    onAddPoint({ x: pending.x, y: pending.y, note: note.trim(), severity });
+    setPending(null);
+  };
+
+  return (
+    <div>
+      <svg ref={svgRef} viewBox="0 0 320 150" onClick={handleClick} style={{ width: "100%", maxWidth: 420, background: "#FAFAF6", borderRadius: 8, cursor: editable ? "crosshair" : "default", display: "block", border: `1px solid ${C.line}` }}>
+        <CarShapeSvg shape={shape} />
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle cx={p.x} cy={p.y} r={8} fill={p.severity === "Major" ? "#E24B4A" : p.severity === "Moderate" ? C.yellow : C.steel} stroke={C.ink} strokeWidth={1.25} />
+            <text x={p.x} y={p.y + 3.5} fontSize={9} textAnchor="middle" fill="#fff" fontWeight="bold">{i + 1}</text>
+            <title>{p.severity}: {p.note}</title>
+          </g>
+        ))}
+        {pending && <circle cx={pending.x} cy={pending.y} r={8} fill="none" stroke={C.ink} strokeDasharray="3,2" />}
+      </svg>
+
+      {editable && pending && (
+        <div style={{ marginTop: 10, padding: 12, border: `1px solid ${C.line}`, borderRadius: 6, maxWidth: 420 }}>
+          <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 6 }}>What's the damage here?</div>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Small dent, scratch on paint" style={inputStyle} />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <select value={severity} onChange={(e) => setSeverity(e.target.value)} style={inputStyle}><option>Minor</option><option>Moderate</option><option>Major</option></select>
+            <button onClick={confirm} style={{ background: C.yellow, border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, cursor: "pointer", whiteSpace: "nowrap" }}>Add</button>
+            <button onClick={() => setPending(null)} style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "0 12px", cursor: "pointer" }}><X size={13} /></button>
+          </div>
+        </div>
+      )}
+      {points.length > 0 && (
+        <div style={{ marginTop: 10, maxWidth: 420 }}>
+          {points.map((p, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, color: C.steel, padding: "4px 0" }}>
+              <span>#{i + 1} — <strong style={{ color: C.ink }}>{p.severity}</strong>: {p.note}</span>
+              {editable && <span onClick={() => onRemovePoint(i)} style={{ cursor: "pointer", color: "#B23A3A" }}><X size={13} /></span>}
+            </div>
+          ))}
+        </div>
+      )}
+      {editable && points.length === 0 && !pending && (
+        <div style={{ fontSize: 12, color: C.steel, marginTop: 8 }}>Click anywhere on the car to mark a scratch, dent, or other damage. Optional — skip if the car has none to report.</div>
+      )}
+    </div>
+  );
+}
+
 // ---------- Listing detail + boost ----------
 function ListingDetail({ id, setView, allListings, onBoost, log }) {
   const [revealed, setRevealed] = useState(false);
@@ -351,12 +472,26 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
             <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 8 }}>Description</div>
             <p style={{ fontSize: 14.5, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>{listing.desc}</p>
           </div>
+          {listing.damage_points && listing.damage_points.length > 0 && (
+            <div style={{ marginTop: 26, borderTop: `1px solid ${C.line}`, paddingTop: 20 }}>
+              <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 12 }}>Damage report</div>
+              <DamagePicker bodyType={listing.body} points={listing.damage_points} editable={false} onAddPoint={() => {}} onRemovePoint={() => {}} />
+            </div>
+          )}
         </div>
         <div>
           <div style={{ border: `1px solid ${C.line}`, borderRadius: 6, padding: 20 }}>
             <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.steel }}>{listing.year} {listing.make} {listing.model}</div>
             <div style={{ fontSize: 13, color: C.steel, marginTop: 2 }}>{listing.trim}</div>
             <div style={{ fontFamily: FONT_HEAD, fontSize: 30, color: C.ink, marginTop: 10 }}>{fmtPrice(listing.price)}</div>
+            {listing.fairness && (
+              <div style={{ marginTop: 6 }}>
+                <FairnessBadge fairness={listing.fairness} />
+                <div style={{ fontSize: 11.5, color: C.steel, marginTop: 4 }}>
+                  {Math.abs(Math.round(listing.fairness.diffPct * 100))}% {listing.fairness.diffPct < 0 ? "below" : "above"} the average of {listing.fairness.compCount} similar {listing.fairness.compCount === 1 ? "listing" : "listings"} on Highway Lot
+                </div>
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, fontSize: 13, color: C.steel }}><MapPin size={13} /> {listing.city}, {stateAbbr(listing.state)}</div>
             <div style={{ fontSize: 12, color: C.steel, marginTop: 4 }}>Listed {listing.posted}</div>
             <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}` }}>
@@ -412,8 +547,9 @@ function BoostModal({ listing, onClose, onConfirm }) {
 
 // ---------- Post an ad (with photo requirement) ----------
 function PostAd({ setView, onSubmit }) {
-  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", desc:"", phone:"" });
+  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", desc:"", phone:"" });
   const [photos, setPhotos] = useState([]);
+  const [damagePoints, setDamagePoints] = useState([]);
   const [errors, setErrors] = useState({});
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -425,12 +561,12 @@ function PostAd({ setView, onSubmit }) {
   const removePhoto = (i) => setPhotos(photos.filter((_, idx) => idx !== i));
 
   const submit = () => {
-    const req = ["year","make","model","price","mileage","city","state","phone"];
+    const req = ["year","make","model","price","mileage","city","state","phone","body"];
     const errs = {}; req.forEach((k) => { if (!String(form[k]).trim()) errs[k] = true; });
     if (photos.length < 3) errs.photos = true;
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
-    onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), body: "Sedan", verified: false, posted: "Just now", featured: false, photos, desc: form.desc || "No additional description provided." });
+    onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), verified: false, posted: "Just now", featured: false, photos, damage_points: damagePoints, desc: form.desc || "No additional description provided." });
   };
 
   return (
@@ -470,8 +606,22 @@ function PostAd({ setView, onSubmit }) {
         </Field>
         <Field label="Seller type"><select value={form.seller} onChange={set("seller")} style={inputStyle}><option>Private</option><option>Dealer</option></select></Field>
         <Field label="Contact phone" required error={errors.phone}><input value={form.phone} onChange={set("phone")} placeholder="(555) 019-1234" style={inputStyle} /></Field>
+        <Field label="Body style" required error={errors.body}>
+          <select value={form.body} onChange={set("body")} style={inputStyle}><option value="">Select body style</option><option>Sedan</option><option>SUV</option><option>Truck</option><option>Coupe</option><option>Wagon</option></select>
+        </Field>
+        <Field label="Condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
       </div>
       <div style={{ marginTop: 14 }}><Field label="Description"><textarea value={form.desc} onChange={set("desc")} rows={4} style={{ ...inputStyle, resize: "vertical" }} /></Field></div>
+
+      <div style={{ marginTop: 18 }}>
+        <Field label="Damage report (optional)">
+          {form.body ? (
+            <DamagePicker bodyType={form.body} points={damagePoints} onAddPoint={(p) => setDamagePoints([...damagePoints, p])} onRemovePoint={(i) => setDamagePoints(damagePoints.filter((_, idx) => idx !== i))} />
+          ) : (
+            <div style={{ fontSize: 12.5, color: C.steel }}>Pick a body style above first.</div>
+          )}
+        </Field>
+      </div>
       <div style={{ fontSize: 11.5, color: C.steel, marginTop: 10 }}>
         We only share your phone number with buyers who request it, and it's never posted publicly. No ID or real name required to list.
       </div>
@@ -780,6 +930,8 @@ export default function App() {
 
   const openListing = (id) => { log("listing_view", { listingId: id }); setView({ name: "listing", id }); };
 
+  const enrichedListings = useMemo(() => listings.map((l) => ({ ...l, fairness: estimateFairness(l, listings) })), [listings]);
+
   const handlePostSubmit = async (data) => {
     const { desc, ...rest } = data;
     const { data: inserted, error } = await supabase.from("listings").insert({ ...rest, description: desc }).select().single();
@@ -819,13 +971,13 @@ export default function App() {
         select { -webkit-appearance: none; appearance: none; }
       `}</style>
       <TopBar view={view} setView={setView} onPost={() => setView({ name: "post" })} />
-      {view.name === "home" && <Home setView={setView} allListings={listings} log={log} openListing={openListing} />}
-      {view.name === "category" && <CategoryPage category={view.category} listings={listings} openListing={openListing} setView={setView} />}
-      {view.name === "listing" && <ListingDetail id={view.id} setView={setView} allListings={listings} onBoost={handleBoost} log={log} />}
+      {view.name === "home" && <Home setView={setView} allListings={enrichedListings} log={log} openListing={openListing} />}
+      {view.name === "category" && <CategoryPage category={view.category} listings={enrichedListings} openListing={openListing} setView={setView} />}
+      {view.name === "listing" && <ListingDetail id={view.id} setView={setView} allListings={enrichedListings} onBoost={handleBoost} log={log} />}
       {view.name === "post" && <PostAd setView={setView} onSubmit={handlePostSubmit} />}
       {view.name === "success" && <Success setView={setView} listingId={lastPostedId} />}
       {view.name === "quiz" && <Quiz setView={setView} log={log} onComplete={handleQuizComplete} />}
-      {view.name === "quizResults" && <QuizResults answers={quizAnswers} allListings={listings} openListing={openListing} setView={setView} />}
+      {view.name === "quizResults" && <QuizResults answers={quizAnswers} allListings={enrichedListings} openListing={openListing} setView={setView} />}
       {view.name === "terms" && <Terms setView={setView} />}
       {view.name === "value" && <ValueMyCar allListings={listings} log={log} setView={setView} />}
       <Footer setView={setView} />
