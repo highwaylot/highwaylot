@@ -4,6 +4,7 @@ import {
   ShieldCheck, Phone, SlidersHorizontal, Car as CarIcon, Check, Star,
   TrendingUp, Zap, BarChart3, Building2, Camera, Lock, FileText
 } from "lucide-react";
+import { Analytics } from '@vercel/analytics/react';
 
 // ---------- Design tokens ----------
 const C = {
@@ -675,6 +676,7 @@ export default function App() {
       {view.name === "dealer" && <DealerPage log={log} />}
       {view.name === "terms" && <Terms setView={setView} />}
       <Footer setView={setView} />
+      <Analytics />
     </div>
   );
 }
