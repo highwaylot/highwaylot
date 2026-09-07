@@ -87,7 +87,7 @@ function CarThumb({ make, body, size = "normal" }) {
   );
 }
 function Badge({ children, tone = "neutral" }) {
-  const tones = { neutral: { bg: "#EFEDE4", color: C.steel }, verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "#FFF3D6", color: C.yellowDark } };
+  const tones = { neutral: { bg: "#EFEDE4", color: C.steel }, verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "#FFF3D6", color: C.yellowDark }, danger: { bg: "#FBE4E3", color: "#A32D2D" } };
   const t = tones[tone];
   return <span style={{ background: t.bg, color: t.color, fontSize: 12, fontWeight: 600, padding: "3px 9px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}>{children}</span>;
 }
@@ -766,11 +766,73 @@ function DealerPage({ log }) {
 }
 
 // ---------- Value my car ----------
+// Rough repair-cost ceilings per system — real shop quotes vary a lot by
+// region and specific failure, so these are reasonable US-average ballparks,
+// not a substitute for an actual mechanic's diagnosis.
+const MECHANICAL_SYSTEMS = [
+  { key: "engine", label: "Engine", max: 4000 },
+  { key: "transmission", label: "Transmission", max: 2500 },
+  { key: "body", label: "Body / frame", max: 2000 },
+  { key: "suspension", label: "Suspension / axle", max: 1200 },
+  { key: "electrical", label: "Electrical", max: 800 },
+  { key: "ac", label: "AC / heating", max: 600 },
+  { key: "brakes", label: "Brakes", max: 500 },
+];
+const STATUS_OPTIONS = [
+  { key: "Fixed", tone: "verified", weight: 0 },
+  { key: "Ongoing", tone: "yellow", weight: 0.35 },
+  { key: "Broken", tone: "danger", weight: 1 },
+];
+
+function computeMechanicalDeduction(issues) {
+  const breakdown = [];
+  let total = 0;
+  MECHANICAL_SYSTEMS.forEach((sys) => {
+    const status = issues[sys.key];
+    if (!status) return;
+    const opt = STATUS_OPTIONS.find((o) => o.key === status);
+    const deduction = Math.round(sys.max * opt.weight);
+    if (deduction > 0) { breakdown.push({ label: sys.label, status, deduction }); total += deduction; }
+    else breakdown.push({ label: sys.label, status, deduction: 0 });
+  });
+  return { total, breakdown };
+}
+
+function MechanicalChecklist({ issues, onChange }) {
+  return (
+    <div>
+      {MECHANICAL_SYSTEMS.map((sys) => (
+        <div key={sys.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+          <span style={{ fontSize: 13.5, color: C.ink }}>{sys.label}</span>
+          <div style={{ display: "flex", gap: 6 }}>
+            {STATUS_OPTIONS.map((opt) => {
+              const active = issues[sys.key] === opt.key;
+              const activeColors = { verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "#FFF3D6", color: C.yellowDark }, danger: { bg: "#FBE4E3", color: "#A32D2D" } };
+              const c = activeColors[opt.tone];
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => onChange({ ...issues, [sys.key]: active ? undefined : opt.key })}
+                  style={{
+                    fontSize: 11.5, padding: "5px 10px", borderRadius: 4, cursor: "pointer",
+                    border: active ? "none" : `1px solid ${C.line}`,
+                    background: active ? c.bg : "#fff", color: active ? c.color : C.steel, fontWeight: active ? 600 : 400,
+                  }}
+                >{opt.key === "Ongoing" ? "Ongoing/okay" : opt.key}</button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Depreciation-curve baseline, adjusted for mileage vs. expected mileage for
 // the car's age, then blended with real comps from Highway Lot's own listings
 // once there are enough of them. Confidence is shown honestly rather than
 // presenting an early, comp-starved guess as certain.
-function estimateValue(input, allListings) {
+function estimateValue(input, allListings, issues = {}) {
   const age = Math.max(new Date().getFullYear() - input.year, 0);
   // Rough depreciation curve: ~20% year one, ~12%/year after, floored at 15% of original.
   let retained = 1;
@@ -796,11 +858,18 @@ function estimateValue(input, allListings) {
     confidence = comps.length >= 5 ? "High" : comps.length >= 2 ? "Medium" : "Low";
   }
 
-  return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length };
+  const { total: mechanicalDeduction, breakdown } = computeMechanicalDeduction(issues);
+  // Floor the final number so a pile of deductions can't push it to $0 or negative —
+  // a car is worth at least scrap/parts value even in bad shape.
+  const floor = Math.max(estimate * 0.1, 400);
+  estimate = Math.max(estimate - mechanicalDeduction, floor);
+
+  return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown };
 }
 
 function ValueMyCar({ allListings, log, setView }) {
   const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "" });
+  const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
   const [errors, setErrors] = useState({});
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
@@ -812,10 +881,10 @@ function ValueMyCar({ allListings, log, setView }) {
     if (Object.keys(errs).length > 0) return;
 
     const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice) };
-    const res = estimateValue(input, allListings);
+    const res = estimateValue(input, allListings, issues);
     setResult(res);
-    log("valuation_submitted", input);
-    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence }).then(({ error }) => {
+    log("valuation_submitted", { ...input, issues });
+    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues }).then(({ error }) => {
       if (error) console.error("valuation save failed:", error.message);
     });
   };
@@ -834,7 +903,12 @@ function ValueMyCar({ allListings, log, setView }) {
         <Field label="Model" required error={errors.model}><input value={form.model} onChange={set("model")} placeholder="Camry" style={inputStyle} /></Field>
         <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={set("mileage")} placeholder="52000" style={inputStyle} /></Field>
         <Field label="Original price paid" required error={errors.originalPrice}><input value={form.originalPrice} onChange={set("originalPrice")} placeholder="28000" style={inputStyle} /></Field>
-        <Field label="Condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
+        <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
+      </div>
+
+      <div style={{ marginTop: 22 }}>
+        <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 4 }}>Known issues (optional) — flag anything specific and we'll factor it in</div>
+        <MechanicalChecklist issues={issues} onChange={setIssues} />
       </div>
 
       <button onClick={submit} style={{ marginTop: 20, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: "pointer" }}>Get my estimate</button>
@@ -851,6 +925,24 @@ function ValueMyCar({ allListings, log, setView }) {
               ? `Based on depreciation modeling plus ${result.compCount} similar ${result.compCount === 1 ? "listing" : "listings"} currently on Highway Lot.`
               : "Based on depreciation modeling only — no similar listings on Highway Lot yet to compare against. Estimates get sharper as more real cars get listed."}
           </div>
+
+          {result.mechanicalDeduction > 0 && (
+            <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}`, textAlign: "left" }}>
+              <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 8, textAlign: "center" }}>
+                <strong style={{ color: "#A32D2D" }}>-{fmtPrice(result.mechanicalDeduction)}</strong> knocked off for known issues
+              </div>
+              {result.breakdown.filter((b) => b.deduction > 0).map((b, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
+                  <span>{b.label} — {b.status === "Broken" ? "not working" : "ongoing issue"}</span>
+                  <span style={{ color: "#A32D2D" }}>-{fmtPrice(b.deduction)}</span>
+                </div>
+              ))}
+              <div style={{ fontSize: 11, color: C.steel, marginTop: 8 }}>
+                Rough repair-cost estimates, not a mechanic's quote — actual costs vary by shop and region.
+              </div>
+            </div>
+          )}
+
           <button onClick={() => setView({ name: "post" })} style={{ marginTop: 16, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>List this car</button>
         </div>
       )}
