@@ -86,6 +86,7 @@ function ListingCard({ listing, onOpen }) {
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Gauge size={13} />{fmtMiles(listing.mileage)}</span>
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={13} />{listing.city}, {stateAbbr(listing.state)}</span>
         </div>
+        <div style={{ fontSize: 11.5, color: C.steel, marginTop: 4 }}>Listed {listing.posted}</div>
         <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
           {listing.verified && <Badge tone="verified"><ShieldCheck size={11} />Verified</Badge>}
           <Badge tone="neutral">{listing.seller}</Badge>
@@ -186,7 +187,6 @@ function TopBar({ view, setView, onPost }) {
         <div style={{ display: "flex", gap: 18, flex: 1 }}>
           <NavLink label="Browse" active={["home","listing","category"].includes(view.name)} onClick={() => setView({ name: "home" })} />
           <NavLink label="Find my car" active={["quiz","quizResults"].includes(view.name)} onClick={() => setView({ name: "quiz" })} />
-          <NavLink label="Dealers" active={view.name === "dealer"} onClick={() => setView({ name: "dealer" })} />
         </div>
         <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 16px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
           <Plus size={16} strokeWidth={2.5} /> Post an ad
@@ -241,8 +241,14 @@ function FilterBar({ filters, setFilters, count, sort, setSort, log }) {
         <select value={filters.seller} onChange={(e) => setFilters({ ...filters, seller: e.target.value })} style={selectStyle}>
           <option value="">Any seller</option><option value="Private">Private party</option><option value="Dealer">Dealer</option>
         </select>
-        {(filters.query || filters.state || filters.make || filters.price || filters.seller) && (
-          <button onClick={() => setFilters({ query: "", state: "", make: "", price: "", seller: "" })} style={{ ...selectStyle, cursor: "pointer", color: C.steel, display: "flex", alignItems: "center", gap: 4 }}><X size={13} /> Clear</button>
+        <select value={filters.age} onChange={(e) => { setFilters({ ...filters, age: e.target.value }); log("filter_age", { age: e.target.value }); }} style={selectStyle}>
+          <option value="">Listed anytime</option>
+          <option value="1">Last 24 hours</option>
+          <option value="7">Last 7 days</option>
+          <option value="30">Last 30 days</option>
+        </select>
+        {(filters.query || filters.state || filters.make || filters.price || filters.seller || filters.age) && (
+          <button onClick={() => setFilters({ query: "", state: "", make: "", price: "", seller: "", age: "" })} style={{ ...selectStyle, cursor: "pointer", color: C.steel, display: "flex", alignItems: "center", gap: 4 }}><X size={13} /> Clear</button>
         )}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 13, color: C.steel }}>{count} results</span>
@@ -257,7 +263,7 @@ function FilterBar({ filters, setFilters, count, sort, setSort, log }) {
 
 // ---------- Home ----------
 function Home({ setView, allListings, log, openListing }) {
-  const [filters, setFilters] = useState({ query: "", state: "", make: "", price: "", seller: "" });
+  const [filters, setFilters] = useState({ query: "", state: "", make: "", price: "", seller: "", age: "" });
   const [sort, setSort] = useState("new");
   const filtered = useMemo(() => {
     let list = allListings.filter((c) => {
@@ -266,6 +272,10 @@ function Home({ setView, allListings, log, openListing }) {
       if (filters.make && c.make !== filters.make) return false;
       if (filters.price && c.price > Number(filters.price)) return false;
       if (filters.seller && c.seller !== filters.seller) return false;
+      if (filters.age) {
+        const days = (Date.now() - new Date(c.created_at).getTime()) / 86400000;
+        if (days > Number(filters.age)) return false;
+      }
       return true;
     });
     if (sort === "low") list = [...list].sort((a, b) => a.price - b.price);
@@ -283,7 +293,8 @@ function Home({ setView, allListings, log, openListing }) {
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px 60px" }}>
         {filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 0", color: C.steel }}>
-            <div style={{ fontFamily: FONT_HEAD, fontSize: 20, color: C.ink, marginBottom: 6 }}>No matches</div>Try widening your search or clearing a filter.
+            <div style={{ fontFamily: FONT_HEAD, fontSize: 20, color: C.ink, marginBottom: 6 }}>{allListings.length === 0 ? "No listings yet" : "No matches"}</div>
+            {allListings.length === 0 ? "Be the first to post a car." : "Try widening your search or clearing a filter."}
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
@@ -346,6 +357,7 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
             <div style={{ fontSize: 13, color: C.steel, marginTop: 2 }}>{listing.trim}</div>
             <div style={{ fontFamily: FONT_HEAD, fontSize: 30, color: C.ink, marginTop: 10 }}>{fmtPrice(listing.price)}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, fontSize: 13, color: C.steel }}><MapPin size={13} /> {listing.city}, {stateAbbr(listing.state)}</div>
+            <div style={{ fontSize: 12, color: C.steel, marginTop: 4 }}>Listed {listing.posted}</div>
             <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}` }}>
               {!revealed ? (
                 <button onClick={() => { setRevealed(true); log("contact_reveal", { listingId: listing.id }); }} style={{ width: "100%", background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "12px 0", fontFamily: FONT_HEAD, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Phone size={15} /> Contact seller</button>
@@ -667,15 +679,7 @@ export default function App() {
     (async () => {
       const { data, error } = await supabase.from("listings").select("*").order("created_at", { ascending: false });
       if (error) { console.error("fetch listings failed:", error.message); setLoading(false); return; }
-      if (data.length === 0) {
-        // First run — the table's empty, so seed it once with the starter inventory.
-        const seedRows = seed.map(({ id, desc, posted, ...rest }) => ({ ...rest, description: desc }));
-        const { data: inserted, error: seedErr } = await supabase.from("listings").insert(seedRows).select();
-        if (seedErr) { console.error("seed insert failed:", seedErr.message); setLoading(false); return; }
-        setListings(inserted.map(rowToListing));
-      } else {
-        setListings(data.map(rowToListing));
-      }
+      setListings(data.map(rowToListing));
       setLoading(false);
     })();
   }, []);
@@ -728,7 +732,6 @@ export default function App() {
       {view.name === "success" && <Success setView={setView} listingId={lastPostedId} />}
       {view.name === "quiz" && <Quiz setView={setView} log={log} onComplete={handleQuizComplete} />}
       {view.name === "quizResults" && <QuizResults answers={quizAnswers} allListings={listings} openListing={openListing} setView={setView} />}
-      {view.name === "dealer" && <DealerPage log={log} />}
       {view.name === "terms" && <Terms setView={setView} />}
       <Footer setView={setView} />
     </div>
