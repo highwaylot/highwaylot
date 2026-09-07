@@ -6,6 +6,21 @@ import {
 } from "lucide-react";
 import { supabase } from "./lib/supabaseClient";
 
+// Explicit column list, deliberately excluding manage_token — every query
+// against listings uses this instead of '*', since manage_token's SELECT
+// privilege is revoked for the public role in the database itself (see
+// schema.sql). Using '*' would actually error for that reason, which is
+// the point: even a bypass of this app's own code can't read the token.
+const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,damage_points,description,phone,photos,created_at";
+
+function generateToken() {
+  if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0, v = c === "x" ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 // ---------- Design tokens ----------
 const C = {
   ink: "#1B2431", paper: "#FAFAF6", yellow: "#F5B700", yellowDark: "#8A6600",
@@ -62,6 +77,39 @@ function FairnessBadge({ fairness, size = "small" }) {
   return <Badge tone={fairness.tone}><Icon size={11} />{fairness.verdict}</Badge>;
 }
 
+// Credibility score — real signals only, no guessing beyond what's in the
+// data. Flags: price way below comps combined with no reported damage and
+// good/excellent condition (the actual signature of a bait listing), a
+// likely duplicate elsewhere on the site, or a near-empty description.
+function computeCredibility(listing, allListings) {
+  const flags = [];
+  if (listing.fairness && listing.fairness.diffPct <= -0.4) {
+    const noIssuesReported = (!listing.damage_points || listing.damage_points.length === 0) && ["Excellent", "Good"].includes(listing.condition);
+    if (noIssuesReported) flags.push({ weight: 40, label: "Priced far below similar listings with no reported issues" });
+    else flags.push({ weight: 15, label: "Priced notably below similar listings" });
+  }
+  const duplicate = allListings.some((c) => c.id !== listing.id && c.year === listing.year && c.make === listing.make && c.model === listing.model && Math.abs(c.mileage - listing.mileage) < 500);
+  if (duplicate) flags.push({ weight: 25, label: "Matches another listing's year, make, model, and mileage closely" });
+  if (!listing.desc || listing.desc.trim().length < 20 || listing.desc === "No additional description provided.") {
+    flags.push({ weight: 10, label: "Little to no description provided" });
+  }
+  const totalWeight = flags.reduce((s, f) => s + f.weight, 0);
+  const level = totalWeight >= 40 ? "red" : totalWeight >= 15 ? "yellow" : "green";
+  return { level, flags };
+}
+function CredibilityDot({ credibility }) {
+  if (!credibility) return null;
+  const colors = { green: "#3B9E5F", yellow: C.yellow, red: "#E24B4A" };
+  const titles = { green: "No issues detected", yellow: "Worth a closer look before contacting", red: "Multiple red flags — verify carefully" };
+  const tooltip = credibility.flags.length > 0 ? credibility.flags.map((f) => f.label).join(". ") : titles[credibility.level];
+  return (
+    <span title={tooltip} style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11.5, color: C.steel }}>
+      <span style={{ width: 9, height: 9, borderRadius: "50%", background: colors[credibility.level], flexShrink: 0 }} />
+      {titles[credibility.level]}
+    </span>
+  );
+}
+
 // ---------- Analytics ----------
 // Every call writes a real row into Supabase's `events` table. Fire-and-forget:
 // we don't block the UI on it, and we don't read it back (no public read policy
@@ -91,6 +139,79 @@ function Badge({ children, tone = "neutral" }) {
   const t = tones[tone];
   return <span style={{ background: t.bg, color: t.color, fontSize: 12, fontWeight: 600, padding: "3px 9px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}>{children}</span>;
 }
+function OptionalTag() {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11.5, fontWeight: 700, color: C.steel, border: `1.5px dashed ${C.line}`, borderRadius: 20, padding: "3px 10px", letterSpacing: 0.3, textTransform: "uppercase" }}>
+      Optional — skip if unsure
+    </span>
+  );
+}
+const POPULAR_MAKES = ["Ford", "Toyota", "Honda", "Chevrolet", "Jeep", "Ram", "GMC", "Nissan", "Hyundai", "Kia", "Subaru", "Volkswagen", "BMW", "Mercedes-Benz", "Audi", "Lexus", "Mazda", "Dodge", "Chrysler", "Buick", "Cadillac", "Tesla", "Mitsubishi", "Volvo", "Acura"];
+
+// Make list is curated (the common ones people actually sell). Models are
+// fetched live from NHTSA's free public vPIC API for whichever make is
+// picked — real data, no maintenance on our end. "Other" always available
+// as an escape hatch on both fields so nobody's ever blocked from listing.
+function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors }) {
+  const [customMake, setCustomMake] = useState(Boolean(make) && !POPULAR_MAKES.includes(make));
+  const [customModel, setCustomModel] = useState(false);
+  const [models, setModels] = useState([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+
+  useEffect(() => {
+    if (customMake || !make) { setModels([]); return; }
+    setLoadingModels(true);
+    fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`)
+      .then((r) => r.json())
+      .then((data) => {
+        const names = Array.from(new Set((data.Results || []).map((m) => m.Model_Name))).sort();
+        setModels(names);
+      })
+      .catch(() => setModels([]))
+      .finally(() => setLoadingModels(false));
+  }, [make, customMake]);
+
+  const smallBtn = { fontSize: 11.5, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "0 10px", cursor: "pointer", color: C.steel, whiteSpace: "nowrap" };
+
+  return (
+    <>
+      <Field label="Make" required error={errors.make}>
+        {!customMake ? (
+          <select value={make} onChange={(e) => { if (e.target.value === "__other__") { setCustomMake(true); onMakeChange(""); } else { onMakeChange(e.target.value); setCustomModel(false); onModelChange(""); } }} style={inputStyle}>
+            <option value="">Select make</option>
+            {POPULAR_MAKES.map((m) => <option key={m} value={m}>{m}</option>)}
+            <option value="__other__">Other (type it in)</option>
+          </select>
+        ) : (
+          <div style={{ display: "flex", gap: 6 }}>
+            <input value={make} onChange={(e) => onMakeChange(e.target.value)} placeholder="Type the make" style={inputStyle} />
+            <button type="button" onClick={() => { setCustomMake(false); onMakeChange(""); }} style={smallBtn}>Use list</button>
+          </div>
+        )}
+      </Field>
+      <Field label="Model" required error={errors.model}>
+        {!customMake && !customModel ? (
+          <select
+            value={model}
+            onChange={(e) => { if (e.target.value === "__other__") { setCustomModel(true); onModelChange(""); } else { onModelChange(e.target.value); } }}
+            style={inputStyle}
+            disabled={!make || loadingModels}
+          >
+            <option value="">{loadingModels ? "Loading models…" : make ? "Select model" : "Pick a make first"}</option>
+            {models.map((m) => <option key={m} value={m}>{m}</option>)}
+            <option value="__other__">Other (type it in)</option>
+          </select>
+        ) : (
+          <div style={{ display: "flex", gap: 6 }}>
+            <input value={model} onChange={(e) => onModelChange(e.target.value)} placeholder="Type the model" style={inputStyle} />
+            {!customMake && <button type="button" onClick={() => { setCustomModel(false); onModelChange(""); }} style={smallBtn}>Use list</button>}
+          </div>
+        )}
+      </Field>
+    </>
+  );
+}
+
 const selectStyle = { border: `1px solid ${C.line}`, borderRadius: 4, padding: "7px 10px", fontSize: 13, color: C.ink, background: "#fff", fontFamily: FONT_BODY };
 const inputStyle = { width: "100%", border: `1px solid ${C.line}`, borderRadius: 4, padding: "9px 10px", fontSize: 14, color: C.ink, fontFamily: FONT_BODY, boxSizing: "border-box", background: "#fff" };
 
@@ -108,6 +229,7 @@ function ListingCard({ listing, onOpen }) {
           <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={13} />{listing.city}, {stateAbbr(listing.state)}</span>
         </div>
         <div style={{ fontSize: 11.5, color: C.steel, marginTop: 4 }}>Listed {listing.posted}</div>
+        <div style={{ marginTop: 6 }}><CredibilityDot credibility={listing.credibility} /></div>
         <div style={{ marginTop: 10, display: "flex", gap: 6, flexWrap: "wrap" }}>
           {listing.verified && <Badge tone="verified"><ShieldCheck size={11} />Verified</Badge>}
           <Badge tone="neutral">{listing.seller}</Badge>
@@ -126,7 +248,7 @@ function FeaturedStrip({ listings, onOpen }) {
       <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.steel, letterSpacing: 0.5, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
         <Star size={14} color={C.yellow} fill={C.yellow} /> FEATURED LISTINGS
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${Math.min(featured.length, 3)}, 1fr)`, gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
         {featured.slice(0, 3).map((c) => (
           <div key={c.id} onClick={() => onOpen(c.id)} style={{ cursor: "pointer", border: `2px solid ${C.yellow}`, borderRadius: 6, overflow: "hidden", background: "#fff" }}>
             <CarThumb make={c.make} body={c.body} size="hero" />
@@ -148,19 +270,16 @@ function FeaturedStrip({ listings, onOpen }) {
 // in-app pages so you can see the concept before we rebuild the routing.
 function PopularSearches({ listings, onOpenCategory }) {
   const combos = useMemo(() => {
-    const map = {};
+    const bodyMap = {}, makeMap = {};
     listings.forEach((c) => {
-      const key = `${c.body}|${c.state}`;
-      map[key] = (map[key] || 0) + 1;
+      const bKey = `${c.body}|${c.state}`;
+      bodyMap[bKey] = (bodyMap[bKey] || 0) + 1;
+      const mKey = `${c.make}|${c.state}`;
+      makeMap[mKey] = (makeMap[mKey] || 0) + 1;
     });
-    return Object.entries(map)
-      .filter(([, count]) => count >= 1)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
-      .map(([key, count]) => {
-        const [body, state] = key.split("|");
-        return { body, state, count };
-      });
+    const bodyCombos = Object.entries(bodyMap).map(([key, count]) => { const [body, state] = key.split("|"); return { kind: "body", body, state, count }; });
+    const makeCombos = Object.entries(makeMap).map(([key, count]) => { const [make, state] = key.split("|"); return { kind: "make", make, state, count }; });
+    return [...bodyCombos, ...makeCombos].sort((a, b) => b.count - a.count).slice(0, 8);
   }, [listings]);
 
   return (
@@ -169,7 +288,7 @@ function PopularSearches({ listings, onOpenCategory }) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {combos.map((c, i) => (
           <button key={i} onClick={() => onOpenCategory(c)} style={{ border: `1px solid ${C.line}`, background: "#fff", borderRadius: 20, padding: "8px 14px", fontSize: 13, color: C.ink, cursor: "pointer" }}>
-            {c.body}s for sale in {c.state} ({c.count})
+            {c.kind === "body" ? `${c.body}s for sale in ${c.state}` : `${c.make}s for sale in ${c.state}`} ({c.count})
           </button>
         ))}
       </div>
@@ -178,20 +297,24 @@ function PopularSearches({ listings, onOpenCategory }) {
 }
 
 function CategoryPage({ category, listings, openListing, setView }) {
-  const matches = listings.filter((c) => c.body === category.body && c.state === category.state);
+  const matches = category.kind === "make"
+    ? listings.filter((c) => c.make === category.make && c.state === category.state)
+    : listings.filter((c) => c.body === category.body && c.state === category.state);
   const avgPrice = matches.length ? Math.round(matches.reduce((s, c) => s + c.price, 0) / matches.length) : 0;
+  const title = category.kind === "make" ? `${category.make}s for sale in ${category.state}` : `${category.body}s for sale in ${category.state}`;
+  const noun = category.kind === "make" ? category.make.toLowerCase() : category.body.toLowerCase();
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 20px 60px" }}>
       <span onClick={() => setView({ name: "home" })} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 16 }}><ChevronLeft size={15} /> Back to all listings</span>
-      <h1 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: "0 0 8px" }}>{category.body}s for sale in {category.state}</h1>
+      <h1 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: "0 0 8px" }}>{title}</h1>
       <p style={{ color: C.steel, fontSize: 14.5, maxWidth: 640, marginBottom: 24 }}>
-        {matches.length} {category.body.toLowerCase()}{matches.length === 1 ? "" : "s"} currently listed in {category.state}, averaging {fmtPrice(avgPrice)}. Updated automatically as sellers post and sell — this page is generated straight from live listing data.
+        {matches.length} {noun}{matches.length === 1 ? "" : "s"} currently listed in {category.state}, averaging {fmtPrice(avgPrice)}. Updated automatically as sellers post and sell — this page is generated straight from live listing data.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
         {matches.map((c) => <ListingCard key={c.id} listing={c} onOpen={openListing} />)}
       </div>
       <div style={{ marginTop: 24, padding: 14, background: "#F4F2EA", borderRadius: 6, fontSize: 12.5, color: C.steel }}>
-        In production, this page lives at its own address (like /trucks-for-sale/texas) so it can show up directly in Google search results — every body-style-and-state combination gets one automatically as inventory grows.
+        In production, this page lives at its own address (like /trucks-for-sale/texas or /ford-for-sale/florida) so it can show up directly in Google search results — every combination gets one automatically as inventory grows. This is a read-only filtered view — nothing here needs a login, since it's just showing listings that are already public on the browse page.
       </div>
     </div>
   );
@@ -201,17 +324,17 @@ function CategoryPage({ category, listings, openListing, setView }) {
 function TopBar({ view, setView, onPost }) {
   return (
     <div style={{ background: C.ink, borderBottom: `3px solid ${C.yellow}` }}>
-      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "0 20px", display: "flex", alignItems: "center", height: 64, gap: 20 }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 20, minHeight: 40 }}>
         <div onClick={() => setView({ name: "home" })} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-          <div style={{ width: 30, height: 30, background: C.yellow, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}><CarIcon size={18} color={C.ink} strokeWidth={2.25} /></div>
-          <span style={{ fontFamily: FONT_HEAD, fontSize: 20, letterSpacing: 0.5, color: "#fff" }}>HIGHWAY LOT</span>
+          <div style={{ width: 30, height: 30, background: C.yellow, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><CarIcon size={18} color={C.ink} strokeWidth={2.25} /></div>
+          <span style={{ fontFamily: FONT_HEAD, fontSize: "clamp(15px, 4vw, 20px)", letterSpacing: 0.5, color: "#fff", whiteSpace: "nowrap" }}>HIGHWAY LOT</span>
         </div>
-        <div style={{ display: "flex", gap: 18, flex: 1 }}>
+        <div style={{ display: "flex", gap: 16, flex: 1, flexWrap: "wrap" }}>
           <NavLink label="Browse" active={["home","listing","category"].includes(view.name)} onClick={() => setView({ name: "home" })} />
           <NavLink label="Value my car" active={view.name === "value"} onClick={() => setView({ name: "value" })} />
           <NavLink label="Find my car" active={["quiz","quizResults"].includes(view.name)} onClick={() => setView({ name: "quiz" })} />
         </div>
-        <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 16px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+        <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 16px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
           <Plus size={16} strokeWidth={2.5} /> Post an ad
         </button>
       </div>
@@ -219,7 +342,7 @@ function TopBar({ view, setView, onPost }) {
   );
 }
 function NavLink({ label, active, onClick }) {
-  return <span onClick={onClick} style={{ color: active ? "#fff" : "rgba(255,255,255,0.65)", fontSize: 14.5, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", borderBottom: active ? `2px solid ${C.yellow}` : "2px solid transparent", height: 64 }}>{label}</span>;
+  return <span onClick={onClick} style={{ color: active ? "#fff" : "rgba(255,255,255,0.65)", fontSize: 13.5, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", padding: "4px 0", borderBottom: active ? `2px solid ${C.yellow}` : "2px solid transparent", whiteSpace: "nowrap" }}>{label}</span>;
 }
 
 // ---------- Hero + filters ----------
@@ -227,7 +350,7 @@ function Hero({ filters, setFilters, log }) {
   return (
     <div style={{ background: C.ink }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "44px 20px 24px" }}>
-        <h1 style={{ fontFamily: FONT_HEAD, fontSize: 38, color: "#fff", margin: 0, lineHeight: 1.1, maxWidth: 560 }}>Buy and sell cars, coast to coast.</h1>
+        <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(26px, 6vw, 38px)", color: "#fff", margin: 0, lineHeight: 1.1, maxWidth: 560 }}>Buy and sell cars, coast to coast.</h1>
         <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 15, marginTop: 10, maxWidth: 480 }}>{seed.length.toLocaleString()}+ listings from private sellers and dealers across the United States.</p>
         <div style={{ background: "#fff", borderRadius: 6, marginTop: 22, padding: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <div style={{ flex: "2 1 220px", display: "flex", alignItems: "center", gap: 8, borderRight: `1px solid ${C.line}`, paddingRight: 10 }}>
@@ -313,6 +436,7 @@ function Home({ setView, allListings, log, openListing }) {
       <FeaturedStrip listings={allListings} onOpen={openListing} />
       <PopularSearches listings={allListings} onOpenCategory={(cat) => { log("category_view", cat); setView({ name: "category", category: cat }); }} />
       <FilterBar filters={filters} setFilters={setFilters} count={filtered.length} sort={sort} setSort={setSort} log={log} />
+      <SavedSearchPrompt filters={filters} log={log} />
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px 60px" }}>
         {filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 0", color: C.steel }}>
@@ -323,6 +447,39 @@ function Home({ setView, allListings, log, openListing }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
             {filtered.map((c) => <ListingCard key={c.id} listing={c} onOpen={openListing} />)}
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SavedSearchPrompt({ filters, log }) {
+  const [email, setEmail] = useState("");
+  const [saved, setSaved] = useState(false);
+  const hasFilters = filters.make || filters.state || filters.price;
+
+  const submit = () => {
+    if (!email.trim() || !email.includes("@")) return;
+    supabase.from("saved_searches").insert({ email: email.trim(), make: filters.make || null, state: filters.state || null, max_price: filters.price ? Number(filters.price) : null }).then(({ error }) => {
+      if (error) console.error("saved search failed:", error.message);
+    });
+    log("saved_search_created", { email, make: filters.make, state: filters.state, price: filters.price });
+    setSaved(true);
+  };
+
+  if (!hasFilters) return null;
+  return (
+    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "0 20px" }}>
+      <div style={{ background: "#F4F2EA", borderRadius: 6, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
+        {saved ? (
+          <span style={{ fontSize: 13.5, color: C.ink, display: "flex", alignItems: "center", gap: 6 }}><Check size={15} color={C.green} /> You're on the list for this search.</span>
+        ) : (
+          <>
+            <span style={{ fontSize: 13.5, color: C.ink }}>Get emailed when new matches like this show up:</span>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" style={{ ...inputStyle, width: 200 }} />
+            <button onClick={submit} style={{ background: C.yellow, border: "none", borderRadius: 4, padding: "8px 14px", fontFamily: FONT_HEAD, fontSize: 13, cursor: "pointer" }}>Notify me</button>
+            <span style={{ fontSize: 11, color: C.steel, width: "100%" }}>Email alerts aren't sending yet — we're saving your spot now, delivery is coming.</span>
+          </>
         )}
       </div>
     </div>
@@ -432,13 +589,14 @@ function DamagePicker({ bodyType, points, onAddPoint, onRemovePoint, editable = 
 function ListingDetail({ id, setView, allListings, onBoost, log }) {
   const [revealed, setRevealed] = useState(false);
   const [showBoost, setShowBoost] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const listing = allListings.find((c) => c.id === id);
   if (!listing) return null;
   const photos = listing.photos && listing.photos.length ? listing.photos : null;
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px 60px" }}>
       <span onClick={() => setView({ name: "home" })} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 16 }}><ChevronLeft size={15} /> Back to listings</span>
-      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 32 }}>
+      <div className="hl-detail-grid">
         <div>
           {photos ? (
             <div>
@@ -459,7 +617,7 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
           </div>
           <div style={{ marginTop: 26, borderTop: `1px solid ${C.line}`, paddingTop: 20 }}>
             <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 12 }}>Vehicle details</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px 18px" }}>
+            <div className="hl-spec-grid">
               <Spec icon={<Calendar size={14} />} label="Year" value={listing.year} />
               <Spec icon={<Gauge size={14} />} label="Mileage" value={fmtMiles(listing.mileage)} />
               <Spec icon={<Fuel size={14} />} label="Fuel type" value={listing.fuel} />
@@ -483,7 +641,7 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
           <div style={{ border: `1px solid ${C.line}`, borderRadius: 6, padding: 20 }}>
             <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.steel }}>{listing.year} {listing.make} {listing.model}</div>
             <div style={{ fontSize: 13, color: C.steel, marginTop: 2 }}>{listing.trim}</div>
-            <div style={{ fontFamily: FONT_HEAD, fontSize: 30, color: C.ink, marginTop: 10 }}>{fmtPrice(listing.price)}</div>
+            <div style={{ fontFamily: FONT_HEAD, fontSize: "clamp(24px, 7vw, 30px)", color: C.ink, marginTop: 10 }}>{fmtPrice(listing.price)}</div>
             {listing.fairness && (
               <div style={{ marginTop: 6 }}>
                 <FairnessBadge fairness={listing.fairness} />
@@ -494,6 +652,16 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
             )}
             <div style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 8, fontSize: 13, color: C.steel }}><MapPin size={13} /> {listing.city}, {stateAbbr(listing.state)}</div>
             <div style={{ fontSize: 12, color: C.steel, marginTop: 4 }}>Listed {listing.posted}</div>
+            {listing.credibility && (
+              <div style={{ marginTop: 8 }}>
+                <CredibilityDot credibility={listing.credibility} />
+                {listing.credibility.flags.length > 0 && (
+                  <ul style={{ margin: "4px 0 0", paddingLeft: 16, fontSize: 11.5, color: C.steel }}>
+                    {listing.credibility.flags.map((f, i) => <li key={i}>{f.label}</li>)}
+                  </ul>
+                )}
+              </div>
+            )}
             <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}` }}>
               {!revealed ? (
                 <button onClick={() => { setRevealed(true); log("contact_reveal", { listingId: listing.id }); }} style={{ width: "100%", background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "12px 0", fontFamily: FONT_HEAD, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Phone size={15} /> Contact seller</button>
@@ -510,10 +678,47 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
             {!listing.featured && (
               <button onClick={() => setShowBoost(true)} style={{ width: "100%", marginTop: 10, background: "transparent", color: C.ink, border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 0", fontFamily: FONT_HEAD, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Zap size={14} /> Boost this listing</button>
             )}
+            <button onClick={() => setShowReport(true)} style={{ width: "100%", marginTop: 8, background: "transparent", color: C.steel, border: "none", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>Report this listing</button>
           </div>
         </div>
       </div>
       {showBoost && <BoostModal listing={listing} onClose={() => setShowBoost(false)} onConfirm={() => { onBoost(listing.id); setShowBoost(false); }} />}
+      {showReport && <ReportModal listing={listing} log={log} onClose={() => setShowReport(false)} />}
+    </div>
+  );
+}
+function ReportModal({ listing, log, onClose }) {
+  const [reason, setReason] = useState("");
+  const [sent, setSent] = useState(false);
+  const submit = () => {
+    if (!reason.trim()) return;
+    supabase.from("reports").insert({ listing_id: listing.id, reason: reason.trim() }).then(({ error }) => {
+      if (error) console.error("report save failed:", error.message);
+    });
+    log("listing_reported", { listingId: listing.id });
+    setSent(true);
+  };
+  return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(27,36,49,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 8, padding: 24, width: 380, maxWidth: "90vw" }}>
+        {sent ? (
+          <>
+            <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 6 }}>Thanks — we've got it</div>
+            <p style={{ fontSize: 13.5, color: C.steel, marginBottom: 16 }}>Your report's been logged for review. There's no automated moderation yet, so this goes into a queue we check manually.</p>
+            <button onClick={onClose} style={{ background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Close</button>
+          </>
+        ) : (
+          <>
+            <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 4 }}>Report this listing</div>
+            <p style={{ fontSize: 13, color: C.steel, marginBottom: 12 }}>What seems wrong with it?</p>
+            <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={4} placeholder="e.g. Price seems fake, photos don't match description, seller won't respond..." style={{ ...inputStyle, resize: "vertical" }} />
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <button onClick={onClose} style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 0", fontFamily: FONT_HEAD, cursor: "pointer" }}>Cancel</button>
+              <button onClick={submit} style={{ flex: 1, background: C.yellow, border: "none", borderRadius: 4, padding: "10px 0", fontFamily: FONT_HEAD, cursor: "pointer" }}>Submit report</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -546,10 +751,11 @@ function BoostModal({ listing, onClose, onConfirm }) {
 }
 
 // ---------- Post an ad (with photo requirement) ----------
-function PostAd({ setView, onSubmit }) {
+function PostAd({ setView, onSubmit, existingListings, log }) {
   const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", desc:"", phone:"" });
   const [photos, setPhotos] = useState([]);
   const [damagePoints, setDamagePoints] = useState([]);
+  const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [errors, setErrors] = useState({});
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
@@ -560,12 +766,21 @@ function PostAd({ setView, onSubmit }) {
   };
   const removePhoto = (i) => setPhotos(photos.filter((_, idx) => idx !== i));
 
+  const possibleDuplicate = useMemo(() => {
+    if (!form.year || !form.make || !form.model || !form.mileage) return null;
+    return (existingListings || []).find((c) =>
+      c.year === Number(form.year) && c.make === form.make && c.model === form.model && Math.abs(c.mileage - Number(form.mileage)) < 500
+    ) || null;
+  }, [form.year, form.make, form.model, form.mileage, existingListings]);
+
   const submit = () => {
     const req = ["year","make","model","price","mileage","city","state","phone","body"];
     const errs = {}; req.forEach((k) => { if (!String(form[k]).trim()) errs[k] = true; });
     if (photos.length < 3) errs.photos = true;
+    if (possibleDuplicate && !confirmDuplicate) errs.duplicate = true;
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
+    if (possibleDuplicate) log("listing_duplicate_confirmed", { matchedId: possibleDuplicate.id });
     onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), verified: false, posted: "Just now", featured: false, photos, damage_points: damagePoints, desc: form.desc || "No additional description provided." });
   };
 
@@ -593,10 +808,9 @@ function PostAd({ setView, onSubmit }) {
         <div style={{ fontSize: 12, color: C.steel }}>{photos.length} of 3 minimum added.</div>
       </Field>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 18 }}>
+      <div className="hl-form-grid" style={{ marginTop: 18 }}>
         <Field label="Year" required error={errors.year}><input value={form.year} onChange={set("year")} placeholder="2021" style={inputStyle} /></Field>
-        <Field label="Make" required error={errors.make}><input value={form.make} onChange={set("make")} placeholder="Ford" style={inputStyle} /></Field>
-        <Field label="Model" required error={errors.model}><input value={form.model} onChange={set("model")} placeholder="F-150" style={inputStyle} /></Field>
+        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm({ ...form, make: v })} onModelChange={(v) => setForm({ ...form, model: v })} errors={errors} />
         <Field label="Trim"><input value={form.trim} onChange={set("trim")} placeholder="XLT" style={inputStyle} /></Field>
         <Field label="Price (USD)" required error={errors.price}><input value={form.price} onChange={set("price")} placeholder="24999" style={inputStyle} /></Field>
         <Field label="Mileage" required error={errors.mileage}><input value={form.mileage} onChange={set("mileage")} placeholder="42000" style={inputStyle} /></Field>
@@ -611,10 +825,26 @@ function PostAd({ setView, onSubmit }) {
         </Field>
         <Field label="Condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
       </div>
+
+      {possibleDuplicate && (
+        <div style={{ marginTop: 16, padding: 14, background: "#FFF3D6", borderRadius: 6, border: `1px solid ${C.yellow}` }}>
+          <div style={{ fontSize: 13.5, color: C.yellowDark, fontWeight: 600, marginBottom: 4 }}>This looks like it might already be listed</div>
+          <div style={{ fontSize: 12.5, color: "#6B4F00", marginBottom: 8 }}>
+            A {possibleDuplicate.year} {possibleDuplicate.make} {possibleDuplicate.model} with ~{fmtMiles(possibleDuplicate.mileage)} is already on Highway Lot ({possibleDuplicate.posted}). If this is a different car, just confirm below.
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "#6B4F00", cursor: "pointer" }}>
+            <input type="checkbox" checked={confirmDuplicate} onChange={(e) => setConfirmDuplicate(e.target.checked)} />
+            This is a different vehicle — continue anyway
+          </label>
+          {errors.duplicate && <div style={{ fontSize: 11.5, color: "#A32D2D", marginTop: 4 }}>Please confirm before continuing.</div>}
+        </div>
+      )}
+
       <div style={{ marginTop: 14 }}><Field label="Description"><textarea value={form.desc} onChange={set("desc")} rows={4} style={{ ...inputStyle, resize: "vertical" }} /></Field></div>
 
       <div style={{ marginTop: 18 }}>
-        <Field label="Damage report (optional)">
+        <Field label="Damage report">
+          <div style={{ marginBottom: 10 }}><OptionalTag /></div>
           {form.body ? (
             <DamagePicker bodyType={form.body} points={damagePoints} onAddPoint={(p) => setDamagePoints([...damagePoints, p])} onRemovePoint={(i) => setDamagePoints(damagePoints.filter((_, idx) => idx !== i))} />
           ) : (
@@ -633,12 +863,28 @@ function Field({ label, required, error, children }) {
   return <div><label style={{ fontSize: 12.5, color: error ? "#B23A3A" : C.steel, display: "block", marginBottom: 4 }}>{label}{required && " *"}{error && " — required"}</label>{children}</div>;
 }
 
-function Success({ setView, listingId }) {
+function Success({ setView, listingId, manageLink }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(manageLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
   return (
-    <div style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+    <div style={{ maxWidth: 480, margin: "0 auto", padding: "60px 20px", textAlign: "center" }}>
       <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.greenBg, color: C.green, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><Check size={26} /></div>
       <h2 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: "0 0 8px" }}>Your ad is live</h2>
-      <p style={{ color: C.steel, fontSize: 14.5, marginBottom: 26 }}>Buyers across the country can now see your listing.</p>
+      <p style={{ color: C.steel, fontSize: 14.5, marginBottom: 20 }}>Buyers across the country can now see your listing.</p>
+
+      {manageLink && (
+        <div style={{ background: "#FFF3D6", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: 18, textAlign: "left", marginBottom: 24 }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 14.5, color: C.yellowDark, marginBottom: 4 }}>Save this link — it's the only way to edit or delete this listing</div>
+          <div style={{ fontSize: 12, color: "#6B4F00", marginBottom: 10 }}>There's no login, so this exact link is what proves it's yours. We can't recover it if you lose it.</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input readOnly value={manageLink} onClick={(e) => e.target.select()} style={{ ...inputStyle, fontSize: 12, background: "#fff" }} />
+            <button onClick={copy} style={{ background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, cursor: "pointer", whiteSpace: "nowrap" }}>{copied ? "Copied" : "Copy"}</button>
+          </div>
+        </div>
+      )}
+
       <button onClick={() => setView({ name: "listing", id: listingId })} style={{ background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, cursor: "pointer", marginRight: 10 }}>View listing</button>
       <button onClick={() => setView({ name: "home" })} style={{ background: "transparent", color: C.ink, border: `1px solid ${C.line}`, borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Back to browse</button>
     </div>
@@ -897,17 +1143,20 @@ function ValueMyCar({ allListings, log, setView }) {
       </div>
       <p style={{ color: C.steel, fontSize: 14, marginBottom: 24 }}>A real estimate built from depreciation data and actual Highway Lot listings — not a guess.</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div className="hl-form-grid">
         <Field label="Year" required error={errors.year}><input value={form.year} onChange={set("year")} placeholder="2019" style={inputStyle} /></Field>
-        <Field label="Make" required error={errors.make}><input value={form.make} onChange={set("make")} placeholder="Toyota" style={inputStyle} /></Field>
-        <Field label="Model" required error={errors.model}><input value={form.model} onChange={set("model")} placeholder="Camry" style={inputStyle} /></Field>
+        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm({ ...form, make: v })} onModelChange={(v) => setForm({ ...form, model: v })} errors={errors} />
         <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={set("mileage")} placeholder="52000" style={inputStyle} /></Field>
         <Field label="Original price paid" required error={errors.originalPrice}><input value={form.originalPrice} onChange={set("originalPrice")} placeholder="28000" style={inputStyle} /></Field>
         <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
       </div>
 
       <div style={{ marginTop: 22 }}>
-        <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 4 }}>Known issues (optional) — flag anything specific and we'll factor it in</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink }}>Known issues</div>
+          <OptionalTag />
+        </div>
+        <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>Flag anything specific and we'll factor it into the estimate. Leave everything blank if you're not sure or nothing's wrong.</div>
         <MechanicalChecklist issues={issues} onChange={setIssues} />
       </div>
 
@@ -916,7 +1165,7 @@ function ValueMyCar({ allListings, log, setView }) {
       {result && (
         <div style={{ marginTop: 28, border: `1px solid ${C.line}`, borderRadius: 8, padding: 24, textAlign: "center" }}>
           <div style={{ fontSize: 12.5, color: C.steel, textTransform: "uppercase", letterSpacing: 0.4 }}>Estimated value</div>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 40, color: C.ink, margin: "8px 0" }}>{fmtPrice(result.estimate)}</div>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: "clamp(28px, 9vw, 40px)", color: C.ink, margin: "8px 0" }}>{fmtPrice(result.estimate)}</div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             <Badge tone={result.confidence === "High" ? "verified" : result.confidence === "Medium" ? "yellow" : "neutral"}>{result.confidence} confidence</Badge>
           </div>
@@ -946,6 +1195,88 @@ function ValueMyCar({ allListings, log, setView }) {
           <button onClick={() => setView({ name: "post" })} style={{ marginTop: 16, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>List this car</button>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---------- Manage listing (token link, no login) ----------
+// Whoever holds this exact URL can edit or delete this one listing — nothing
+// else. The token is a long random string, never readable through the public
+// API (revoked at the database column level, not just hidden in the UI), and
+// every check happens through a narrow database function rather than a
+// general-purpose open policy. It's "security by possession of a secret
+// link," not identity-based login — a real, honest tradeoff for a site with
+// no accounts, not a full substitute for one.
+function ManagePage({ idParam, token, setView }) {
+  const [status, setStatus] = useState("checking"); // checking | denied | ready | deleted
+  const [listing, setListing] = useState(null);
+  const [price, setPrice] = useState("");
+  const [desc, setDesc] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data: ok, error: verifyErr } = await supabase.rpc("verify_listing_token", { p_id: idParam, p_token: token });
+      if (verifyErr || !ok) { setStatus("denied"); return; }
+      const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).eq("id", idParam).single();
+      if (error || !data) { setStatus("denied"); return; }
+      setListing(rowToListing(data));
+      setPrice(String(data.price));
+      setDesc(data.description || "");
+      setStatus("ready");
+    })();
+  }, [idParam, token]);
+
+  const goHome = () => {
+    window.history.replaceState(null, "", window.location.pathname);
+    setView({ name: "home" });
+  };
+
+  const saveChanges = async () => {
+    setSaving(true);
+    const { data: ok } = await supabase.rpc("update_listing_with_token", { p_id: idParam, p_token: token, p_price: Number(price), p_description: desc });
+    setSaving(false);
+    if (ok) { setListing({ ...listing, price: Number(price), desc }); setSaved(true); setTimeout(() => setSaved(false), 2500); }
+  };
+
+  const deleteListing = async () => {
+    if (!window.confirm("Delete this listing? This can't be undone.")) return;
+    const { data: ok } = await supabase.rpc("delete_listing_with_token", { p_id: idParam, p_token: token });
+    if (ok) setStatus("deleted");
+  };
+
+  if (status === "checking") return <div style={{ textAlign: "center", padding: "80px 20px", color: C.steel }}>Checking your link…</div>;
+  if (status === "denied") return (
+    <div style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.ink, marginBottom: 8 }}>This link isn't valid</div>
+      <p style={{ color: C.steel, fontSize: 14 }}>Either the listing's already been removed, or this management link is incorrect.</p>
+      <button onClick={goHome} style={{ marginTop: 16, background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Back to Highway Lot</button>
+    </div>
+  );
+  if (status === "deleted") return (
+    <div style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.ink, marginBottom: 8 }}>Listing deleted</div>
+      <p style={{ color: C.steel, fontSize: 14 }}>It's no longer visible on Highway Lot.</p>
+      <button onClick={goHome} style={{ marginTop: 16, background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Back to Highway Lot</button>
+    </div>
+  );
+
+  return (
+    <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 20px 70px" }}>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, marginBottom: 4 }}>Manage your listing</div>
+      <p style={{ color: C.steel, fontSize: 13.5, marginBottom: 20 }}>{listing.year} {listing.make} {listing.model} — only visible to whoever has this exact link.</p>
+      <Field label="Price (USD)"><input value={price} onChange={(e) => setPrice(e.target.value)} style={inputStyle} /></Field>
+      <div style={{ marginTop: 14 }}><Field label="Description"><textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} style={{ ...inputStyle, resize: "vertical" }} /></Field></div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16 }}>
+        <button onClick={saveChanges} disabled={saving} style={{ background: C.yellow, border: "none", borderRadius: 4, padding: "11px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>{saving ? "Saving…" : "Save changes"}</button>
+        {saved && <span style={{ fontSize: 12.5, color: C.green, display: "flex", alignItems: "center", gap: 4 }}><Check size={14} /> Saved</span>}
+      </div>
+      <div style={{ marginTop: 30, paddingTop: 20, borderTop: `1px solid ${C.line}` }}>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: "#A32D2D", marginBottom: 6 }}>Danger zone</div>
+        <button onClick={deleteListing} style={{ background: "#FBE4E3", color: "#A32D2D", border: "none", borderRadius: 4, padding: "10px 18px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Delete this listing</button>
+      </div>
+      <span onClick={goHome} style={{ display: "inline-block", marginTop: 24, color: C.steel, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>Back to Highway Lot</span>
     </div>
   );
 }
@@ -1003,17 +1334,29 @@ function timeAgo(iso) {
 // the app uses `desc`. This maps between the two at the boundary.
 const rowToListing = (row) => ({ ...row, desc: row.description, posted: timeAgo(row.created_at) });
 
+function getInitialView() {
+  const params = new URLSearchParams(window.location.search);
+  const manage = params.get("manage");
+  if (manage && manage.includes(".")) {
+    const [id, token] = manage.split(/\.(.+)/); // split on first dot only, token may contain dashes
+    if (id && token) return { name: "manage", id: Number(id), token };
+  }
+  return { name: "home" };
+}
+
 export default function App() {
-  const [view, setView] = useState({ name: "home" });
+  const [view, setView] = useState(getInitialView);
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [lastPostedId, setLastPostedId] = useState(null);
+  const [lastManageLink, setLastManageLink] = useState(null);
   const [quizAnswers, setQuizAnswers] = useState(null);
   const { log } = useAnalytics();
 
   useEffect(() => {
+    if (view.name === "manage") { setLoading(false); return; } // manage view fetches its own single listing
     (async () => {
-      const { data, error } = await supabase.from("listings").select("*").order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).order("created_at", { ascending: false });
       if (error) { console.error("fetch listings failed:", error.message); setLoading(false); return; }
       setListings(data.map(rowToListing));
       setLoading(false);
@@ -1022,22 +1365,27 @@ export default function App() {
 
   const openListing = (id) => { log("listing_view", { listingId: id }); setView({ name: "listing", id }); };
 
-  const enrichedListings = useMemo(() => listings.map((l) => ({ ...l, fairness: estimateFairness(l, listings) })), [listings]);
+  const enrichedListings = useMemo(() => {
+    const withFairness = listings.map((l) => ({ ...l, fairness: estimateFairness(l, listings) }));
+    return withFairness.map((l) => ({ ...l, credibility: computeCredibility(l, withFairness) }));
+  }, [listings]);
 
   const handlePostSubmit = async (data) => {
     const { desc, ...rest } = data;
-    const { data: inserted, error } = await supabase.from("listings").insert({ ...rest, description: desc }).select().single();
+    const manage_token = generateToken();
+    const { data: inserted, error } = await supabase.from("listings").insert({ ...rest, description: desc, manage_token }).select(LISTING_COLUMNS).single();
     if (error) { console.error("post listing failed:", error.message); return; }
     const newListing = rowToListing(inserted);
     setListings([newListing, ...listings]);
     setLastPostedId(newListing.id);
+    setLastManageLink(`${window.location.origin}${window.location.pathname}?manage=${newListing.id}.${manage_token}`);
     log("listing_created", { listingId: newListing.id });
     setView({ name: "success" });
   };
 
   const handleBoost = async (id) => {
-    const { error } = await supabase.from("listings").update({ featured: true }).eq("id", id);
-    if (error) { console.error("boost failed:", error.message); return; }
+    const { data: ok, error } = await supabase.rpc("boost_listing", { p_id: id });
+    if (error || !ok) { console.error("boost failed:", error?.message); return; }
     setListings(listings.map((c) => (c.id === id ? { ...c, featured: true } : c)));
     log("boost_confirmed", { listingId: id });
   };
@@ -1052,6 +1400,17 @@ export default function App() {
     setView({ name: "quizResults" });
   };
 
+  if (view.name === "manage") {
+    return (
+      <div style={{ fontFamily: FONT_BODY, background: C.paper, minHeight: "100%" }}>
+        <style>{`@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');`}</style>
+        <TopBar view={view} setView={setView} onPost={() => setView({ name: "post" })} />
+        <ManagePage idParam={view.id} token={view.token} setView={setView} />
+        <Footer setView={setView} />
+      </div>
+    );
+  }
+
   if (loading) {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_BODY, color: C.steel }}>Loading listings…</div>;
   }
@@ -1061,13 +1420,18 @@ export default function App() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
         select { -webkit-appearance: none; appearance: none; }
+        .hl-detail-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 32px; }
+        .hl-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .hl-spec-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 18px; }
+        @media (max-width: 720px) { .hl-detail-grid { grid-template-columns: 1fr; gap: 24px; } }
+        @media (max-width: 480px) { .hl-form-grid { grid-template-columns: 1fr; } .hl-spec-grid { grid-template-columns: 1fr 1fr; } }
       `}</style>
       <TopBar view={view} setView={setView} onPost={() => setView({ name: "post" })} />
       {view.name === "home" && <Home setView={setView} allListings={enrichedListings} log={log} openListing={openListing} />}
       {view.name === "category" && <CategoryPage category={view.category} listings={enrichedListings} openListing={openListing} setView={setView} />}
       {view.name === "listing" && <ListingDetail id={view.id} setView={setView} allListings={enrichedListings} onBoost={handleBoost} log={log} />}
-      {view.name === "post" && <PostAd setView={setView} onSubmit={handlePostSubmit} />}
-      {view.name === "success" && <Success setView={setView} listingId={lastPostedId} />}
+      {view.name === "post" && <PostAd setView={setView} onSubmit={handlePostSubmit} existingListings={listings} log={log} />}
+      {view.name === "success" && <Success setView={setView} listingId={lastPostedId} manageLink={lastManageLink} />}
       {view.name === "quiz" && <Quiz setView={setView} log={log} onComplete={handleQuizComplete} />}
       {view.name === "quizResults" && <QuizResults answers={quizAnswers} allListings={enrichedListings} openListing={openListing} setView={setView} />}
       {view.name === "terms" && <Terms setView={setView} />}
