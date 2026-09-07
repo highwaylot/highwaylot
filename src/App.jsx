@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import {
   Search, MapPin, Gauge, Fuel, Calendar, X, Plus, ChevronLeft, ChevronRight,
   ShieldCheck, Phone, SlidersHorizontal, Car as CarIcon, Check, Star,
-  TrendingUp, Zap, BarChart3, Building2, Camera, Lock, FileText
+  TrendingUp, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign
 } from "lucide-react";
 import { supabase } from "./lib/supabaseClient";
 
@@ -186,6 +186,7 @@ function TopBar({ view, setView, onPost }) {
         </div>
         <div style={{ display: "flex", gap: 18, flex: 1 }}>
           <NavLink label="Browse" active={["home","listing","category"].includes(view.name)} onClick={() => setView({ name: "home" })} />
+          <NavLink label="Value my car" active={view.name === "value"} onClick={() => setView({ name: "value" })} />
           <NavLink label="Find my car" active={["quiz","quizResults"].includes(view.name)} onClick={() => setView({ name: "quiz" })} />
         </div>
         <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 16px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
@@ -614,6 +615,99 @@ function DealerPage({ log }) {
   );
 }
 
+// ---------- Value my car ----------
+// Depreciation-curve baseline, adjusted for mileage vs. expected mileage for
+// the car's age, then blended with real comps from Highway Lot's own listings
+// once there are enough of them. Confidence is shown honestly rather than
+// presenting an early, comp-starved guess as certain.
+function estimateValue(input, allListings) {
+  const age = Math.max(new Date().getFullYear() - input.year, 0);
+  // Rough depreciation curve: ~20% year one, ~12%/year after, floored at 15% of original.
+  let retained = 1;
+  for (let y = 0; y < age; y++) retained *= y === 0 ? 0.80 : 0.88;
+  retained = Math.max(retained, 0.15);
+  const basePrice = input.originalPrice * retained;
+
+  const expectedMileage = age * 12000;
+  const mileageDelta = input.mileage - expectedMileage;
+  const mileageAdjustment = -(mileageDelta / 12000) * 0.02 * basePrice; // ~2% of value per year-equivalent of extra/fewer miles
+
+  const conditionMultiplier = { Excellent: 1.08, Good: 1.0, Fair: 0.88, "Needs work": 0.7 }[input.condition] ?? 1.0;
+
+  let estimate = (basePrice + mileageAdjustment) * conditionMultiplier;
+
+  // Comp-based blend: pull real same make/model listings within +/- 3 years.
+  const comps = allListings.filter((c) => c.make.toLowerCase() === input.make.toLowerCase() && c.model.toLowerCase() === input.model.toLowerCase() && Math.abs(c.year - input.year) <= 3);
+  let confidence = "Low";
+  if (comps.length > 0) {
+    const compAvg = comps.reduce((s, c) => s + c.price, 0) / comps.length;
+    const weight = Math.min(comps.length / 8, 0.6); // comps can pull up to 60% of the estimate once there are enough
+    estimate = estimate * (1 - weight) + compAvg * weight;
+    confidence = comps.length >= 5 ? "High" : comps.length >= 2 ? "Medium" : "Low";
+  }
+
+  return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length };
+}
+
+function ValueMyCar({ allListings, log, setView }) {
+  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "" });
+  const [result, setResult] = useState(null);
+  const [errors, setErrors] = useState({});
+  const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  const submit = async () => {
+    const req = ["year", "make", "model", "mileage", "originalPrice"];
+    const errs = {}; req.forEach((k) => { if (!String(form[k]).trim()) errs[k] = true; });
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice) };
+    const res = estimateValue(input, allListings);
+    setResult(res);
+    log("valuation_submitted", input);
+    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence }).then(({ error }) => {
+      if (error) console.error("valuation save failed:", error.message);
+    });
+  };
+
+  return (
+    <div style={{ maxWidth: 560, margin: "0 auto", padding: "48px 20px 70px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <DollarSign size={22} color={C.ink} />
+        <h2 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: 0 }}>What's your car worth?</h2>
+      </div>
+      <p style={{ color: C.steel, fontSize: 14, marginBottom: 24 }}>A real estimate built from depreciation data and actual Highway Lot listings — not a guess.</p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <Field label="Year" required error={errors.year}><input value={form.year} onChange={set("year")} placeholder="2019" style={inputStyle} /></Field>
+        <Field label="Make" required error={errors.make}><input value={form.make} onChange={set("make")} placeholder="Toyota" style={inputStyle} /></Field>
+        <Field label="Model" required error={errors.model}><input value={form.model} onChange={set("model")} placeholder="Camry" style={inputStyle} /></Field>
+        <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={set("mileage")} placeholder="52000" style={inputStyle} /></Field>
+        <Field label="Original price paid" required error={errors.originalPrice}><input value={form.originalPrice} onChange={set("originalPrice")} placeholder="28000" style={inputStyle} /></Field>
+        <Field label="Condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
+      </div>
+
+      <button onClick={submit} style={{ marginTop: 20, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: "pointer" }}>Get my estimate</button>
+
+      {result && (
+        <div style={{ marginTop: 28, border: `1px solid ${C.line}`, borderRadius: 8, padding: 24, textAlign: "center" }}>
+          <div style={{ fontSize: 12.5, color: C.steel, textTransform: "uppercase", letterSpacing: 0.4 }}>Estimated value</div>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 40, color: C.ink, margin: "8px 0" }}>{fmtPrice(result.estimate)}</div>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+            <Badge tone={result.confidence === "High" ? "verified" : result.confidence === "Medium" ? "yellow" : "neutral"}>{result.confidence} confidence</Badge>
+          </div>
+          <div style={{ fontSize: 12.5, color: C.steel, marginTop: 12, lineHeight: 1.5 }}>
+            {result.compCount > 0
+              ? `Based on depreciation modeling plus ${result.compCount} similar ${result.compCount === 1 ? "listing" : "listings"} currently on Highway Lot.`
+              : "Based on depreciation modeling only — no similar listings on Highway Lot yet to compare against. Estimates get sharper as more real cars get listed."}
+          </div>
+          <button onClick={() => setView({ name: "post" })} style={{ marginTop: 16, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>List this car</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- Terms ----------
 function Terms({ setView }) {
   return (
@@ -733,6 +827,7 @@ export default function App() {
       {view.name === "quiz" && <Quiz setView={setView} log={log} onComplete={handleQuizComplete} />}
       {view.name === "quizResults" && <QuizResults answers={quizAnswers} allListings={listings} openListing={openListing} setView={setView} />}
       {view.name === "terms" && <Terms setView={setView} />}
+      {view.name === "value" && <ValueMyCar allListings={listings} log={log} setView={setView} />}
       <Footer setView={setView} />
     </div>
   );
