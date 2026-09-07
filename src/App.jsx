@@ -545,6 +545,66 @@ function CarShapeSvg({ shape }) {
     </g>
   );
 }
+// Simplified front/back-only picker for Value My Car — deliberately not the
+// full named-zone tool from the posting form. No body-style field exists
+// here, so it always uses the generic sedan silhouette. Doesn't affect the
+// price estimate yet — captured as data now so it can factor in once
+// there's enough of it to mean something.
+function FrontBackDamagePicker({ value, onChange }) {
+  const [editingZone, setEditingZone] = useState(null); // "front" | "back" | null
+  const [note, setNote] = useState("");
+  const [severity, setSeverity] = useState("Minor");
+
+  const openZone = (zone) => {
+    setEditingZone(zone);
+    setNote(value[zone]?.note || "");
+    setSeverity(value[zone]?.severity || "Minor");
+  };
+  const confirm = () => {
+    if (!note.trim()) return;
+    onChange({ ...value, [editingZone]: { note: note.trim(), severity } });
+    setEditingZone(null);
+  };
+  const clearZone = (zone) => onChange({ ...value, [zone]: null });
+
+  const zoneFill = (zone) => (value[zone] ? (value[zone].severity === "Major" ? "#F7C1C1" : value[zone].severity === "Moderate" ? "#FAEEDA" : "#EAF3DE") : "transparent");
+
+  return (
+    <div>
+      <svg viewBox="0 0 320 150" style={{ width: "100%", maxWidth: 420, background: "#FAFAF6", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }}>
+        <CarShapeSvg shape="sedan" />
+        {/* Clickable front half, with a headlight mark so front is obvious */}
+        <rect x={20} y={22} width={140} height={95} fill={zoneFill("front")} opacity={0.6} style={{ cursor: "pointer" }} onClick={() => openZone("front")} />
+        <circle cx={38} cy={60} r={6} fill={C.yellow} stroke={C.ink} strokeWidth={1} />
+        <text x={90} y={135} fontSize={11} textAnchor="middle" fill={C.steel}>FRONT</text>
+        {/* Clickable rear half, with a taillight mark so back is obvious */}
+        <rect x={160} y={22} width={140} height={95} fill={zoneFill("back")} opacity={0.6} style={{ cursor: "pointer" }} onClick={() => openZone("back")} />
+        <circle cx={282} cy={60} r={6} fill="#E24B4A" stroke={C.ink} strokeWidth={1} />
+        <text x={230} y={135} fontSize={11} textAnchor="middle" fill={C.steel}>BACK</text>
+      </svg>
+
+      {editingZone && (
+        <div style={{ marginTop: 10, padding: 12, border: `1px solid ${C.line}`, borderRadius: 6, maxWidth: 420 }}>
+          <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 6 }}>Any {editingZone} damage?</div>
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Cracked bumper, dent" style={inputStyle} />
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <select value={severity} onChange={(e) => setSeverity(e.target.value)} style={inputStyle}><option>Minor</option><option>Moderate</option><option>Major</option></select>
+            <button onClick={confirm} style={{ background: C.yellow, border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, cursor: "pointer", whiteSpace: "nowrap" }}>Save</button>
+            <button onClick={() => setEditingZone(null)} style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "0 12px", cursor: "pointer" }}><X size={13} /></button>
+          </div>
+        </div>
+      )}
+
+      {["front", "back"].map((zone) => value[zone] && (
+        <div key={zone} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, color: C.steel, padding: "4px 0", maxWidth: 420 }}>
+          <span style={{ textTransform: "capitalize" }}>{zone} — <strong style={{ color: C.ink }}>{value[zone].severity}</strong>: {value[zone].note}</span>
+          <span onClick={() => clearZone(zone)} style={{ cursor: "pointer", color: "#B23A3A" }}><X size={13} /></span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DamagePicker({ bodyType, points, onAddPoint, onRemovePoint, editable = true }) {
   const svgRef = useRef(null);
   const [pending, setPending] = useState(null);
@@ -1162,6 +1222,7 @@ function estimateValue(input, allListings, issues = {}) {
 function ValueMyCar({ allListings, log, setView }) {
   const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "" });
   const [issues, setIssues] = useState({});
+  const [damageZones, setDamageZones] = useState({ front: null, back: null });
   const [result, setResult] = useState(null);
   const [errors, setErrors] = useState({});
   const set = (k) => (e) => { setForm({ ...form, [k]: e.target.value }); if (errors[k]) setErrors({ ...errors, [k]: false }); };
@@ -1173,10 +1234,10 @@ function ValueMyCar({ allListings, log, setView }) {
     if (Object.keys(errs).length > 0) return;
 
     const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice) };
-    const res = estimateValue(input, allListings, issues);
+    const res = estimateValue(input, allListings, issues); // damageZones intentionally not passed in — doesn't affect price yet
     setResult(res);
-    log("valuation_submitted", { ...input, issues });
-    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues }).then(({ error }) => {
+    log("valuation_submitted", { ...input, issues, damageZones });
+    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues, damage_zones: damageZones }).then(({ error }) => {
       if (error) console.error("valuation save failed:", error.message);
     });
   };
@@ -1204,6 +1265,15 @@ function ValueMyCar({ allListings, log, setView }) {
         </div>
         <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>Flag anything specific and we'll factor it into the estimate. Leave everything blank if you're not sure or nothing's wrong.</div>
         <MechanicalChecklist issues={issues} onChange={setIssues} />
+      </div>
+
+      <div style={{ marginTop: 22 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink }}>Body damage</div>
+          <OptionalTag />
+        </div>
+        <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>Click the front or back if there's damage there. This doesn't change your estimate yet — we're collecting it to make future estimates smarter.</div>
+        <FrontBackDamagePicker value={damageZones} onChange={setDamageZones} />
       </div>
 
       <button onClick={submit} style={{ marginTop: 20, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: "pointer" }}>Get my estimate</button>
