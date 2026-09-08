@@ -212,8 +212,8 @@ function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors, cle
   );
 }
 
-const selectStyle = { border: `1px solid ${C.line}`, borderRadius: 4, padding: "7px 10px", fontSize: 13, color: C.ink, background: "#fff", fontFamily: FONT_BODY };
-const inputStyle = { width: "100%", border: `1px solid ${C.line}`, borderRadius: 4, padding: "9px 10px", fontSize: 14, color: C.ink, fontFamily: FONT_BODY, boxSizing: "border-box", background: "#fff" };
+const selectStyle = { border: `1.5px solid ${C.line}`, borderRadius: 5, padding: "9px 12px", fontSize: 14.5, color: C.ink, background: "#fff", fontFamily: FONT_BODY, cursor: "pointer" };
+const inputStyle = { width: "100%", border: `1.5px solid ${C.line}`, borderRadius: 5, padding: "11px 12px", fontSize: 15, color: C.ink, fontFamily: FONT_BODY, boxSizing: "border-box", background: "#fff" };
 
 function ListingCard({ listing, onOpen }) {
   return (
@@ -519,29 +519,59 @@ function getShapeType(bodyType) {
   return "sedan"; // covers Sedan, Coupe
 }
 function CarShapeSvg({ shape }) {
-  const wheels = (positions) => positions.map((p, i) => <rect key={i} x={p[0]} y={p[1]} width={14} height={22} rx={3} fill={C.steel} opacity={0.5} />);
+  // Wheel: dark tire + lighter hub, sitting in a simple arch line for a wheel-well look
+  const Wheel = ({ cx, groundY }) => (
+    <g>
+      <path d={`M ${cx - 22} ${groundY} A 22 22 0 0 1 ${cx + 22} ${groundY}`} fill="none" stroke={C.line} strokeWidth={2} />
+      <circle cx={cx} cy={groundY} r={14} fill="#3A3F45" />
+      <circle cx={cx} cy={groundY} r={6} fill="#9AA0A6" />
+    </g>
+  );
+  const Lights = ({ frontX, backX, y }) => (
+    <>
+      <circle cx={frontX} cy={y} r={5} fill="#FFE9A8" stroke={C.ink} strokeWidth={1} />
+      <circle cx={backX} cy={y} r={5} fill="#E24B4A" stroke={C.ink} strokeWidth={1} />
+    </>
+  );
+
   if (shape === "truck") {
     return (
       <g>
-        <rect x={20} y={40} width={110} height={70} rx={10} fill="#EFEDE4" stroke={C.line} />
-        <rect x={140} y={50} width={160} height={55} rx={6} fill="#EFEDE4" stroke={C.line} />
-        {wheels([[35, 20], [35, 108], [250, 20], [250, 108]])}
+        {/* cab */}
+        <path d="M 18 118 L 18 78 Q 18 68 28 65 L 55 60 Q 68 40 92 38 L 130 38 Q 138 38 138 46 L 138 100 L 18 100 Z" fill="#EFEDE4" stroke={C.line} strokeWidth={1.5} />
+        <path d="M 62 58 L 92 40 Q 78 45 68 58 Z" fill="#C7D3DC" />
+        {/* bed */}
+        <path d="M 150 100 L 150 70 L 300 70 L 300 100 Z" fill="#EFEDE4" stroke={C.line} strokeWidth={1.5} />
+        <line x1={150} y1={100} x2={300} y2={100} stroke={C.line} strokeWidth={1.5} />
+        <Lights frontX={26} backX={294} y={90} />
+        <Wheel cx={55} groundY={118} />
+        <Wheel cx={250} groundY={118} />
       </g>
     );
   }
   if (shape === "suv") {
     return (
       <g>
-        <rect x={20} y={35} width={280} height={80} rx={16} fill="#EFEDE4" stroke={C.line} />
-        {wheels([[45, 18], [45, 110], [235, 18], [235, 110]])}
+        <path d="M 18 118 L 18 75 Q 18 62 32 58 L 55 52 Q 72 38 100 36 L 220 36 Q 248 38 265 52 L 288 58 Q 302 62 302 75 L 302 118 Z" fill="#EFEDE4" stroke={C.line} strokeWidth={1.5} />
+        <path d="M 62 55 L 88 40 Q 74 45 66 55 Z" fill="#C7D3DC" />
+        <path d="M 258 55 L 232 40 Q 246 45 254 55 Z" fill="#C7D3DC" />
+        <path d="M 92 42 L 228 42 L 228 55 L 92 55 Z" fill="#C7D3DC" opacity={0.6} />
+        <Lights frontX={26} backX={294} y={90} />
+        <Wheel cx={62} groundY={118} />
+        <Wheel cx={258} groundY={118} />
       </g>
     );
   }
   // sedan / coupe
   return (
     <g>
-      <path d="M 30 75 Q 30 45 70 42 L 110 30 Q 160 22 210 30 L 250 42 Q 290 45 290 75 Q 290 100 260 105 L 60 105 Q 30 100 30 75 Z" fill="#EFEDE4" stroke={C.line} />
-      {wheels([[55, 18], [55, 110], [225, 18], [225, 110]])}
+      <path d="M 18 118 L 18 100 Q 18 88 30 85 L 60 80 Q 75 48 105 40 Q 140 34 175 36 Q 205 38 225 48 Q 248 58 260 80 L 292 84 Q 304 87 304 100 L 304 118 Z" fill="#EFEDE4" stroke={C.line} strokeWidth={1.5} />
+      <path d="M 63 79 L 78 49 Q 66 55 58 78 Z" fill="#C7D3DC" />
+      <path d="M 258 79 L 244 50 Q 254 56 262 78 Z" fill="#C7D3DC" />
+      <path d="M 82 43 L 220 44 L 222 51 L 80 51 Z" fill="#C7D3DC" opacity={0.6} />
+      <Lights frontX={24} backX={298} y={92} />
+      <Wheel cx={70} groundY={118} />
+      <Wheel cx={250} groundY={118} />
     </g>
   );
 }
@@ -550,7 +580,7 @@ function CarShapeSvg({ shape }) {
 // here, so it always uses the generic sedan silhouette. Doesn't affect the
 // price estimate yet — captured as data now so it can factor in once
 // there's enough of it to mean something.
-function FrontBackDamagePicker({ value, onChange }) {
+function FrontBackDamagePicker({ value, onChange, shape = "sedan" }) {
   const [editingZone, setEditingZone] = useState(null); // "front" | "back" | null
   const [note, setNote] = useState("");
   const [severity, setSeverity] = useState("Minor");
@@ -572,15 +602,12 @@ function FrontBackDamagePicker({ value, onChange }) {
   return (
     <div>
       <svg viewBox="0 0 320 150" style={{ width: "100%", maxWidth: 420, background: "#FAFAF6", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }}>
-        <CarShapeSvg shape="sedan" />
-        {/* Clickable front half, with a headlight mark so front is obvious */}
-        <rect x={20} y={22} width={140} height={95} fill={zoneFill("front")} opacity={0.6} style={{ cursor: "pointer" }} onClick={() => openZone("front")} />
-        <circle cx={38} cy={60} r={6} fill={C.yellow} stroke={C.ink} strokeWidth={1} />
-        <text x={90} y={135} fontSize={11} textAnchor="middle" fill={C.steel}>FRONT</text>
-        {/* Clickable rear half, with a taillight mark so back is obvious */}
-        <rect x={160} y={22} width={140} height={95} fill={zoneFill("back")} opacity={0.6} style={{ cursor: "pointer" }} onClick={() => openZone("back")} />
-        <circle cx={282} cy={60} r={6} fill="#E24B4A" stroke={C.ink} strokeWidth={1} />
-        <text x={230} y={135} fontSize={11} textAnchor="middle" fill={C.steel}>BACK</text>
+        <CarShapeSvg shape={shape} />
+        {/* Clickable front half — the shape itself now has a yellow headlight up front and red taillight in back */}
+        <rect x={18} y={22} width={143} height={100} fill={zoneFill("front")} opacity={0.55} style={{ cursor: "pointer" }} onClick={() => openZone("front")} />
+        <text x={90} y={140} fontSize={12} fontWeight={600} textAnchor="middle" fill={C.steel}>FRONT</text>
+        <rect x={161} y={22} width={143} height={100} fill={zoneFill("back")} opacity={0.55} style={{ cursor: "pointer" }} onClick={() => openZone("back")} />
+        <text x={230} y={140} fontSize={12} fontWeight={600} textAnchor="middle" fill={C.steel}>BACK</text>
       </svg>
 
       {editingZone && (
@@ -841,7 +868,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [honeypot, setHoneypot] = useState(""); // bots fill this; real users never see it
   const [errors, setErrors] = useState({});
-  const set = (k) => (e) => { setForm({ ...form, [k]: e.target.value }); if (errors[k]) setErrors({ ...errors, [k]: false }); };
+  const set = (k) => (e) => { const val = e.target.value; setForm((prev) => ({ ...prev, [k]: val })); setErrors((prev) => (prev[k] ? { ...prev, [k]: false } : prev)); };
 
   const addPhotos = (fileList) => {
     const files = Array.from(fileList).slice(0, 8 - photos.length);
@@ -901,7 +928,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
 
       <div className="hl-form-grid" style={{ marginTop: 18 }}>
         <Field label="Year" required error={errors.year}><input value={form.year} onChange={set("year")} placeholder="2021" style={inputStyle} /></Field>
-        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm({ ...form, make: v })} onModelChange={(v) => setForm({ ...form, model: v })} errors={errors} clearError={(k) => setErrors({ ...errors, [k]: false })} />
+        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => ({ ...prev, model: v }))} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
         <Field label="Trim"><input value={form.trim} onChange={set("trim")} placeholder="XLT" style={inputStyle} /></Field>
         <Field label="Price (USD)" required error={errors.price}><input value={form.price} onChange={set("price")} placeholder="24999" style={inputStyle} /></Field>
         <Field label="Mileage" required error={errors.mileage}><input value={form.mileage} onChange={set("mileage")} placeholder="42000" style={inputStyle} /></Field>
@@ -1220,12 +1247,12 @@ function estimateValue(input, allListings, issues = {}) {
 }
 
 function ValueMyCar({ allListings, log, setView }) {
-  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "" });
+  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan" });
   const [issues, setIssues] = useState({});
   const [damageZones, setDamageZones] = useState({ front: null, back: null });
   const [result, setResult] = useState(null);
   const [errors, setErrors] = useState({});
-  const set = (k) => (e) => { setForm({ ...form, [k]: e.target.value }); if (errors[k]) setErrors({ ...errors, [k]: false }); };
+  const set = (k) => (e) => { const val = e.target.value; setForm((prev) => ({ ...prev, [k]: val })); setErrors((prev) => (prev[k] ? { ...prev, [k]: false } : prev)); };
 
   const submit = async () => {
     const req = ["year", "make", "model", "mileage", "originalPrice"];
@@ -1236,8 +1263,8 @@ function ValueMyCar({ allListings, log, setView }) {
     const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice) };
     const res = estimateValue(input, allListings, issues); // damageZones intentionally not passed in — doesn't affect price yet
     setResult(res);
-    log("valuation_submitted", { ...input, issues, damageZones });
-    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues, damage_zones: damageZones }).then(({ error }) => {
+    log("valuation_submitted", { ...input, issues, damageZones, body: form.body });
+    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues, damage_zones: damageZones, body: form.body }).then(({ error }) => {
       if (error) console.error("valuation save failed:", error.message);
     });
   };
@@ -1252,10 +1279,11 @@ function ValueMyCar({ allListings, log, setView }) {
 
       <div className="hl-form-grid">
         <Field label="Year" required error={errors.year}><input value={form.year} onChange={set("year")} placeholder="2019" style={inputStyle} /></Field>
-        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm({ ...form, make: v })} onModelChange={(v) => setForm({ ...form, model: v })} errors={errors} clearError={(k) => setErrors({ ...errors, [k]: false })} />
+        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => ({ ...prev, model: v }))} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
         <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={set("mileage")} placeholder="52000" style={inputStyle} /></Field>
         <Field label="Original price paid" required error={errors.originalPrice}><input value={form.originalPrice} onChange={set("originalPrice")} placeholder="28000" style={inputStyle} /></Field>
         <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
+        <Field label="Body style"><select value={form.body} onChange={set("body")} style={inputStyle}><option>Sedan</option><option>SUV</option><option>Truck</option><option>Coupe</option><option>Wagon</option></select></Field>
       </div>
 
       <div style={{ marginTop: 22 }}>
@@ -1273,7 +1301,7 @@ function ValueMyCar({ allListings, log, setView }) {
           <OptionalTag />
         </div>
         <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>Click the front or back if there's damage there. This doesn't change your estimate yet — we're collecting it to make future estimates smarter.</div>
-        <FrontBackDamagePicker value={damageZones} onChange={setDamageZones} />
+        <FrontBackDamagePicker value={damageZones} onChange={setDamageZones} shape={getShapeType(form.body)} />
       </div>
 
       <button onClick={submit} style={{ marginTop: 20, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: "pointer" }}>Get my estimate</button>
@@ -1535,7 +1563,9 @@ export default function App() {
     <div style={{ fontFamily: FONT_BODY, background: C.paper, minHeight: "100%" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
-        select { -webkit-appearance: none; appearance: none; }
+        /* Removed the appearance:none reset — it was stripping the dropdown arrow off
+           every select on the site with nothing replacing it, so dropdowns looked
+           like plain text boxes. Native arrows are more recognizable, not less. */
         .hl-detail-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 32px; }
         .hl-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .hl-spec-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 18px; }
