@@ -326,7 +326,15 @@ function TopBar({ view, setView, onPost }) {
     <div style={{ background: C.ink, borderBottom: `4px solid ${C.yellow}` }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 20, minHeight: 40 }}>
         <div onClick={() => setView({ name: "home" })} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-          <div style={{ width: 30, height: 30, background: C.yellow, borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><CarIcon size={18} color={C.ink} strokeWidth={2.25} /></div>
+          <div style={{ width: 32, height: 34, position: "relative", flexShrink: 0 }}>
+            <svg viewBox="0 0 32 34" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+              <path d="M 16 1 L 30 6.5 L 30 17 Q 30 27 16 33 Q 2 27 2 17 L 2 6.5 Z" fill={C.yellow} stroke={C.ink} strokeWidth={2} />
+              <path d="M 16 6 L 16 28" stroke={C.ink} strokeWidth={1.5} strokeDasharray="4,3" opacity={0.5} />
+            </svg>
+            <div style={{ position: "relative", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <CarIcon size={15} color={C.ink} strokeWidth={2.5} />
+            </div>
+          </div>
           <span style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(15px, 4vw, 20px)", letterSpacing: 0.5, color: "#fff", whiteSpace: "nowrap" }}>HIGHWAYLOT</span>
         </div>
         <div style={{ display: "flex", gap: 16, flex: 1, flexWrap: "wrap" }}>
@@ -519,60 +527,48 @@ function getShapeType(bodyType) {
   return "sedan"; // covers Sedan, Coupe
 }
 function CarShapeSvg({ shape }) {
-  // Straighter, more geometric lines and the site's own navy/yellow/steel
-  // palette instead of unrelated colors — reads as a technical inspection
-  // diagram, not a cartoon.
-  const Wheel = ({ cx, groundY }) => (
-    <g>
-      <path d={`M ${cx - 22} ${groundY} A 22 22 0 0 1 ${cx + 22} ${groundY}`} fill="none" stroke={C.line} strokeWidth={1.5} />
-      <circle cx={cx} cy={groundY} r={13} fill={C.ink} />
-      <circle cx={cx} cy={groundY} r={5} fill="#F4F2EA" />
-    </g>
-  );
+  // Modeled after simple flat car-icon sets: one bold solid body color, a
+  // single light window band, plain wheel circles. Bold and iconic rather
+  // than a detailed technical drawing.
+  const Wheel = ({ cx, groundY }) => <circle cx={cx} cy={groundY} r={15} fill="#12181F" />;
   const Lights = ({ frontX, backX, y }) => (
     <>
-      <rect x={frontX} y={y - 4} width={6} height={8} rx={1} fill={C.yellow} stroke={C.ink} strokeWidth={1} />
-      <rect x={backX} y={y - 4} width={6} height={8} rx={1} fill="#E24B4A" stroke={C.ink} strokeWidth={1} />
+      <circle cx={frontX} cy={y} r={4} fill={C.yellow} />
+      <circle cx={backX} cy={y} r={4} fill="#E24B4A" />
     </>
   );
-  const glass = "rgba(27,36,49,0.14)"; // a tint of the site's own navy, not a foreign color
+  const window_ = "#F4F2EA"; // light cutout band against the solid navy body
 
   if (shape === "truck") {
     return (
       <g>
-        <path d="M 20 116 L 20 80 L 35 80 L 55 58 L 90 58 L 90 100 L 20 100 Z" fill="#F4F2EA" stroke={C.ink} strokeWidth={1.5} />
-        <path d="M 60 62 L 84 62 L 84 78 L 46 78 Z" fill={glass} />
-        <path d="M 100 100 L 100 68 L 300 68 L 300 100 Z" fill="#F4F2EA" stroke={C.ink} strokeWidth={1.5} />
-        <line x1={100} y1={100} x2={300} y2={100} stroke={C.line} strokeWidth={1.5} />
-        <Lights frontX={22} backX={290} y={90} />
-        <Wheel cx={55} groundY={116} />
-        <Wheel cx={250} groundY={116} />
+        <path d="M 14 118 L 14 80 Q 14 68 26 65 L 55 60 Q 68 42 92 40 L 130 40 Q 138 40 138 48 L 138 100 L 300 100 L 300 78 L 310 78 L 310 118 Z" fill={C.ink} />
+        <path d="M 60 58 L 90 43 L 90 58 Z" fill={window_} />
+        <Lights frontX={22} backX={302} y={92} />
+        <Wheel cx={55} groundY={118} />
+        <Wheel cx={252} groundY={118} />
       </g>
     );
   }
   if (shape === "suv") {
     return (
       <g>
-        <path d="M 20 116 L 20 78 L 45 62 L 95 50 L 225 50 L 275 62 L 300 78 L 300 116 Z" fill="#F4F2EA" stroke={C.ink} strokeWidth={1.5} />
-        <path d="M 52 64 L 88 55 L 88 63 L 58 72 Z" fill={glass} />
-        <path d="M 232 55 L 268 64 L 262 72 L 232 63 Z" fill={glass} />
-        <path d="M 96 53 L 224 53 L 224 62 L 96 62 Z" fill={glass} />
+        <path d="M 14 118 L 14 76 Q 14 62 28 58 L 52 50 Q 68 36 98 34 L 218 34 Q 248 36 264 50 L 288 58 Q 302 62 302 76 L 302 118 Z" fill={C.ink} />
+        <path d="M 62 55 L 92 39 L 224 39 L 254 55 L 246 68 L 70 68 Z" fill={window_} />
         <Lights frontX={22} backX={294} y={92} />
-        <Wheel cx={62} groundY={116} />
-        <Wheel cx={258} groundY={116} />
+        <Wheel cx={62} groundY={118} />
+        <Wheel cx={254} groundY={118} />
       </g>
     );
   }
-  // sedan / coupe — straighter panel lines instead of soft bulbous curves
+  // sedan / coupe
   return (
     <g>
-      <path d="M 20 116 L 20 96 L 45 90 L 68 58 L 105 48 L 175 48 L 218 58 L 250 88 L 300 92 L 300 116 Z" fill="#F4F2EA" stroke={C.ink} strokeWidth={1.5} />
-      <path d="M 60 88 L 76 60 L 100 52 L 100 84 Z" fill={glass} />
-      <path d="M 244 86 L 226 60 L 205 52 L 205 84 Z" fill={glass} />
-      <path d="M 104 50 L 200 50 L 200 62 L 104 62 Z" fill={glass} />
-      <Lights frontX={22} backX={296} y={94} />
-      <Wheel cx={70} groundY={116} />
-      <Wheel cx={250} groundY={116} />
+      <path d="M 14 118 L 14 96 Q 14 84 26 80 L 52 76 Q 68 46 100 38 Q 140 32 178 34 Q 208 36 226 46 Q 246 56 258 78 L 290 82 Q 304 84 304 96 L 304 118 Z" fill={C.ink} />
+      <path d="M 62 75 L 80 45 Q 140 38 205 43 L 236 76 L 220 84 L 78 84 Z" fill={window_} />
+      <Lights frontX={22} backX={296} y={90} />
+      <Wheel cx={68} groundY={118} />
+      <Wheel cx={252} groundY={118} />
     </g>
   );
 }
@@ -904,7 +900,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
     if (Object.keys(errs).length > 0) return;
     if (possibleDuplicate) log("listing_duplicate_confirmed", { matchedId: possibleDuplicate.id });
     setSubmitting(true);
-    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), loan_balance: form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null, verified: false, posted: "Just now", featured: false, photos, damage_points: damagePoints, desc: form.desc || "No additional description provided." });
+    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), loan_balance: form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null, verified: false, featured: false, photos, damage_points: damagePoints, desc: form.desc || "No additional description provided." });
     setSubmitting(false);
     if (errMsg) setSubmitError(errMsg);
   };
@@ -1298,7 +1294,7 @@ function ValueMyCar({ allListings, log, setView }) {
         <DollarSign size={26} color={C.ink} />
         <h2 style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 6vw, 34px)", color: C.ink, margin: 0, textTransform: "uppercase", letterSpacing: 0.5 }}>What's Your Car Worth?</h2>
       </div>
-      <p style={{ color: C.steel, fontSize: 14, marginBottom: 24, textAlign: "center" }}>A real estimate built from depreciation data and actual HIGHWAYLOT listings — not a guess.</p>
+      <p style={{ color: C.steel, fontSize: 14, marginBottom: 24, textAlign: "center" }}>Fill in your car's details to get an estimate.</p>
 
       <div className="hl-form-grid">
         <Field label="Year" required error={errors.year}><input value={form.year} onChange={set("year")} placeholder="2019" style={inputStyle} /></Field>
