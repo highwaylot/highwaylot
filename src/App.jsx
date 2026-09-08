@@ -325,22 +325,24 @@ function TopBar({ view, setView, onPost }) {
   return (
     <div style={{ background: C.ink, borderBottom: `4px solid ${C.yellow}` }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 20, minHeight: 40 }}>
-        <div onClick={() => setView({ name: "home" })} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-          <div style={{ width: 32, height: 34, position: "relative", flexShrink: 0 }}>
-            <svg viewBox="0 0 32 34" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
-              <path d="M 16 1 L 30 6.5 L 30 17 Q 30 27 16 33 Q 2 27 2 17 L 2 6.5 Z" fill={C.yellow} stroke={C.ink} strokeWidth={2} />
-              <path d="M 16 6 L 16 28" stroke={C.ink} strokeWidth={1.5} strokeDasharray="4,3" opacity={0.5} />
-            </svg>
-            <div style={{ position: "relative", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <CarIcon size={15} color={C.ink} strokeWidth={2.5} />
+        <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
+          <div onClick={() => setView({ name: "home" })} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <div style={{ width: 32, height: 34, position: "relative", flexShrink: 0 }}>
+              <svg viewBox="0 0 32 34" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+                <path d="M 16 1 L 30 6.5 L 30 17 Q 30 27 16 33 Q 2 27 2 17 L 2 6.5 Z" fill={C.yellow} stroke={C.ink} strokeWidth={2} />
+                <path d="M 16 6 L 16 28" stroke={C.ink} strokeWidth={1.5} strokeDasharray="4,3" opacity={0.5} />
+              </svg>
+              <div style={{ position: "relative", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CarIcon size={15} color={C.ink} strokeWidth={2.5} />
+              </div>
             </div>
+            <span style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(15px, 4vw, 20px)", letterSpacing: 0.5, color: "#fff", whiteSpace: "nowrap" }}>HIGHWAYLOT</span>
           </div>
-          <span style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(15px, 4vw, 20px)", letterSpacing: 0.5, color: "#fff", whiteSpace: "nowrap" }}>HIGHWAYLOT</span>
-        </div>
-        <div style={{ display: "flex", gap: 16, flex: 1, flexWrap: "wrap" }}>
-          <NavLink label="Browse" active={["home","listing","category"].includes(view.name)} onClick={() => setView({ name: "home" })} />
-          <NavLink label="Value my car" active={view.name === "value"} onClick={() => setView({ name: "value" })} />
-          <NavLink label="Find my car" active={["quiz","quizResults"].includes(view.name)} onClick={() => setView({ name: "quiz" })} />
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+            <NavLink label="Browse" active={["home","listing","category"].includes(view.name)} onClick={() => setView({ name: "home" })} />
+            <NavLink label="Value my car" active={view.name === "value"} onClick={() => setView({ name: "value" })} />
+            <NavLink label="Find my car" active={["quiz","quizResults"].includes(view.name)} onClick={() => setView({ name: "quiz" })} />
+          </div>
         </div>
         <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 16px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
           <Plus size={16} strokeWidth={2.5} /> Post an ad
@@ -358,23 +360,25 @@ function Hero({ filters, setFilters, log }) {
   return (
     <div style={{ background: C.ink }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "44px 20px 24px" }}>
-        <h1 style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 6vw, 38px)", color: "#fff", margin: 0, lineHeight: 1.1, maxWidth: 560 }}>Buy and sell cars, coast to coast.</h1>
-        <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 15, marginTop: 10, maxWidth: 480 }}>{seed.length.toLocaleString()}+ listings from private sellers and dealers across the United States.</p>
-        <div style={{ background: "#fff", borderRadius: 6, marginTop: 22, padding: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ flex: "2 1 220px", display: "flex", alignItems: "center", gap: 8, borderRight: `1px solid ${C.line}`, paddingRight: 10 }}>
-            <Search size={16} color={C.steel} />
-            <input placeholder="Search make or model" value={filters.query}
-              onChange={(e) => { setFilters({ ...filters, query: e.target.value }); }}
-              onBlur={(e) => e.target.value && log("search", { query: e.target.value })}
-              style={{ border: "none", outline: "none", fontSize: 14, width: "100%", color: C.ink, fontFamily: FONT_BODY }} />
+        <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
+          <h1 style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 6vw, 38px)", color: "#fff", margin: "0 auto", lineHeight: 1.1 }}>Buy and sell cars, coast to coast.</h1>
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 15, marginTop: 10 }}>{seed.length.toLocaleString()}+ listings from private sellers and dealers across the United States.</p>
+          <div style={{ background: "#fff", borderRadius: 6, marginTop: 22, padding: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", textAlign: "left" }}>
+            <div style={{ flex: "2 1 220px", display: "flex", alignItems: "center", gap: 8, borderRight: `1px solid ${C.line}`, paddingRight: 10 }}>
+              <Search size={16} color={C.steel} />
+              <input placeholder="Search make or model" value={filters.query}
+                onChange={(e) => { setFilters({ ...filters, query: e.target.value }); }}
+                onBlur={(e) => e.target.value && log("search", { query: e.target.value })}
+                style={{ border: "none", outline: "none", fontSize: 14, width: "100%", color: C.ink, fontFamily: FONT_BODY }} />
+            </div>
+            <select value={filters.state} onChange={(e) => { setFilters({ ...filters, state: e.target.value }); log("filter_state", { state: e.target.value }); }} style={{ border: "none", outline: "none", fontSize: 14, color: C.ink, background: "transparent", flex: "1 1 140px" }}>
+              <option value="">All states</option>
+              {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <button style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "10px 22px", fontFamily: FONT_HEAD, fontSize: 14.5, cursor: "pointer" }}>Search</button>
           </div>
-          <select value={filters.state} onChange={(e) => { setFilters({ ...filters, state: e.target.value }); log("filter_state", { state: e.target.value }); }} style={{ border: "none", outline: "none", fontSize: 14, color: C.ink, background: "transparent", flex: "1 1 140px" }}>
-            <option value="">All states</option>
-            {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <button style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "10px 22px", fontFamily: FONT_HEAD, fontSize: 14.5, cursor: "pointer" }}>Search</button>
+          <div style={{ marginTop: 10, fontSize: 12.5, color: "rgba(255,255,255,0.5)" }}>Available in the United States only.</div>
         </div>
-        <div style={{ marginTop: 10, fontSize: 12.5, color: "rgba(255,255,255,0.5)" }}>Available in the United States only.</div>
       </div>
     </div>
   );
@@ -527,48 +531,62 @@ function getShapeType(bodyType) {
   return "sedan"; // covers Sedan, Coupe
 }
 function CarShapeSvg({ shape }) {
-  // Modeled after simple flat car-icon sets: one bold solid body color, a
-  // single light window band, plain wheel circles. Bold and iconic rather
-  // than a detailed technical drawing.
-  const Wheel = ({ cx, groundY }) => <circle cx={cx} cy={groundY} r={15} fill="#12181F" />;
+  // Side-profile silhouette (not the reference image's 3/4 perspective — that
+  // needs real vanishing-point math to draw well, and this codebase's track
+  // record with car shapes says don't gamble that blind). What IS pulled from
+  // the reference: a longer hood-to-cabin ratio, a proper sloped greenhouse
+  // instead of a flat window band, wheel arches the wheels actually sit
+  // inside rather than floating beside, and a single character line along
+  // the body for a touch of real automotive form language.
+  const Wheel = ({ cx, groundY }) => (
+    <g>
+      <path d={`M ${cx - 20} ${groundY} A 20 20 0 0 1 ${cx + 20} ${groundY}`} fill="#0E141B" />
+      <circle cx={cx} cy={groundY - 2} r={15} fill="#12181F" />
+      <circle cx={cx} cy={groundY - 2} r={6} fill="#4A5058" />
+    </g>
+  );
   const Lights = ({ frontX, backX, y }) => (
     <>
       <circle cx={frontX} cy={y} r={4} fill={C.yellow} />
       <circle cx={backX} cy={y} r={4} fill="#E24B4A" />
     </>
   );
-  const window_ = "#F4F2EA"; // light cutout band against the solid navy body
+  const window_ = "#F4F2EA";
+  const crease = (x1, x2, y) => <line x1={x1} y1={y} x2={x2} y2={y} stroke="#0E141B" strokeWidth={1} opacity={0.3} />;
 
   if (shape === "truck") {
     return (
       <g>
-        <path d="M 14 118 L 14 80 Q 14 68 26 65 L 55 60 Q 68 42 92 40 L 130 40 Q 138 40 138 48 L 138 100 L 300 100 L 300 78 L 310 78 L 310 118 Z" fill={C.ink} />
-        <path d="M 60 58 L 90 43 L 90 58 Z" fill={window_} />
-        <Lights frontX={22} backX={302} y={92} />
-        <Wheel cx={55} groundY={118} />
-        <Wheel cx={252} groundY={118} />
+        <path d="M 14 120 L 14 82 C 14 70 22 64 33 62 L 58 58 C 68 44 82 39 98 38 L 132 38 C 140 38 140 46 140 52 L 140 100 L 300 100 L 300 76 L 312 76 L 312 120 Z" fill={C.ink} />
+        <path d="M 62 56 C 72 46 84 41 96 40 L 96 58 L 62 58 Z" fill={window_} />
+        {crease(40, 300, 88)}
+        <Lights frontX={22} backX={304} y={90} />
+        <Wheel cx={56} groundY={120} />
+        <Wheel cx={253} groundY={120} />
       </g>
     );
   }
   if (shape === "suv") {
     return (
       <g>
-        <path d="M 14 118 L 14 76 Q 14 62 28 58 L 52 50 Q 68 36 98 34 L 218 34 Q 248 36 264 50 L 288 58 Q 302 62 302 76 L 302 118 Z" fill={C.ink} />
-        <path d="M 62 55 L 92 39 L 224 39 L 254 55 L 246 68 L 70 68 Z" fill={window_} />
-        <Lights frontX={22} backX={294} y={92} />
-        <Wheel cx={62} groundY={118} />
-        <Wheel cx={254} groundY={118} />
+        <path d="M 14 120 L 14 78 C 14 64 24 57 36 55 L 58 48 C 72 36 90 32 108 32 L 214 32 C 234 32 250 37 262 48 L 284 55 C 296 57 306 64 306 78 L 306 120 Z" fill={C.ink} />
+        <path d="M 62 53 C 76 41 92 36 110 35 L 212 35 C 228 36 242 40 254 53 L 250 66 L 66 66 Z" fill={window_} />
+        {crease(38, 302, 92)}
+        <Lights frontX={22} backX={298} y={94} />
+        <Wheel cx={64} groundY={120} />
+        <Wheel cx={256} groundY={120} />
       </g>
     );
   }
   // sedan / coupe
   return (
     <g>
-      <path d="M 14 118 L 14 96 Q 14 84 26 80 L 52 76 Q 68 46 100 38 Q 140 32 178 34 Q 208 36 226 46 Q 246 56 258 78 L 290 82 Q 304 84 304 96 L 304 118 Z" fill={C.ink} />
-      <path d="M 62 75 L 80 45 Q 140 38 205 43 L 236 76 L 220 84 L 78 84 Z" fill={window_} />
-      <Lights frontX={22} backX={296} y={90} />
-      <Wheel cx={68} groundY={118} />
-      <Wheel cx={252} groundY={118} />
+      <path d="M 14 120 L 14 98 C 14 87 21 80 32 78 L 62 74 C 76 50 96 38 122 34 C 150 30 178 30 202 34 C 224 38 240 48 252 68 L 284 78 C 298 82 306 88 306 100 L 306 120 Z" fill={C.ink} />
+      <path d="M 68 73 C 80 52 98 41 122 37 C 148 33 174 33 196 37 C 214 40 226 48 236 64 L 248 78 L 82 82 Z" fill={window_} />
+      {crease(40, 298, 92)}
+      <Lights frontX={22} backX={300} y={94} />
+      <Wheel cx={72} groundY={120} />
+      <Wheel cx={254} groundY={120} />
     </g>
   );
 }
@@ -1181,18 +1199,42 @@ const STATUS_OPTIONS = [
   { key: "Broken", tone: "danger", weight: 1 },
 ];
 
-function computeMechanicalDeduction(issues) {
+// Real RepairPal average-annual-repair-cost-by-brand data (repairpal.com/reliability),
+// checked September 2026. All-brand average is $652/yr — every brand's ceiling gets
+// scaled by (brand figure ÷ 652). Brands not in this table (no RepairPal figure
+// found/published, e.g. Tesla) fall back to a neutral 1.0 multiplier rather than a
+// guess. This list should be refreshed periodically, same as the regional figure below.
+const BRAND_REPAIR_COST = {
+  Honda: 428, Acura: 501, Kia: 474, Hyundai: 468, Mazda: 462, Lexus: 551, Toyota: 441,
+  Nissan: 500, Ford: 775, Chevrolet: 649, Jeep: 634, BMW: 968, "Mercedes-Benz": 908,
+  Audi: 987, GMC: 744, Volkswagen: 676, Subaru: 617,
+};
+const ALL_BRAND_AVG_REPAIR_COST = 652;
+function getBrandMultiplier(make) {
+  const cost = BRAND_REPAIR_COST[make];
+  return cost ? cost / ALL_BRAND_AVG_REPAIR_COST : 1.0;
+}
+
+// Real BLS OEWS wage data (May 2025) for automotive service techs/mechanics —
+// Florida statewide median vs. national median. HIGHWAYLOT is Florida-only right
+// now, so this applies everywhere rather than guessing a Key West-specific number
+// that BLS doesn't publish (see project notes — small-market data gets suppressed).
+const FL_REGIONAL_MULTIPLIER = 48260 / 50620; // ≈ 0.953
+
+function computeMechanicalDeduction(issues, make) {
+  const brandMult = getBrandMultiplier(make);
   const breakdown = [];
   let total = 0;
   MECHANICAL_SYSTEMS.forEach((sys) => {
     const status = issues[sys.key];
     if (!status) return;
     const opt = STATUS_OPTIONS.find((o) => o.key === status);
-    const deduction = Math.round(sys.max * opt.weight);
+    const adjustedMax = sys.max * brandMult * FL_REGIONAL_MULTIPLIER;
+    const deduction = Math.round(adjustedMax * opt.weight);
     if (deduction > 0) { breakdown.push({ label: sys.label, status, deduction }); total += deduction; }
     else breakdown.push({ label: sys.label, status, deduction: 0 });
   });
-  return { total, breakdown };
+  return { total, breakdown, brandMult, hasBrandData: Boolean(BRAND_REPAIR_COST[make]) };
 }
 
 function MechanicalChecklist({ issues, onChange }) {
@@ -1255,13 +1297,13 @@ function estimateValue(input, allListings, issues = {}) {
     confidence = comps.length >= 5 ? "High" : comps.length >= 2 ? "Medium" : "Low";
   }
 
-  const { total: mechanicalDeduction, breakdown } = computeMechanicalDeduction(issues);
+  const { total: mechanicalDeduction, breakdown, brandMult, hasBrandData } = computeMechanicalDeduction(issues, input.make);
   // Floor the final number so a pile of deductions can't push it to $0 or negative —
   // a car is worth at least scrap/parts value even in bad shape.
   const floor = Math.max(estimate * 0.1, 400);
   estimate = Math.max(estimate - mechanicalDeduction, floor);
 
-  return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown };
+  return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown, brandMult, hasBrandData };
 }
 
 function ValueMyCar({ allListings, log, setView }) {
@@ -1368,7 +1410,9 @@ function ValueMyCar({ allListings, log, setView }) {
                 </div>
               ))}
               <div style={{ fontSize: 11, color: C.steel, marginTop: 8 }}>
-                Rough repair-cost estimates, not a mechanic's quote — actual costs vary by shop and region.
+                {result.hasBrandData
+                  ? `Adjusted for ${form.make}'s typical repair costs and Florida labor rates — not a mechanic's quote, actual costs vary by shop.`
+                  : "Adjusted for Florida labor rates. Rough repair-cost estimates, not a mechanic's quote — actual costs vary by shop and region."}
               </div>
             </div>
           )}
