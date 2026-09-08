@@ -11,7 +11,7 @@ import { supabase } from "./lib/supabaseClient";
 // privilege is revoked for the public role in the database itself (see
 // schema.sql). Using '*' would actually error for that reason, which is
 // the point: even a bypass of this app's own code can't read the token.
-const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,damage_points,description,phone,photos,created_at";
+const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,loan_balance,damage_points,description,phone,photos,created_at";
 
 function generateToken() {
   if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
@@ -519,59 +519,60 @@ function getShapeType(bodyType) {
   return "sedan"; // covers Sedan, Coupe
 }
 function CarShapeSvg({ shape }) {
-  // Wheel: dark tire + lighter hub, sitting in a simple arch line for a wheel-well look
+  // Straighter, more geometric lines and the site's own navy/yellow/steel
+  // palette instead of unrelated colors — reads as a technical inspection
+  // diagram, not a cartoon.
   const Wheel = ({ cx, groundY }) => (
     <g>
-      <path d={`M ${cx - 22} ${groundY} A 22 22 0 0 1 ${cx + 22} ${groundY}`} fill="none" stroke={C.line} strokeWidth={2} />
-      <circle cx={cx} cy={groundY} r={14} fill="#3A3F45" />
-      <circle cx={cx} cy={groundY} r={6} fill="#9AA0A6" />
+      <path d={`M ${cx - 22} ${groundY} A 22 22 0 0 1 ${cx + 22} ${groundY}`} fill="none" stroke={C.line} strokeWidth={1.5} />
+      <circle cx={cx} cy={groundY} r={13} fill={C.ink} />
+      <circle cx={cx} cy={groundY} r={5} fill="#F4F2EA" />
     </g>
   );
   const Lights = ({ frontX, backX, y }) => (
     <>
-      <circle cx={frontX} cy={y} r={5} fill="#FFE9A8" stroke={C.ink} strokeWidth={1} />
-      <circle cx={backX} cy={y} r={5} fill="#E24B4A" stroke={C.ink} strokeWidth={1} />
+      <rect x={frontX} y={y - 4} width={6} height={8} rx={1} fill={C.yellow} stroke={C.ink} strokeWidth={1} />
+      <rect x={backX} y={y - 4} width={6} height={8} rx={1} fill="#E24B4A" stroke={C.ink} strokeWidth={1} />
     </>
   );
+  const glass = "rgba(27,36,49,0.14)"; // a tint of the site's own navy, not a foreign color
 
   if (shape === "truck") {
     return (
       <g>
-        {/* cab */}
-        <path d="M 18 118 L 18 78 Q 18 68 28 65 L 55 60 Q 68 40 92 38 L 130 38 Q 138 38 138 46 L 138 100 L 18 100 Z" fill="#EFEDE4" stroke={C.line} strokeWidth={1.5} />
-        <path d="M 62 58 L 92 40 Q 78 45 68 58 Z" fill="#C7D3DC" />
-        {/* bed */}
-        <path d="M 150 100 L 150 70 L 300 70 L 300 100 Z" fill="#EFEDE4" stroke={C.line} strokeWidth={1.5} />
-        <line x1={150} y1={100} x2={300} y2={100} stroke={C.line} strokeWidth={1.5} />
-        <Lights frontX={26} backX={294} y={90} />
-        <Wheel cx={55} groundY={118} />
-        <Wheel cx={250} groundY={118} />
+        <path d="M 20 116 L 20 80 L 35 80 L 55 58 L 90 58 L 90 100 L 20 100 Z" fill="#F4F2EA" stroke={C.ink} strokeWidth={1.5} />
+        <path d="M 60 62 L 84 62 L 84 78 L 46 78 Z" fill={glass} />
+        <path d="M 100 100 L 100 68 L 300 68 L 300 100 Z" fill="#F4F2EA" stroke={C.ink} strokeWidth={1.5} />
+        <line x1={100} y1={100} x2={300} y2={100} stroke={C.line} strokeWidth={1.5} />
+        <Lights frontX={22} backX={290} y={90} />
+        <Wheel cx={55} groundY={116} />
+        <Wheel cx={250} groundY={116} />
       </g>
     );
   }
   if (shape === "suv") {
     return (
       <g>
-        <path d="M 18 118 L 18 75 Q 18 62 32 58 L 55 52 Q 72 38 100 36 L 220 36 Q 248 38 265 52 L 288 58 Q 302 62 302 75 L 302 118 Z" fill="#EFEDE4" stroke={C.line} strokeWidth={1.5} />
-        <path d="M 62 55 L 88 40 Q 74 45 66 55 Z" fill="#C7D3DC" />
-        <path d="M 258 55 L 232 40 Q 246 45 254 55 Z" fill="#C7D3DC" />
-        <path d="M 92 42 L 228 42 L 228 55 L 92 55 Z" fill="#C7D3DC" opacity={0.6} />
-        <Lights frontX={26} backX={294} y={90} />
-        <Wheel cx={62} groundY={118} />
-        <Wheel cx={258} groundY={118} />
+        <path d="M 20 116 L 20 78 L 45 62 L 95 50 L 225 50 L 275 62 L 300 78 L 300 116 Z" fill="#F4F2EA" stroke={C.ink} strokeWidth={1.5} />
+        <path d="M 52 64 L 88 55 L 88 63 L 58 72 Z" fill={glass} />
+        <path d="M 232 55 L 268 64 L 262 72 L 232 63 Z" fill={glass} />
+        <path d="M 96 53 L 224 53 L 224 62 L 96 62 Z" fill={glass} />
+        <Lights frontX={22} backX={294} y={92} />
+        <Wheel cx={62} groundY={116} />
+        <Wheel cx={258} groundY={116} />
       </g>
     );
   }
-  // sedan / coupe
+  // sedan / coupe — straighter panel lines instead of soft bulbous curves
   return (
     <g>
-      <path d="M 18 118 L 18 100 Q 18 88 30 85 L 60 80 Q 75 48 105 40 Q 140 34 175 36 Q 205 38 225 48 Q 248 58 260 80 L 292 84 Q 304 87 304 100 L 304 118 Z" fill="#EFEDE4" stroke={C.line} strokeWidth={1.5} />
-      <path d="M 63 79 L 78 49 Q 66 55 58 78 Z" fill="#C7D3DC" />
-      <path d="M 258 79 L 244 50 Q 254 56 262 78 Z" fill="#C7D3DC" />
-      <path d="M 82 43 L 220 44 L 222 51 L 80 51 Z" fill="#C7D3DC" opacity={0.6} />
-      <Lights frontX={24} backX={298} y={92} />
-      <Wheel cx={70} groundY={118} />
-      <Wheel cx={250} groundY={118} />
+      <path d="M 20 116 L 20 96 L 45 90 L 68 58 L 105 48 L 175 48 L 218 58 L 250 88 L 300 92 L 300 116 Z" fill="#F4F2EA" stroke={C.ink} strokeWidth={1.5} />
+      <path d="M 60 88 L 76 60 L 100 52 L 100 84 Z" fill={glass} />
+      <path d="M 244 86 L 226 60 L 205 52 L 205 84 Z" fill={glass} />
+      <path d="M 104 50 L 200 50 L 200 62 L 104 62 Z" fill={glass} />
+      <Lights frontX={22} backX={296} y={94} />
+      <Wheel cx={70} groundY={116} />
+      <Wheel cx={250} groundY={116} />
     </g>
   );
 }
@@ -737,6 +738,9 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
               <Spec label="Exterior color" value={listing.color} />
               <Spec label="Body style" value={listing.body} />
               <Spec label="Ownership" value={listing.loan_status || "Paid off"} />
+              {listing.loan_status === "Still financed (loan payoff needed)" && listing.loan_balance && (
+                <Spec label="Loan balance" value={fmtPrice(listing.loan_balance)} />
+              )}
             </div>
           </div>
           <div style={{ marginTop: 26, borderTop: `1px solid ${C.line}`, paddingTop: 20 }}>
@@ -865,7 +869,7 @@ function BoostModal({ listing, onClose, onConfirm }) {
 
 // ---------- Post an ad (with photo requirement) ----------
 function PostAd({ setView, onSubmit, existingListings, log }) {
-  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", loan_status:"Paid off", desc:"", phone:"" });
+  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", loan_status:"Paid off", loan_balance:"", desc:"", phone:"" });
   const [photos, setPhotos] = useState([]);
   const [damagePoints, setDamagePoints] = useState([]);
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
@@ -900,7 +904,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
     if (Object.keys(errs).length > 0) return;
     if (possibleDuplicate) log("listing_duplicate_confirmed", { matchedId: possibleDuplicate.id });
     setSubmitting(true);
-    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), verified: false, posted: "Just now", featured: false, photos, damage_points: damagePoints, desc: form.desc || "No additional description provided." });
+    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), loan_balance: form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null, verified: false, posted: "Just now", featured: false, photos, damage_points: damagePoints, desc: form.desc || "No additional description provided." });
     setSubmitting(false);
     if (errMsg) setSubmitError(errMsg);
   };
@@ -952,6 +956,9 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
         </Field>
         <Field label="Condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
         <Field label="Ownership status"><select value={form.loan_status} onChange={set("loan_status")} style={inputStyle}><option>Paid off</option><option>Still financed (loan payoff needed)</option></select></Field>
+        {form.loan_status === "Still financed (loan payoff needed)" && (
+          <Field label="Remaining loan balance ($)"><input value={form.loan_balance} onChange={set("loan_balance")} placeholder="8500" style={inputStyle} /></Field>
+        )}
       </div>
 
       {possibleDuplicate && (
@@ -1262,7 +1269,7 @@ function estimateValue(input, allListings, issues = {}) {
 }
 
 function ValueMyCar({ allListings, log, setView }) {
-  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan" });
+  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", loan_status: "Paid off", loan_balance: "" });
   const [issues, setIssues] = useState({});
   const [damageZones, setDamageZones] = useState({ front: null, back: null });
   const [result, setResult] = useState(null);
@@ -1276,10 +1283,11 @@ function ValueMyCar({ allListings, log, setView }) {
     if (Object.keys(errs).length > 0) return;
 
     const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice) };
-    const res = estimateValue(input, allListings, issues); // damageZones intentionally not passed in — doesn't affect price yet
+    const res = estimateValue(input, allListings, issues); // damageZones and loan balance intentionally not passed in — neither affects the value estimate itself
     setResult(res);
-    log("valuation_submitted", { ...input, issues, damageZones, body: form.body });
-    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues, damage_zones: damageZones, body: form.body }).then(({ error }) => {
+    const loanBalance = form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null;
+    log("valuation_submitted", { ...input, issues, damageZones, body: form.body, loan_balance: loanBalance });
+    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues, damage_zones: damageZones, body: form.body, loan_status: form.loan_status, loan_balance: loanBalance }).then(({ error }) => {
       if (error) console.error("valuation save failed:", error.message);
     });
   };
@@ -1299,6 +1307,10 @@ function ValueMyCar({ allListings, log, setView }) {
         <Field label="Original price paid" required error={errors.originalPrice}><input value={form.originalPrice} onChange={set("originalPrice")} placeholder="28000" style={inputStyle} /></Field>
         <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
         <Field label="Body style"><select value={form.body} onChange={set("body")} style={inputStyle}><option>Sedan</option><option>SUV</option><option>Truck</option><option>Coupe</option><option>Wagon</option></select></Field>
+        <Field label="Ownership status"><select value={form.loan_status} onChange={set("loan_status")} style={inputStyle}><option>Paid off</option><option>Still financed (loan payoff needed)</option></select></Field>
+        {form.loan_status === "Still financed (loan payoff needed)" && (
+          <Field label="Remaining loan balance ($)"><input value={form.loan_balance} onChange={set("loan_balance")} placeholder="8500" style={inputStyle} /></Field>
+        )}
       </div>
 
       <div style={{ marginTop: 22 }}>
@@ -1333,6 +1345,20 @@ function ValueMyCar({ allListings, log, setView }) {
               ? `Based on depreciation modeling plus ${result.compCount} similar ${result.compCount === 1 ? "listing" : "listings"} currently on HIGHWAYLOT.`
               : "Based on depreciation modeling only — no similar listings on HIGHWAYLOT yet to compare against. Estimates get sharper as more real cars get listed."}
           </div>
+
+          {form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance && (
+            <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}` }}>
+              <div style={{ fontSize: 12.5, color: C.steel, textTransform: "uppercase", letterSpacing: 0.4 }}>Estimated equity</div>
+              <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 24, color: (result.estimate - Number(form.loan_balance)) < 0 ? "#A32D2D" : C.ink, marginTop: 4 }}>
+                {fmtPrice(result.estimate - Number(form.loan_balance))}
+              </div>
+              <div style={{ fontSize: 11.5, color: C.steel, marginTop: 6 }}>
+                {(result.estimate - Number(form.loan_balance)) < 0
+                  ? "You may owe more than the car's worth right now — this is what you'd pay out of pocket to close out the loan on a sale."
+                  : "What you'd walk away with after paying off the remaining loan balance. This doesn't affect the value estimate above — what you owe doesn't change what the car's worth."}
+              </div>
+            </div>
+          )}
 
           {result.mechanicalDeduction > 0 && (
             <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}`, textAlign: "left" }}>
