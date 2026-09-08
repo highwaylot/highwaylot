@@ -11,7 +11,7 @@ import { supabase } from "./lib/supabaseClient";
 // privilege is revoked for the public role in the database itself (see
 // schema.sql). Using '*' would actually error for that reason, which is
 // the point: even a bypass of this app's own code can't read the token.
-const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,damage_points,description,phone,photos,created_at";
+const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,damage_points,description,phone,photos,created_at";
 
 function generateToken() {
   if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
@@ -29,8 +29,8 @@ const C = {
 const FONT_HEAD = "'Oswald', 'Arial Narrow', sans-serif";
 const FONT_BODY = "'Inter', system-ui, sans-serif";
 
-const US_STATES = ["California","Texas","Florida","New York","Illinois","Ohio","Georgia","Washington","Colorado","Arizona","Pennsylvania","North Carolina","Michigan","Tennessee","Nevada","Oregon"];
-const STATE_ABBR = { California:"CA",Texas:"TX",Florida:"FL","New York":"NY",Illinois:"IL",Ohio:"OH",Georgia:"GA",Washington:"WA",Colorado:"CO",Arizona:"AZ",Pennsylvania:"PA","North Carolina":"NC",Michigan:"MI",Tennessee:"TN",Nevada:"NV",Oregon:"OR" };
+const US_STATES = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","District of Columbia","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"];
+const STATE_ABBR = { Alabama:"AL",Alaska:"AK",Arizona:"AZ",Arkansas:"AR",California:"CA",Colorado:"CO",Connecticut:"CT",Delaware:"DE","District of Columbia":"DC",Florida:"FL",Georgia:"GA",Hawaii:"HI",Idaho:"ID",Illinois:"IL",Indiana:"IN",Iowa:"IA",Kansas:"KS",Kentucky:"KY",Louisiana:"LA",Maine:"ME",Maryland:"MD",Massachusetts:"MA",Michigan:"MI",Minnesota:"MN",Mississippi:"MS",Missouri:"MO",Montana:"MT",Nebraska:"NE",Nevada:"NV","New Hampshire":"NH","New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC","North Dakota":"ND",Ohio:"OH",Oklahoma:"OK",Oregon:"OR",Pennsylvania:"PA","Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD",Tennessee:"TN",Texas:"TX",Utah:"UT",Vermont:"VT",Virginia:"VA",Washington:"WA","West Virginia":"WV",Wisconsin:"WI",Wyoming:"WY" };
 const stateAbbr = (s) => STATE_ABBR[s] || s;
 const MAKE_COLORS = { Ford:"#2B4C7E",Toyota:"#7E2B2B",Honda:"#2B7E4C",Chevrolet:"#7E6A2B",Jeep:"#3E4D2B",Tesla:"#3A3A3A",Subaru:"#2B577E",Ram:"#5A2B7E",GMC:"#7E4B2B",Nissan:"#2B7E7A",BMW:"#2B3A7E",Dodge:"#7E2B4A" };
 
@@ -601,7 +601,7 @@ function FrontBackDamagePicker({ value, onChange, shape = "sedan" }) {
 
   return (
     <div>
-      <svg viewBox="0 0 320 150" style={{ width: "100%", maxWidth: 420, background: "#FAFAF6", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }}>
+      <svg viewBox="0 0 320 150" style={{ width: "100%", maxWidth: 600, background: "#FAFAF6", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }}>
         <CarShapeSvg shape={shape} />
         {/* Clickable front half — the shape itself now has a yellow headlight up front and red taillight in back */}
         <rect x={18} y={22} width={143} height={100} fill={zoneFill("front")} opacity={0.55} style={{ cursor: "pointer" }} onClick={() => openZone("front")} />
@@ -655,8 +655,10 @@ function DamagePicker({ bodyType, points, onAddPoint, onRemovePoint, editable = 
 
   return (
     <div>
-      <svg ref={svgRef} viewBox="0 0 320 150" onClick={handleClick} style={{ width: "100%", maxWidth: 420, background: "#FAFAF6", borderRadius: 8, cursor: editable ? "crosshair" : "default", display: "block", border: `1px solid ${C.line}` }}>
+      <svg ref={svgRef} viewBox="0 0 320 150" onClick={handleClick} style={{ width: "100%", maxWidth: 600, background: "#FAFAF6", borderRadius: 8, cursor: editable ? "crosshair" : "default", display: "block", border: `1px solid ${C.line}` }}>
         <CarShapeSvg shape={shape} />
+        <text x={90} y={140} fontSize={12} fontWeight={600} textAnchor="middle" fill={C.steel}>FRONT</text>
+        <text x={230} y={140} fontSize={12} fontWeight={600} textAnchor="middle" fill={C.steel}>BACK</text>
         {points.map((p, i) => (
           <g key={i}>
             <circle cx={p.x} cy={p.y} r={8} fill={p.severity === "Major" ? "#E24B4A" : p.severity === "Moderate" ? C.yellow : C.steel} stroke={C.ink} strokeWidth={1.25} />
@@ -734,6 +736,7 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
               <Spec label="Transmission" value={listing.trans} />
               <Spec label="Exterior color" value={listing.color} />
               <Spec label="Body style" value={listing.body} />
+              <Spec label="Ownership" value={listing.loan_status || "Paid off"} />
             </div>
           </div>
           <div style={{ marginTop: 26, borderTop: `1px solid ${C.line}`, paddingTop: 20 }}>
@@ -862,12 +865,14 @@ function BoostModal({ listing, onClose, onConfirm }) {
 
 // ---------- Post an ad (with photo requirement) ----------
 function PostAd({ setView, onSubmit, existingListings, log }) {
-  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", desc:"", phone:"" });
+  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", loan_status:"Paid off", desc:"", phone:"" });
   const [photos, setPhotos] = useState([]);
   const [damagePoints, setDamagePoints] = useState([]);
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [honeypot, setHoneypot] = useState(""); // bots fill this; real users never see it
   const [errors, setErrors] = useState({});
+  const [submitError, setSubmitError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
   const set = (k) => (e) => { const val = e.target.value; setForm((prev) => ({ ...prev, [k]: val })); setErrors((prev) => (prev[k] ? { ...prev, [k]: false } : prev)); };
 
   const addPhotos = (fileList) => {
@@ -884,8 +889,9 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
     ) || null;
   }, [form.year, form.make, form.model, form.mileage, existingListings]);
 
-  const submit = () => {
+  const submit = async () => {
     if (honeypot.trim() !== "") return; // bot filled the hidden field — silently drop, no error shown
+    setSubmitError(null);
     const req = ["year","make","model","price","mileage","city","state","phone","body"];
     const errs = {}; req.forEach((k) => { if (!String(form[k]).trim()) errs[k] = true; });
     if (photos.length < 3) errs.photos = true;
@@ -893,11 +899,14 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     if (possibleDuplicate) log("listing_duplicate_confirmed", { matchedId: possibleDuplicate.id });
-    onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), verified: false, posted: "Just now", featured: false, photos, damage_points: damagePoints, desc: form.desc || "No additional description provided." });
+    setSubmitting(true);
+    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), verified: false, posted: "Just now", featured: false, photos, damage_points: damagePoints, desc: form.desc || "No additional description provided." });
+    setSubmitting(false);
+    if (errMsg) setSubmitError(errMsg);
   };
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "36px 20px 70px" }}>
+    <div style={{ maxWidth: 720, margin: "0 auto", padding: "36px 20px 70px" }}>
       <span onClick={() => setView({ name: "home" })} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 12 }}><ChevronLeft size={15} /> Cancel</span>
       <h2 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: "0 0 4px" }}>Post your car</h2>
       <p style={{ color: C.steel, fontSize: 14, marginBottom: 24 }}>Listings are visible across the United States. Fields marked required.</p>
@@ -942,6 +951,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
           <select value={form.body} onChange={set("body")} style={inputStyle}><option value="">Select body style</option><option>Sedan</option><option>SUV</option><option>Truck</option><option>Coupe</option><option>Wagon</option></select>
         </Field>
         <Field label="Condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
+        <Field label="Ownership status"><select value={form.loan_status} onChange={set("loan_status")} style={inputStyle}><option>Paid off</option><option>Still financed (loan payoff needed)</option></select></Field>
       </div>
 
       {possibleDuplicate && (
@@ -973,7 +983,12 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
       <div style={{ fontSize: 11.5, color: C.steel, marginTop: 10 }}>
         We only share your phone number with buyers who request it, and it's never posted publicly. No ID or real name required to list.
       </div>
-      <button onClick={submit} style={{ marginTop: 18, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: "pointer" }}>Publish listing</button>
+      {submitError && (
+        <div style={{ marginTop: 14, padding: 12, background: "#FBE4E3", border: "1px solid #E24B4A", borderRadius: 6, fontSize: 13, color: "#A32D2D" }}>
+          Couldn't publish your listing: {submitError}. Nothing was lost — fix this and try again.
+        </div>
+      )}
+      <button onClick={submit} disabled={submitting} style={{ marginTop: 18, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: submitting ? "default" : "pointer", opacity: submitting ? 0.7 : 1 }}>{submitting ? "Publishing…" : "Publish listing"}</button>
     </div>
   );
 }
@@ -1270,12 +1285,12 @@ function ValueMyCar({ allListings, log, setView }) {
   };
 
   return (
-    <div style={{ maxWidth: 560, margin: "0 auto", padding: "48px 20px 70px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <DollarSign size={22} color={C.ink} />
-        <h2 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: 0 }}>What's your car worth?</h2>
+    <div style={{ maxWidth: 640, margin: "0 auto", padding: "48px 20px 70px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 4 }}>
+        <DollarSign size={26} color={C.ink} />
+        <h2 style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 6vw, 34px)", color: C.ink, margin: 0, textTransform: "uppercase", letterSpacing: 0.5 }}>What's Your Car Worth?</h2>
       </div>
-      <p style={{ color: C.steel, fontSize: 14, marginBottom: 24 }}>A real estimate built from depreciation data and actual HIGHWAYLOT listings — not a guess.</p>
+      <p style={{ color: C.steel, fontSize: 14, marginBottom: 24, textAlign: "center" }}>A real estimate built from depreciation data and actual HIGHWAYLOT listings — not a guess.</p>
 
       <div className="hl-form-grid">
         <Field label="Year" required error={errors.year}><input value={form.year} onChange={set("year")} placeholder="2019" style={inputStyle} /></Field>
@@ -1518,13 +1533,14 @@ export default function App() {
     const { desc, ...rest } = data;
     const manage_token = generateToken();
     const { data: inserted, error } = await supabase.from("listings").insert({ ...rest, description: desc, manage_token }).select(LISTING_COLUMNS).single();
-    if (error) { console.error("post listing failed:", error.message); return; }
+    if (error) { console.error("post listing failed:", error.message); return error.message; }
     const newListing = rowToListing(inserted);
     setListings([newListing, ...listings]);
     setLastPostedId(newListing.id);
     setLastManageLink(`${window.location.origin}${window.location.pathname}?manage=${newListing.id}.${manage_token}`);
     log("listing_created", { listingId: newListing.id });
     setView({ name: "success" });
+    return null;
   };
 
   const handleBoost = async (id) => {
