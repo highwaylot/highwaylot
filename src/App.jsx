@@ -713,14 +713,18 @@ function DamagePicker({ bodyType, points, onAddPoint, onRemovePoint, editable = 
         <CarShapeSvg shape={shape} />
         <text x={90} y={140} fontSize={12} fontWeight={600} textAnchor="middle" fill={C.steel}>FRONT</text>
         <text x={230} y={140} fontSize={12} fontWeight={600} textAnchor="middle" fill={C.steel}>BACK</text>
-        {points.map((p, i) => (
-          <g key={i}>
-            <circle cx={p.x} cy={p.y} r={8} fill={p.severity === "Major" ? "#E24B4A" : p.severity === "Moderate" ? C.yellow : C.steel} stroke={C.ink} strokeWidth={1.25} />
-            <text x={p.x} y={p.y + 3.5} fontSize={9} textAnchor="middle" fill="#fff" fontWeight="bold">{i + 1}</text>
-            <title>{p.severity}: {p.note}</title>
-          </g>
-        ))}
-        {pending && <circle cx={pending.x} cy={pending.y} r={8} fill="none" stroke={C.ink} strokeDasharray="3,2" />}
+        {points.map((p, i) => {
+          const fill = p.severity === "Major" ? "#E24B4A" : p.severity === "Moderate" ? C.yellow : "#F4F2EA";
+          const numberColor = p.severity === "Minor" ? C.ink : "#fff";
+          return (
+            <g key={i}>
+              <circle cx={p.x} cy={p.y} r={8} fill={fill} stroke="#fff" strokeWidth={1.5} />
+              <text x={p.x} y={p.y + 3.5} fontSize={9} textAnchor="middle" fill={numberColor} fontWeight="bold">{i + 1}</text>
+              <title>{p.severity}: {p.note}</title>
+            </g>
+          );
+        })}
+        {pending && <circle cx={pending.x} cy={pending.y} r={8} fill="none" stroke={C.yellow} strokeWidth={2} strokeDasharray="3,2" />}
       </svg>
 
       {editable && pending && (
@@ -1233,13 +1237,26 @@ const MECHANICAL_SYSTEMS = [
   { key: "electrical", label: "Electrical", max: 800 },
   { key: "ac", label: "AC / heating", max: 600 },
   { key: "brakes", label: "Brakes", max: 500 },
-  { key: "paint", label: "Paint / exterior (fading, chips, clear coat)", max: 1000 },
-  { key: "dents", label: "Dents & scratches", max: 700 },
 ];
 const STATUS_OPTIONS = [
   { key: "Fixed", tone: "verified", weight: 0 },
   { key: "Ongoing", tone: "yellow", weight: 0.35 },
   { key: "Broken", tone: "danger", weight: 1 },
+];
+
+// Cosmetic damage doesn't have a "fixed" state the way a mechanical system
+// does — a dent isn't "broken," it just is or isn't there. These use their
+// own severity language and weights (no zero-cost tier, since selecting any
+// tier means real damage was reported; skipping the category entirely is
+// what represents "no damage").
+const COSMETIC_SYSTEMS = [
+  { key: "paint", label: "Paint / exterior (fading, chips, clear coat)", max: 1000 },
+  { key: "dents", label: "Dents & scratches", max: 1200 },
+];
+const COSMETIC_OPTIONS = [
+  { key: "Minor", tone: "verified", weight: 0.18 },
+  { key: "Moderate", tone: "yellow", weight: 0.5 },
+  { key: "Major", tone: "danger", weight: 1 },
 ];
 
 // Burn marks scale by count, not severity — cost is driven by how many spots
@@ -1294,6 +1311,15 @@ function computeMechanicalDeduction(issues, make) {
     if (deduction > 0) { breakdown.push({ label: sys.label, status, deduction }); total += deduction; }
     else breakdown.push({ label: sys.label, status, deduction: 0 });
   });
+  COSMETIC_SYSTEMS.forEach((sys) => {
+    const status = issues[sys.key];
+    if (!status) return;
+    const opt = COSMETIC_OPTIONS.find((o) => o.key === status);
+    const adjustedMax = sys.max * brandMult * FL_REGIONAL_MULTIPLIER;
+    const deduction = Math.round(adjustedMax * opt.weight);
+    breakdown.push({ label: sys.label, status, deduction });
+    total += deduction;
+  });
   if (issues.burnCount) {
     const tier = BURN_TIERS.find((t) => t.key === issues.burnCount);
     if (tier) {
@@ -1339,6 +1365,30 @@ function MechanicalChecklist({ issues, onChange }) {
         </div>
       ))}
 
+      {COSMETIC_SYSTEMS.map((sys) => (
+        <div key={sys.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}`, gap: 10 }}>
+          <span style={{ fontSize: 13.5, color: C.ink }}>{sys.label}</span>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            {COSMETIC_OPTIONS.map((opt) => {
+              const active = issues[sys.key] === opt.key;
+              const activeColors = { verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "#FFF3D6", color: C.yellowDark }, danger: { bg: "#FBE4E3", color: "#A32D2D" } };
+              const c = activeColors[opt.tone];
+              return (
+                <button
+                  key={opt.key}
+                  onClick={() => onChange({ ...issues, [sys.key]: active ? undefined : opt.key })}
+                  style={{
+                    fontSize: 11.5, padding: "5px 10px", borderRadius: 4, cursor: "pointer",
+                    border: active ? "none" : `1px solid ${C.line}`,
+                    background: active ? c.bg : "#fff", color: active ? c.color : C.steel, fontWeight: active ? 600 : 400,
+                  }}
+                >{opt.key}</button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
       {/* Burn marks — counted, not rated by severity, since cost scales with how many there are */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}`, gap: 10 }}>
         <span style={{ fontSize: 13.5, color: C.ink }}>Burn marks (seats, carpet)</span>
@@ -1363,14 +1413,24 @@ function MechanicalChecklist({ issues, onChange }) {
       {/* Smoke odor — flat yes/no, it's one detailing service regardless of how bad it is */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", gap: 10 }}>
         <span style={{ fontSize: 13.5, color: C.ink }}>Smoked-in / lingering odor</span>
-        <button
-          onClick={() => onChange({ ...issues, odorTreatment: !issues.odorTreatment })}
-          style={{
-            fontSize: 11.5, padding: "5px 10px", borderRadius: 4, cursor: "pointer",
-            border: issues.odorTreatment ? "none" : `1px solid ${C.line}`,
-            background: issues.odorTreatment ? "#FBE4E3" : "#fff", color: issues.odorTreatment ? "#A32D2D" : C.steel, fontWeight: issues.odorTreatment ? 600 : 400,
-          }}
-        >{issues.odorTreatment ? "Yes, needs treatment" : "No odor"}</button>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          {[{ key: false, label: "No" }, { key: true, label: "Yes" }].map((opt) => {
+            const active = Boolean(issues.odorTreatment) === opt.key;
+            return (
+              <button
+                key={String(opt.key)}
+                onClick={() => onChange({ ...issues, odorTreatment: opt.key })}
+                style={{
+                  fontSize: 11.5, padding: "5px 14px", borderRadius: 4, cursor: "pointer",
+                  border: active ? "none" : `1px solid ${C.line}`,
+                  background: active && opt.key ? "#FBE4E3" : active ? C.greenBg : "#fff",
+                  color: active && opt.key ? "#A32D2D" : active ? C.green : C.steel,
+                  fontWeight: active ? 600 : 400,
+                }}
+              >{opt.label}</button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
