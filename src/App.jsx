@@ -1233,12 +1233,31 @@ const MECHANICAL_SYSTEMS = [
   { key: "electrical", label: "Electrical", max: 800 },
   { key: "ac", label: "AC / heating", max: 600 },
   { key: "brakes", label: "Brakes", max: 500 },
+  { key: "paint", label: "Paint / exterior (fading, chips, clear coat)", max: 1000 },
+  { key: "dents", label: "Dents & scratches", max: 700 },
 ];
 const STATUS_OPTIONS = [
   { key: "Fixed", tone: "verified", weight: 0 },
   { key: "Ongoing", tone: "yellow", weight: 0.35 },
   { key: "Broken", tone: "danger", weight: 1 },
 ];
+
+// Burn marks scale by count, not severity — cost is driven by how many spots
+// there are more than how bad any single one looks. Blended per-burn figure
+// (fabric/vinyl/leather averaged, since we don't ask seat material) sourced
+// from real repair-cost research: $50-$280/burn fabric, $75-$200 vinyl,
+// $140-$420 leather. 4+ spots crosses into "just replace the panel" territory
+// per that same research, so it's priced as a partial reupholstery job, not
+// a per-burn multiple.
+const BURN_TIERS = [
+  { key: "1", label: "1 spot", cost: 150 },
+  { key: "2-3", label: "2–3 spots", cost: 400 },
+  { key: "4+", label: "4+ spots", cost: 1500 },
+];
+// Smoke/odor treatment is a flat detailing service, not brand-specific repair
+// work — real cars, not annual-repair-rate territory — so only the regional
+// labor adjustment applies here, not the brand multiplier.
+const ODOR_TREATMENT_COST = 115; // midpoint of real $80-$150 range found
 
 // Real RepairPal average-annual-repair-cost-by-brand data (repairpal.com/reliability),
 // checked September 2026. All-brand average is $652/yr — every brand's ceiling gets
@@ -1275,6 +1294,21 @@ function computeMechanicalDeduction(issues, make) {
     if (deduction > 0) { breakdown.push({ label: sys.label, status, deduction }); total += deduction; }
     else breakdown.push({ label: sys.label, status, deduction: 0 });
   });
+  if (issues.burnCount) {
+    const tier = BURN_TIERS.find((t) => t.key === issues.burnCount);
+    if (tier) {
+      const deduction = Math.round(tier.cost * brandMult * FL_REGIONAL_MULTIPLIER);
+      breakdown.push({ label: "Burn marks", status: tier.label, deduction });
+      total += deduction;
+    }
+  }
+  if (issues.odorTreatment) {
+    // Regional labor adjustment only — this is a flat detailing service, not
+    // brand-specific repair work, so the brand multiplier doesn't apply.
+    const deduction = Math.round(ODOR_TREATMENT_COST * FL_REGIONAL_MULTIPLIER);
+    breakdown.push({ label: "Smoke odor treatment", status: "Needed", deduction });
+    total += deduction;
+  }
   return { total, breakdown, brandMult, hasBrandData: Boolean(BRAND_REPAIR_COST[make]) };
 }
 
@@ -1282,9 +1316,9 @@ function MechanicalChecklist({ issues, onChange }) {
   return (
     <div>
       {MECHANICAL_SYSTEMS.map((sys) => (
-        <div key={sys.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+        <div key={sys.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}`, gap: 10 }}>
           <span style={{ fontSize: 13.5, color: C.ink }}>{sys.label}</span>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
             {STATUS_OPTIONS.map((opt) => {
               const active = issues[sys.key] === opt.key;
               const activeColors = { verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "#FFF3D6", color: C.yellowDark }, danger: { bg: "#FBE4E3", color: "#A32D2D" } };
@@ -1304,6 +1338,40 @@ function MechanicalChecklist({ issues, onChange }) {
           </div>
         </div>
       ))}
+
+      {/* Burn marks — counted, not rated by severity, since cost scales with how many there are */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}`, gap: 10 }}>
+        <span style={{ fontSize: 13.5, color: C.ink }}>Burn marks (seats, carpet)</span>
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          {BURN_TIERS.map((tier) => {
+            const active = issues.burnCount === tier.key;
+            return (
+              <button
+                key={tier.key}
+                onClick={() => onChange({ ...issues, burnCount: active ? undefined : tier.key })}
+                style={{
+                  fontSize: 11.5, padding: "5px 10px", borderRadius: 4, cursor: "pointer",
+                  border: active ? "none" : `1px solid ${C.line}`,
+                  background: active ? "#FBE4E3" : "#fff", color: active ? "#A32D2D" : C.steel, fontWeight: active ? 600 : 400,
+                }}
+              >{tier.label}</button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Smoke odor — flat yes/no, it's one detailing service regardless of how bad it is */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", gap: 10 }}>
+        <span style={{ fontSize: 13.5, color: C.ink }}>Smoked-in / lingering odor</span>
+        <button
+          onClick={() => onChange({ ...issues, odorTreatment: !issues.odorTreatment })}
+          style={{
+            fontSize: 11.5, padding: "5px 10px", borderRadius: 4, cursor: "pointer",
+            border: issues.odorTreatment ? "none" : `1px solid ${C.line}`,
+            background: issues.odorTreatment ? "#FBE4E3" : "#fff", color: issues.odorTreatment ? "#A32D2D" : C.steel, fontWeight: issues.odorTreatment ? 600 : 400,
+          }}
+        >{issues.odorTreatment ? "Yes, needs treatment" : "No odor"}</button>
+      </div>
     </div>
   );
 }
@@ -1448,7 +1516,7 @@ function ValueMyCar({ allListings, log, setView }) {
               </div>
               {result.breakdown.filter((b) => b.deduction > 0).map((b, i) => (
                 <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
-                  <span>{b.label} — {b.status === "Broken" ? "not working" : "ongoing issue"}</span>
+                  <span>{b.label} — {b.status === "Broken" ? "not working" : b.status === "Ongoing" ? "ongoing issue" : b.status}</span>
                   <span style={{ color: "#A32D2D" }}>-{fmtPrice(b.deduction)}</span>
                 </div>
               ))}
