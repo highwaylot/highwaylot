@@ -526,23 +526,25 @@ function SavedSearchPrompt({ filters, log }) {
 // car models and a 3D engine, which isn't realistic to fake with placeholder
 // assets. This gets the actual job done: click a spot, mark what's wrong there.
 function getShapeType(bodyType) {
-  if (bodyType === "Truck") return "truck";
-  if (bodyType === "SUV" || bodyType === "Wagon") return "suv";
-  return "sedan"; // covers Sedan, Coupe
+  const map = {
+    Sedan: "sedan", Coupe: "coupe", Hatchback: "hatchback",
+    SUV: "suv", Truck: "truck", "Van/Minivan": "van", Convertible: "convertible",
+  };
+  return map[bodyType] || "sedan";
 }
-function CarShapeSvg({ shape }) {
-  // Side-profile silhouette (not the reference image's 3/4 perspective — that
-  // needs real vanishing-point math to draw well, and this codebase's track
-  // record with car shapes says don't gamble that blind). What IS pulled from
-  // the reference: a longer hood-to-cabin ratio, a proper sloped greenhouse
-  // instead of a flat window band, wheel arches the wheels actually sit
-  // inside rather than floating beside, and a single character line along
-  // the body for a touch of real automotive form language.
+
+// Solid single-color silhouette, matching the reference sheet exactly — no
+// window band, no internal detail. Wheel arches are real negative-space cuts
+// (a background-colored patch layered over the body, since true path
+// subtraction isn't worth the risk here), with the wheel sitting inside the
+// gap rather than floating on the body edge. bg must match whatever the SVG
+// is actually rendered on top of, passed in per-picker.
+function CarShapeSvg({ shape, bg = "#FAFAF6" }) {
+  const Arch = ({ cx, groundY, r = 22 }) => <path d={`M ${cx - r} ${groundY} A ${r} ${r} 0 0 1 ${cx + r} ${groundY} Z`} fill={bg} />;
   const Wheel = ({ cx, groundY }) => (
     <g>
-      <path d={`M ${cx - 20} ${groundY} A 20 20 0 0 1 ${cx + 20} ${groundY}`} fill="#0E141B" />
-      <circle cx={cx} cy={groundY - 2} r={15} fill="#12181F" />
-      <circle cx={cx} cy={groundY - 2} r={6} fill="#4A5058" />
+      <circle cx={cx} cy={groundY - 3} r={14} fill="#12181F" />
+      <circle cx={cx} cy={groundY - 3} r={5.5} fill="#4A5058" />
     </g>
   );
   const Lights = ({ frontX, backX, y }) => (
@@ -551,42 +553,75 @@ function CarShapeSvg({ shape }) {
       <circle cx={backX} cy={y} r={4} fill="#E24B4A" />
     </>
   );
-  const window_ = "#F4F2EA";
-  const crease = (x1, x2, y) => <line x1={x1} y1={y} x2={x2} y2={y} stroke="#0E141B" strokeWidth={1} opacity={0.3} />;
 
   if (shape === "truck") {
     return (
       <g>
-        <path d="M 14 120 L 14 82 C 14 70 22 64 33 62 L 58 58 C 68 44 82 39 98 38 L 132 38 C 140 38 140 46 140 52 L 140 100 L 300 100 L 300 76 L 312 76 L 312 120 Z" fill={C.ink} />
-        <path d="M 62 56 C 72 46 84 41 96 40 L 96 58 L 62 58 Z" fill={window_} />
-        {crease(40, 300, 88)}
+        <path d="M 14 120 L 14 82 C 14 70 22 64 33 62 L 58 58 C 68 44 82 39 98 38 L 128 38 C 136 38 136 46 136 52 L 136 100 L 300 100 L 300 76 L 312 76 L 312 120 Z" fill={C.ink} />
+        <Arch cx={55} groundY={120} /><Arch cx={253} groundY={120} />
         <Lights frontX={22} backX={304} y={90} />
-        <Wheel cx={56} groundY={120} />
-        <Wheel cx={253} groundY={120} />
+        <Wheel cx={55} groundY={120} /><Wheel cx={253} groundY={120} />
+      </g>
+    );
+  }
+  if (shape === "van") {
+    return (
+      <g>
+        <path d="M 14 120 L 14 56 C 14 44 22 38 34 38 L 290 38 C 300 38 306 46 306 58 L 306 120 Z" fill={C.ink} />
+        <Arch cx={58} groundY={120} /><Arch cx={262} groundY={120} />
+        <Lights frontX={22} backX={300} y={92} />
+        <Wheel cx={58} groundY={120} /><Wheel cx={262} groundY={120} />
       </g>
     );
   }
   if (shape === "suv") {
     return (
       <g>
-        <path d="M 14 120 L 14 78 C 14 64 24 57 36 55 L 58 48 C 72 36 90 32 108 32 L 214 32 C 234 32 250 37 262 48 L 284 55 C 296 57 306 64 306 78 L 306 120 Z" fill={C.ink} />
-        <path d="M 62 53 C 76 41 92 36 110 35 L 212 35 C 228 36 242 40 254 53 L 250 66 L 66 66 Z" fill={window_} />
-        {crease(38, 302, 92)}
-        <Lights frontX={22} backX={298} y={94} />
-        <Wheel cx={64} groundY={120} />
-        <Wheel cx={256} groundY={120} />
+        <path d="M 14 120 L 14 76 C 14 62 24 55 36 52 L 58 46 C 72 34 90 30 108 30 L 216 30 C 246 30 262 36 274 50 L 288 55 C 300 58 306 64 306 76 L 306 120 Z" fill={C.ink} />
+        <Arch cx={62} groundY={120} /><Arch cx={258} groundY={120} />
+        <Lights frontX={22} backX={298} y={92} />
+        <Wheel cx={62} groundY={120} /><Wheel cx={258} groundY={120} />
       </g>
     );
   }
-  // sedan / coupe
+  if (shape === "hatchback") {
+    return (
+      <g>
+        <path d="M 14 120 L 14 96 C 14 86 22 79 33 77 L 58 72 C 74 46 96 34 124 32 C 154 30 184 34 202 46 C 216 55 222 68 224 82 L 232 90 C 236 94 236 100 236 106 L 236 100 L 300 100 C 306 100 306 106 306 112 L 306 120 Z" fill={C.ink} />
+        <path d="M 236 90 C 250 92 262 96 300 100 L 306 108 L 306 120 L 236 120 Z" fill={C.ink} />
+        <Arch cx={66} groundY={120} /><Arch cx={252} groundY={120} />
+        <Lights frontX={22} backX={300} y={92} />
+        <Wheel cx={66} groundY={120} /><Wheel cx={252} groundY={120} />
+      </g>
+    );
+  }
+  if (shape === "convertible") {
+    return (
+      <g>
+        <path d="M 14 120 L 14 100 C 14 92 20 87 28 85 L 60 80 C 78 62 100 52 126 49 L 190 49 C 210 51 226 60 240 74 L 284 82 C 298 85 306 90 306 102 L 306 120 Z" fill={C.ink} />
+        <Arch cx={70} groundY={120} /><Arch cx={254} groundY={120} />
+        <Lights frontX={22} backX={300} y={94} />
+        <Wheel cx={70} groundY={120} /><Wheel cx={254} groundY={120} />
+      </g>
+    );
+  }
+  if (shape === "coupe") {
+    return (
+      <g>
+        <path d="M 14 120 L 14 100 C 14 90 20 84 30 82 L 60 78 C 76 52 96 40 122 36 C 148 32 172 33 192 40 C 208 46 220 58 228 76 L 280 84 C 296 87 306 92 306 104 L 306 120 Z" fill={C.ink} />
+        <Arch cx={68} groundY={120} /><Arch cx={252} groundY={120} />
+        <Lights frontX={22} backX={300} y={94} />
+        <Wheel cx={68} groundY={120} /><Wheel cx={252} groundY={120} />
+      </g>
+    );
+  }
+  // sedan (default)
   return (
     <g>
       <path d="M 14 120 L 14 98 C 14 87 21 80 32 78 L 62 74 C 76 50 96 38 122 34 C 150 30 178 30 202 34 C 224 38 240 48 252 68 L 284 78 C 298 82 306 88 306 100 L 306 120 Z" fill={C.ink} />
-      <path d="M 68 73 C 80 52 98 41 122 37 C 148 33 174 33 196 37 C 214 40 226 48 236 64 L 248 78 L 82 82 Z" fill={window_} />
-      {crease(40, 298, 92)}
+      <Arch cx={72} groundY={120} /><Arch cx={254} groundY={120} />
       <Lights frontX={22} backX={300} y={94} />
-      <Wheel cx={72} groundY={120} />
-      <Wheel cx={254} groundY={120} />
+      <Wheel cx={72} groundY={120} /><Wheel cx={254} groundY={120} />
     </g>
   );
 }
@@ -966,7 +1001,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
         <Field label="Seller type"><select value={form.seller} onChange={set("seller")} style={inputStyle}><option>Private</option><option>Dealer</option></select></Field>
         <Field label="Contact phone" required error={errors.phone}><input value={form.phone} onChange={set("phone")} placeholder="(555) 019-1234" style={inputStyle} /></Field>
         <Field label="Body style" required error={errors.body}>
-          <select value={form.body} onChange={set("body")} style={inputStyle}><option value="">Select body style</option><option>Sedan</option><option>SUV</option><option>Truck</option><option>Coupe</option><option>Wagon</option></select>
+          <select value={form.body} onChange={set("body")} style={inputStyle}><option value="">Select body style</option><option>Sedan</option><option>Coupe</option><option>Hatchback</option><option>SUV</option><option>Truck</option><option>Van/Minivan</option><option>Convertible</option></select>
         </Field>
         <Field label="Condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
         <Field label="Ownership status"><select value={form.loan_status} onChange={set("loan_status")} style={inputStyle}><option>Paid off</option><option>Still financed (loan payoff needed)</option></select></Field>
@@ -1344,7 +1379,7 @@ function ValueMyCar({ allListings, log, setView }) {
         <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={set("mileage")} placeholder="52000" style={inputStyle} /></Field>
         <Field label="Original price paid" required error={errors.originalPrice}><input value={form.originalPrice} onChange={set("originalPrice")} placeholder="28000" style={inputStyle} /></Field>
         <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
-        <Field label="Body style"><select value={form.body} onChange={set("body")} style={inputStyle}><option>Sedan</option><option>SUV</option><option>Truck</option><option>Coupe</option><option>Wagon</option></select></Field>
+        <Field label="Body style"><select value={form.body} onChange={set("body")} style={inputStyle}><option>Sedan</option><option>Coupe</option><option>Hatchback</option><option>SUV</option><option>Truck</option><option>Van/Minivan</option><option>Convertible</option></select></Field>
         <Field label="Ownership status"><select value={form.loan_status} onChange={set("loan_status")} style={inputStyle}><option>Paid off</option><option>Still financed (loan payoff needed)</option></select></Field>
         {form.loan_status === "Still financed (loan payoff needed)" && (
           <Field label="Remaining loan balance ($)"><input value={form.loan_balance} onChange={set("loan_balance")} placeholder="8500" style={inputStyle} /></Field>
