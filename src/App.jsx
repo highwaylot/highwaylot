@@ -30,6 +30,10 @@ const FONT_HEAD = "'Oswald', 'Arial Narrow', sans-serif";
 const FONT_BODY = "'Inter', system-ui, sans-serif";
 
 const US_STATES = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","District of Columbia","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"];
+// Newest first, one year ahead of today's calendar year to cover early
+// next-model-year listings (a 2027 model can legitimately show up in late 2026).
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: CURRENT_YEAR + 1 - 1980 + 1 }, (_, i) => CURRENT_YEAR + 1 - i);
 const STATE_ABBR = { Alabama:"AL",Alaska:"AK",Arizona:"AZ",Arkansas:"AR",California:"CA",Colorado:"CO",Connecticut:"CT",Delaware:"DE","District of Columbia":"DC",Florida:"FL",Georgia:"GA",Hawaii:"HI",Idaho:"ID",Illinois:"IL",Indiana:"IN",Iowa:"IA",Kansas:"KS",Kentucky:"KY",Louisiana:"LA",Maine:"ME",Maryland:"MD",Massachusetts:"MA",Michigan:"MI",Minnesota:"MN",Mississippi:"MS",Missouri:"MO",Montana:"MT",Nebraska:"NE",Nevada:"NV","New Hampshire":"NH","New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC","North Dakota":"ND",Ohio:"OH",Oklahoma:"OK",Oregon:"OR",Pennsylvania:"PA","Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD",Tennessee:"TN",Texas:"TX",Utah:"UT",Vermont:"VT",Virginia:"VA",Washington:"WA","West Virginia":"WV",Wisconsin:"WI",Wyoming:"WY" };
 const stateAbbr = (s) => STATE_ABBR[s] || s;
 const MAKE_COLORS = { Ford:"#2B4C7E",Toyota:"#7E2B2B",Honda:"#2B7E4C",Chevrolet:"#7E6A2B",Jeep:"#3E4D2B",Tesla:"#3A3A3A",Subaru:"#2B577E",Ram:"#5A2B7E",GMC:"#7E4B2B",Nissan:"#2B7E7A",BMW:"#2B3A7E",Dodge:"#7E2B4A" };
@@ -989,7 +993,9 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
       </Field>
 
       <div className="hl-form-grid" style={{ marginTop: 18 }}>
-        <Field label="Year" required error={errors.year}><input value={form.year} onChange={set("year")} placeholder="2021" style={inputStyle} /></Field>
+        <Field label="Year" required error={errors.year}>
+          <select value={form.year} onChange={set("year")} style={inputStyle}><option value="">Select year</option>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+        </Field>
         <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => ({ ...prev, model: v }))} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
         <Field label="Trim"><input value={form.trim} onChange={set("trim")} placeholder="XLT" style={inputStyle} /></Field>
         <Field label="Price (USD)" required error={errors.price}><input value={form.price} onChange={set("price")} placeholder="24999" style={inputStyle} /></Field>
@@ -1374,7 +1380,9 @@ function ValueMyCar({ allListings, log, setView }) {
       <p style={{ color: C.steel, fontSize: 14, marginBottom: 24, textAlign: "center" }}>Fill in your car's details to get an estimate.</p>
 
       <div className="hl-form-grid">
-        <Field label="Year" required error={errors.year}><input value={form.year} onChange={set("year")} placeholder="2019" style={inputStyle} /></Field>
+        <Field label="Year" required error={errors.year}>
+          <select value={form.year} onChange={set("year")} style={inputStyle}><option value="">Select year</option>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+        </Field>
         <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => ({ ...prev, model: v }))} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
         <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={set("mileage")} placeholder="52000" style={inputStyle} /></Field>
         <Field label="Original price paid" required error={errors.originalPrice}><input value={form.originalPrice} onChange={set("originalPrice")} placeholder="28000" style={inputStyle} /></Field>
