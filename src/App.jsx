@@ -963,49 +963,91 @@ function Success() {
 }
 
 // ---------- Quiz (expanded, categorized, archetype result) ----------
-const QUIZ_SECTIONS = [
-  { section: "Lifestyle", questions: [
-    { key: "household", q: "Who's usually riding with you?", options: ["Just me", "Me and a partner", "Family with kids", "Crew / gear / cargo"] },
-    { key: "driving", q: "Where do you drive most?", options: ["City streets", "Highway commute", "Mixed city and highway", "Backroads / off-road"] },
-    { key: "climate", q: "What's your weather like?", options: ["Mild, dry most of the year", "Rain a lot", "Real winters with snow", "Extreme heat"] },
-  ]},
-  { section: "Ownership comfort", questions: [
-    { key: "condition", q: "New or used?", options: ["Prefer newer / low miles", "Don't mind higher mileage", "Whatever's the best deal"] },
-    { key: "maintenance", q: "Comfortable doing your own maintenance?", options: ["Yes, I wrench on it myself", "Some basics only", "No, I want it low-hassle"] },
-    { key: "power", q: "Gas, hybrid, or electric?", options: ["Gas only", "Open to hybrid", "EV-curious"] },
-  ]},
-  { section: "Hard constraints", questions: [
-    { key: "budget", q: "What's your rough budget?", options: ["Under $20k", "$20k–$30k", "$30k–$40k", "$40k+"] },
-    { key: "musthave", q: "Any must-have feature?", options: ["AWD / 4WD", "Third row seating", "Towing capacity", "None, keep it simple"] },
-  ]},
-  { section: "Just for fun", questions: [
-    { key: "vibe", q: "Would you rather arrive...", options: ["Early and quiet", "Fashionably loud", "Right on time, no fuss", "Whenever, it's a road trip"] },
-  ]},
+const QUIZ_STATEMENTS = [
+  { key: "haul", text: "I need a car that can haul stuff." },
+  { key: "speed", text: "Speed matters more to me than saving gas money." },
+  { key: "fun", text: "Driving itself is fun for me, not just a way to get somewhere." },
+  { key: "people", text: "I like having people in the car with me." },
+  { key: "dirt", text: "A little dirt never hurt." },
+  { key: "identity", text: "My car says something about who I am." },
+  { key: "notice", text: "I want people to notice my car." },
+  { key: "whim", text: "I could buy a car on a whim." },
+  { key: "tradehp", text: "I'd trade horsepower for better gas mileage." },
+  { key: "opinion", text: "What people think of my car matters to me." },
 ];
-const ALL_QUESTIONS = QUIZ_SECTIONS.flatMap((s) => s.questions.map((q) => ({ ...q, section: s.section })));
 
-const BODY_MAP = { "Just me": "Coupe", "Me and a partner": "Sedan", "Family with kids": "SUV", "Crew / gear / cargo": "Truck" };
-const BUDGET_MAP = { "Under $20k": 20000, "$20k–$30k": 30000, "$30k–$40k": 40000, "$40k+": 100000 };
+// Each archetype's ideal answer (1-5) on every statement above. Scoring
+// compares a real person's answers against all 10 of these and picks
+// whichever is numerically closest — a similarity match, not a rigid
+// binary/16-type system, since 10 archetypes don't divide cleanly into one.
+const ARCHETYPE_PROFILES = {
+  "Soccer Mom Mode": { haul: 5, speed: 1, fun: 2, people: 5, dirt: 4, identity: 2, notice: 1, whim: 1, tradehp: 4, opinion: 2 },
+  "Midlife Crisis": { haul: 2, speed: 5, fun: 5, people: 2, dirt: 2, identity: 5, notice: 5, whim: 5, tradehp: 1, opinion: 4 },
+  "Dad Truck Energy": { haul: 5, speed: 3, fun: 3, people: 3, dirt: 5, identity: 3, notice: 2, whim: 2, tradehp: 2, opinion: 2 },
+  "Broke College Energy": { haul: 3, speed: 2, fun: 3, people: 4, dirt: 5, identity: 1, notice: 1, whim: 1, tradehp: 3, opinion: 1 },
+  "Main Character Energy": { haul: 1, speed: 3, fun: 4, people: 3, dirt: 1, identity: 5, notice: 5, whim: 4, tradehp: 1, opinion: 5 },
+  "Beach Cruiser": { haul: 3, speed: 1, fun: 4, people: 4, dirt: 5, identity: 2, notice: 1, whim: 3, tradehp: 4, opinion: 1 },
+  "Frat Row Special": { haul: 2, speed: 4, fun: 5, people: 5, dirt: 5, identity: 3, notice: 4, whim: 4, tradehp: 1, opinion: 2 },
+  "Grandma's Sunday Car": { haul: 2, speed: 1, fun: 1, people: 3, dirt: 1, identity: 2, notice: 1, whim: 1, tradehp: 5, opinion: 3 },
+  "Pedal to the Metal": { haul: 1, speed: 5, fun: 5, people: 2, dirt: 2, identity: 3, notice: 2, whim: 4, tradehp: 1, opinion: 2 },
+  "CEO Commute": { haul: 1, speed: 3, fun: 2, people: 1, dirt: 1, identity: 4, notice: 4, whim: 1, tradehp: 3, opinion: 3 },
+};
+const ARCHETYPE_BLURBS = {
+  "Soccer Mom Mode": "Hauls the kids, the gear, and the snacks, and doesn't care what it looks like doing it.",
+  "Midlife Crisis": "Top down, radio up, making up for lost time.",
+  "Dad Truck Energy": "Practical, proud of it, and always ready to tow something.",
+  "Broke College Energy": "Runs on hope and duct tape, and that's fine by them.",
+  "Main Character Energy": "The car's a whole personality, and it's playing the lead.",
+  "Beach Cruiser": "Windows down, no rush, vibes over horsepower.",
+  "Frat Row Special": "Loud, a little chaotic, always got a full car.",
+  "Grandma's Sunday Car": "Barely driven, perfectly kept, zero drama.",
+  "Pedal to the Metal": "Horsepower over everything, gas mileage be damned.",
+  "CEO Commute": "Sleek, efficient, no time to waste getting there.",
+};
+// Loose body-style pairing per archetype, used only to surface relevant
+// listings on the results page — not part of the scoring itself.
+const ARCHETYPE_BODY = {
+  "Soccer Mom Mode": "Van/Minivan", "Midlife Crisis": "Convertible", "Dad Truck Energy": "Truck",
+  "Broke College Energy": "Sedan", "Main Character Energy": "Coupe", "Beach Cruiser": "Convertible",
+  "Frat Row Special": "SUV", "Grandma's Sunday Car": "Sedan", "Pedal to the Metal": "Coupe", "CEO Commute": "Sedan",
+};
 
-function getArchetype(answers) {
-  if (answers.household === "Crew / gear / cargo" || answers.musthave === "Towing capacity") return { name: "Weekend Hauler", blurb: "You need real capability — towing, cargo room, and a truck bed that earns its keep." };
-  if (answers.household === "Family with kids" || answers.musthave === "Third row seating") return { name: "Family Fleet Captain", blurb: "Space, safety, and enough room for everyone (and their stuff) come first." };
-  if (answers.vibe === "Fashionably loud" || answers.driving === "Backroads / off-road") return { name: "Open Road Enthusiast", blurb: "Driving is the point, not just the commute. You want something with character." };
-  if (answers.power === "EV-curious") return { name: "Next-Gen Commuter", blurb: "Efficient, modern, and ready to skip the gas station." };
-  return { name: "Daily Commuter", blurb: "Reliable, efficient, no drama — a car that just works, day after day." };
+function scoreQuiz(answers) {
+  const distances = Object.entries(ARCHETYPE_PROFILES).map(([name, profile]) => {
+    const dist = QUIZ_STATEMENTS.reduce((sum, s) => sum + Math.pow((answers[s.key] || 3) - profile[s.key], 2), 0);
+    return { name, dist };
+  }).sort((a, b) => a.dist - b.dist);
+
+  let [best, second] = distances;
+  // Tie-breaker: when the top two are nearly even, defer to whichever
+  // archetype matches the person's single most extreme (least neutral)
+  // answer — rooted in something they actually felt strongly about,
+  // not an arbitrary pick.
+  if (second && (second.dist - best.dist) < 2) {
+    let mostExtremeKey = null, maxDeviation = -1;
+    QUIZ_STATEMENTS.forEach((s) => {
+      const deviation = Math.abs((answers[s.key] || 3) - 3);
+      if (deviation > maxDeviation) { maxDeviation = deviation; mostExtremeKey = s.key; }
+    });
+    const userVal = answers[mostExtremeKey];
+    const bestDiff = Math.abs(userVal - ARCHETYPE_PROFILES[best.name][mostExtremeKey]);
+    const secondDiff = Math.abs(userVal - ARCHETYPE_PROFILES[second.name][mostExtremeKey]);
+    if (secondDiff < bestDiff) best = second;
+  }
+  return { name: best.name, blurb: ARCHETYPE_BLURBS[best.name] };
 }
 
 function Quiz({ log, onComplete }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
-  const q = ALL_QUESTIONS[step];
-  const progress = Math.round(((step) / ALL_QUESTIONS.length) * 100);
+  const s = QUIZ_STATEMENTS[step];
+  const progress = Math.round((step / QUIZ_STATEMENTS.length) * 100);
 
-  const choose = (opt) => {
-    const next = { ...answers, [q.key]: opt };
+  const choose = (val) => {
+    const next = { ...answers, [s.key]: val };
     setAnswers(next);
-    log("quiz_answer", { question: q.key, answer: opt });
-    if (step + 1 < ALL_QUESTIONS.length) setStep(step + 1);
+    log("quiz_answer", { question: s.key, answer: val });
+    if (step + 1 < QUIZ_STATEMENTS.length) setStep(step + 1);
     else { log("quiz_complete", next); onComplete(next); }
   };
 
@@ -1014,12 +1056,15 @@ function Quiz({ log, onComplete }) {
       <div style={{ height: 5, background: "#EFEDE4", borderRadius: 3, marginBottom: 20, overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${progress}%`, background: C.yellow, transition: "width 200ms" }} />
       </div>
-      <div style={{ fontSize: 12, color: C.steel, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }}>{q.section} · {step + 1} of {ALL_QUESTIONS.length}</div>
-      <h2 style={{ fontFamily: FONT_HEAD, fontSize: 26, color: C.ink, margin: "0 0 20px" }}>{q.q}</h2>
-      <div style={{ display: "grid", gap: 10 }}>
-        {q.options.map((opt) => (
-          <button key={opt} onClick={() => choose(opt)} style={{ textAlign: "left", padding: "14px 16px", border: `1px solid ${C.line}`, borderRadius: 6, background: "#fff", fontSize: 15, cursor: "pointer", fontFamily: FONT_BODY }}>{opt}</button>
+      <div style={{ fontSize: 12, color: C.steel, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }}>{step + 1} of {QUIZ_STATEMENTS.length}</div>
+      <h2 style={{ fontFamily: FONT_HEAD, fontSize: 25, color: C.ink, margin: "0 0 24px", lineHeight: 1.35 }}>{s.text}</h2>
+      <div style={{ display: "flex", gap: 8 }}>
+        {[1, 2, 3, 4, 5].map((v) => (
+          <button key={v} onClick={() => choose(v)} style={{ flex: 1, padding: "20px 0", border: `1.5px solid ${C.line}`, borderRadius: 8, background: "#fff", fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 19, color: C.ink, cursor: "pointer" }}>{v}</button>
         ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 11.5, color: C.steel }}>
+        <span>Disagree</span><span>Agree</span>
       </div>
     </div>
   );
@@ -1036,10 +1081,9 @@ function QuizResults({ allListings, openListing }) {
   }, [answers, navigate]);
   if (!answers) return null;
 
-  const archetype = getArchetype(answers);
-  const bodyPref = BODY_MAP[answers.household] || "Sedan";
-  const maxPrice = BUDGET_MAP[answers.budget] || 40000;
-  const matches = allListings.filter((c) => c.body === bodyPref && c.price <= maxPrice).slice(0, 6);
+  const archetype = scoreQuiz(answers);
+  const bodyPref = ARCHETYPE_BODY[archetype.name] || "Sedan";
+  const matches = allListings.filter((c) => c.body === bodyPref).sort((a, b) => a.price - b.price).slice(0, 6);
 
   const shareResult = async () => {
     const text = `I'm a ${archetype.name} on HIGHWAYLOT! Find out what you are:`;
@@ -1062,7 +1106,7 @@ function QuizResults({ allListings, openListing }) {
         </button>
       </div>
       {matches.length === 0 ? (
-        <div style={{ textAlign: "center", color: C.steel }}>No exact matches in your budget right now — try browsing all listings.</div>
+        <div style={{ textAlign: "center", color: C.steel }}>No matching listings right now — try browsing all listings.</div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
           {matches.map((c) => <ListingCard key={c.id} listing={c} onOpen={openListing} />)}
@@ -1734,7 +1778,7 @@ export default function App() {
   // handleBoost removed in v15, shelved — see shelved-boost-feature.jsx
 
   const handleQuizComplete = async (answers) => {
-    const archetype = getArchetype(answers).name;
+    const archetype = scoreQuiz(answers).name;
     supabase.from("quiz_responses").insert({ answers, archetype }).then(({ error }) => {
       if (error) console.error("quiz save failed:", error.message);
     });
