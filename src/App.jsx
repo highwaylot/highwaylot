@@ -34,7 +34,7 @@ function ScrollToTop() {
 // privilege is revoked for the public role in the database itself (see
 // schema.sql). Using '*' would actually error for that reason, which is
 // the point: even a bypass of this app's own code can't read the token.
-const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,loan_balance,damage_points,issues,description,phone,photos,created_at";
+const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,loan_balance,damage_points,issues,description,phone,photos,created_at,status,price_updated_at,sold_at";
 
 function generateToken() {
   if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
@@ -59,7 +59,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: CURRENT_YEAR + 1 - 1980 + 1 }, (_, i) => CURRENT_YEAR + 1 - i);
 const STATE_ABBR = { Alabama:"AL",Alaska:"AK",Arizona:"AZ",Arkansas:"AR",California:"CA",Colorado:"CO",Connecticut:"CT",Delaware:"DE","District of Columbia":"DC",Florida:"FL",Georgia:"GA",Hawaii:"HI",Idaho:"ID",Illinois:"IL",Indiana:"IN",Iowa:"IA",Kansas:"KS",Kentucky:"KY",Louisiana:"LA",Maine:"ME",Maryland:"MD",Massachusetts:"MA",Michigan:"MI",Minnesota:"MN",Mississippi:"MS",Missouri:"MO",Montana:"MT",Nebraska:"NE",Nevada:"NV","New Hampshire":"NH","New Jersey":"NJ","New Mexico":"NM","New York":"NY","North Carolina":"NC","North Dakota":"ND",Ohio:"OH",Oklahoma:"OK",Oregon:"OR",Pennsylvania:"PA","Rhode Island":"RI","South Carolina":"SC","South Dakota":"SD",Tennessee:"TN",Texas:"TX",Utah:"UT",Vermont:"VT",Virginia:"VA",Washington:"WA","West Virginia":"WV",Wisconsin:"WI",Wyoming:"WY" };
 const stateAbbr = (s) => STATE_ABBR[s] || s;
-const MAKE_COLORS = { Ford:"#2B4C7E",Toyota:"#7E2B2B",Honda:"#2B7E4C",Chevrolet:"#7E6A2B",Jeep:"#3E4D2B",Tesla:"#3A3A3A",Subaru:"#2B577E",Ram:"#5A2B7E",GMC:"#7E4B2B",Nissan:"#2B7E7A",BMW:"#2B3A7E",Dodge:"#7E2B4A" };
+const MAKE_COLORS = { Ford:"#2B4C7E",Toyota:"#7E2B2B",Honda:"#2B7E4C",Chevrolet:"#7E6A2B",Jeep:"#3E4D2B",Tesla:"#3A3A3A",Subaru:"#2B577E",Ram:"#5A2B7E",GMC:"#7E4B2B",Nissan:"#2B7E7A",BMW:"#2B3A7E",Dodge:"#7E2B4A",Hyundai:"#1F6B5E",Kia:"#7E1F5E",Mazda:"#8E2A2A",Volkswagen:"#2A5A8E",Lexus:"#5E5E2A",Audi:"#2A2A5E",Acura:"#4A2A6E",Cadillac:"#6E4A2A",Buick:"#3A5A5A","Mercedes-Benz":"#2A3A3A",Chrysler:"#5A2A2A",Mitsubishi:"#7E4A1F",Volvo:"#1F4A6E" };
 
 let seed = [
   { year:2021, make:"Ford", model:"F-150", trim:"XLT SuperCrew", price:34900, mileage:28500, city:"Austin", state:"Texas", fuel:"Gas", trans:"Automatic", color:"Oxford White", seller:"Dealer", verified:true, posted:"2 days ago", body:"Truck", desc:"One-owner F-150 with tow package, backup camera, and clean Carfax.", featured:true },
@@ -653,6 +653,12 @@ function ListingDetail({ allListings, log }) {
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px 60px" }}>
       <span onClick={() => navigate(-1)} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 16 }}><ChevronLeft size={15} /> Back</span>
+      {listing.status === "sold" && (
+        <div style={{ background: "#EFEDE4", border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", marginBottom: 16, fontSize: 13.5, color: C.steel }}>This car has been marked sold — no longer available.</div>
+      )}
+      {listing.status === "active" && getExpiryInfo(listing).expired && (
+        <div style={{ background: "#EFEDE4", border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", marginBottom: 16, fontSize: 13.5, color: C.steel }}>This listing has expired and is no longer active.</div>
+      )}
       <div className="hl-detail-grid">
         <div>
           {photos ? (
@@ -1083,7 +1089,6 @@ function QuizResults({ allListings, openListing }) {
   const location = useLocation();
   const navigate = useNavigate();
   const answers = location.state?.answers;
-  const [shared, setShared] = useState(false);
 
   useEffect(() => {
     if (!answers) navigate("/quiz", { replace: true });
@@ -1094,16 +1099,11 @@ function QuizResults({ allListings, openListing }) {
   const bodyPref = ARCHETYPE_BODY[archetype.name] || "Sedan";
   const matches = allListings.filter((c) => c.body === bodyPref).sort((a, b) => a.price - b.price).slice(0, 6);
 
-  const shareResult = async () => {
-    const text = `I'm a ${archetype.name} on HIGHWAYLOT! Find out what you are:`;
-    const url = `${window.location.origin}/quiz`;
-    if (navigator.share) {
-      try { await navigator.share({ title: "HIGHWAYLOT", text, url }); } catch (e) { /* user cancelled, ignore */ }
-    } else {
-      navigator.clipboard.writeText(`${text} ${url}`).then(() => { setShared(true); setTimeout(() => setShared(false), 2000); });
-    }
-  };
-
+  // "Share my result" scrapped in v16 — reported broken, root cause never
+  // confirmed after two rounds of tracing (code checked out clean on
+  // inspection both times). Not worth guessing at a fix with no repro
+  // evidence. If revisited: the old implementation used navigator.share()
+  // with a clipboard-copy fallback, pointing at the plain /quiz URL.
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: "48px 20px 60px" }}>
       <div style={{ textAlign: "center", marginBottom: 30 }}>
@@ -1116,9 +1116,6 @@ function QuizResults({ allListings, openListing }) {
         {archetype.runnerUp && (
           <div style={{ fontSize: 12, color: C.steel, marginBottom: 16 }}>with a bit of {archetype.runnerUp.name} in you</div>
         )}
-        <button onClick={shareResult} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-          <Star size={15} /> {shared ? "Copied — go paste it!" : "Share my result"}
-        </button>
       </div>
       {matches.length === 0 ? (
         <div style={{ textAlign: "center", color: C.steel }}>No matching listings right now — try browsing all listings.</div>
@@ -1633,6 +1630,9 @@ function ManagePage() {
   const [desc, setDesc] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [showSoldForm, setShowSoldForm] = useState(false);
+  const [soldPrice, setSoldPrice] = useState("");
+  const [markingSold, setMarkingSold] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -1653,7 +1653,22 @@ function ManagePage() {
     setSaving(true);
     const { data: ok } = await supabase.rpc("update_listing_with_token", { p_id: idParam, p_token: token, p_price: Number(price), p_description: desc });
     setSaving(false);
-    if (ok) { setListing({ ...listing, price: Number(price), desc }); setSaved(true); setTimeout(() => setSaved(false), 2500); }
+    if (ok) {
+      // Refetch rather than assume — price_updated_at may or may not have
+      // changed server-side depending on whether this crossed the 2.5%
+      // threshold, and the countdown display needs the real value.
+      const { data } = await supabase.from("listings").select(LISTING_COLUMNS).eq("id", idParam).single();
+      if (data) setListing(rowToListing(data));
+      setSaved(true); setTimeout(() => setSaved(false), 2500);
+    }
+  };
+
+  const markSold = async () => {
+    setMarkingSold(true);
+    const priceVal = soldPrice.trim() ? Number(soldPrice) : null;
+    const { data: ok } = await supabase.rpc("mark_listing_sold", { p_id: idParam, p_token: token, p_sold_price: priceVal });
+    setMarkingSold(false);
+    if (ok) setListing({ ...listing, status: "sold" });
   };
 
   const deleteListing = async () => {
@@ -1678,20 +1693,65 @@ function ManagePage() {
     </div>
   );
 
+  const expiry = listing ? getExpiryInfo(listing) : null;
+
   return (
     <div style={{ maxWidth: 560, margin: "0 auto", padding: "40px 20px 70px" }}>
       <div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, marginBottom: 4 }}>Manage your listing</div>
-      <p style={{ color: C.steel, fontSize: 13.5, marginBottom: 20 }}>{listing.year} {listing.make} {listing.model} — only visible to whoever has this exact link.</p>
-      <Field label="Price (USD)"><input value={price} onChange={(e) => setPrice(e.target.value)} style={inputStyle} /></Field>
-      <div style={{ marginTop: 14 }}><Field label="Description"><textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} style={{ ...inputStyle, resize: "vertical" }} /></Field></div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16 }}>
-        <button onClick={saveChanges} disabled={saving} style={{ background: C.yellow, border: "none", borderRadius: 4, padding: "11px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>{saving ? "Saving…" : "Save changes"}</button>
-        {saved && <span style={{ fontSize: 12.5, color: C.green, display: "flex", alignItems: "center", gap: 4 }}><Check size={14} /> Saved</span>}
-      </div>
-      <div style={{ marginTop: 30, paddingTop: 20, borderTop: `1px solid ${C.line}` }}>
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: "#A32D2D", marginBottom: 6 }}>Danger zone</div>
-        <button onClick={deleteListing} style={{ background: "#FBE4E3", color: "#A32D2D", border: "none", borderRadius: 4, padding: "10px 18px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Delete this listing</button>
-      </div>
+      <p style={{ color: C.steel, fontSize: 13.5, marginBottom: 8 }}>{listing.year} {listing.make} {listing.model} — only visible to whoever has this exact link.</p>
+
+      {listing.status === "sold" && (
+        <div style={{ background: C.greenBg, border: `1px solid ${C.line}`, borderRadius: 6, padding: "10px 14px", fontSize: 13, color: C.green, marginBottom: 16, display: "flex", alignItems: "center", gap: 6 }}>
+          <Check size={14} /> Marked sold — no longer visible on HIGHWAYLOT
+        </div>
+      )}
+      {listing.status === "active" && expiry && expiry.daysLeft <= 14 && !expiry.expired && (
+        <div style={{ fontSize: 13, color: "#A32D2D", fontWeight: 600, marginBottom: 16 }}>
+          Expires in {expiry.daysLeft} day{expiry.daysLeft === 1 ? "" : "s"} — update the price to keep it active.
+        </div>
+      )}
+      {listing.status === "active" && expiry && expiry.expired && (
+        <div style={{ fontSize: 13, color: "#A32D2D", fontWeight: 600, marginBottom: 16 }}>
+          This listing has expired and is hidden from browse — update the price to bring it back.
+        </div>
+      )}
+
+      <Field label="Price (USD)"><input value={price} onChange={(e) => setPrice(e.target.value)} style={inputStyle} disabled={listing.status === "sold"} /></Field>
+      <div style={{ marginTop: 14 }}><Field label="Description"><textarea value={desc} onChange={(e) => setDesc(e.target.value)} rows={4} style={{ ...inputStyle, resize: "vertical" }} disabled={listing.status === "sold"} /></Field></div>
+      {listing.status !== "sold" && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 16 }}>
+          <button onClick={saveChanges} disabled={saving} style={{ background: C.yellow, border: "none", borderRadius: 4, padding: "11px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>{saving ? "Saving…" : "Save changes"}</button>
+          {saved && <span style={{ fontSize: 12.5, color: C.green, display: "flex", alignItems: "center", gap: 4 }}><Check size={14} /> Saved</span>}
+        </div>
+      )}
+
+      {listing.status !== "sold" && (
+        <div style={{ marginTop: 30, paddingTop: 20, borderTop: `1px solid ${C.line}` }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}>Sold it?</div>
+          {!showSoldForm ? (
+            <button onClick={() => setShowSoldForm(true)} style={{ background: C.greenBg, color: C.green, border: "none", borderRadius: 4, padding: "10px 18px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Mark as sold</button>
+          ) : (
+            <div>
+              <label style={{ fontSize: 12.5, color: C.steel, display: "block", marginBottom: 4 }}>What did it sell for? (optional)</label>
+              <input value={soldPrice} onChange={(e) => setSoldPrice(e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" placeholder="e.g. 15500" style={inputStyle} />
+              <div style={{ fontSize: 11.5, color: C.steel, marginTop: 6, lineHeight: 1.5 }}>
+                This stays completely private — it's never shown on your listing or anywhere public. It just helps us understand how prices actually move so we can make our tools more accurate for everyone.
+              </div>
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <button onClick={markSold} disabled={markingSold} style={{ background: C.green, color: "#fff", border: "none", borderRadius: 4, padding: "10px 18px", fontFamily: FONT_HEAD, cursor: "pointer" }}>{markingSold ? "Saving…" : "Confirm sold"}</button>
+                <button onClick={() => setShowSoldForm(false)} style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 18px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {listing.status !== "sold" && (
+        <div style={{ marginTop: 30, paddingTop: 20, borderTop: `1px solid ${C.line}` }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: "#A32D2D", marginBottom: 6 }}>Danger zone</div>
+          <button onClick={deleteListing} style={{ background: "#FBE4E3", color: "#A32D2D", border: "none", borderRadius: 4, padding: "10px 18px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Delete this listing</button>
+        </div>
+      )}
       <span onClick={goHome} style={{ display: "inline-block", marginTop: 24, color: C.steel, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>Back to HIGHWAYLOT</span>
     </div>
   );
@@ -1750,6 +1810,23 @@ function timeAgo(iso) {
 // the app uses `desc`. This maps between the two at the boundary.
 const rowToListing = (row) => ({ ...row, desc: row.description, posted: timeAgo(row.created_at) });
 
+// 90-day expiry, computed on read rather than stored — a listing "expires"
+// the moment 90 days pass since its last real price change (price_updated_at),
+// not since it was first posted. No scheduled job needed: this just gets
+// recalculated every time listings are fetched.
+const EXPIRY_DAYS = 90;
+function getExpiryInfo(listing) {
+  if (listing.status !== "active") return { expired: false, daysLeft: null }; // sold listings don't "expire"
+  const clockStart = new Date(listing.price_updated_at || listing.created_at).getTime();
+  const expiresAt = clockStart + EXPIRY_DAYS * 86400000;
+  const daysLeft = Math.ceil((expiresAt - Date.now()) / 86400000);
+  return { expired: daysLeft <= 0, daysLeft };
+}
+function isVisibleOnBrowse(listing) {
+  if (listing.status === "sold") return false;
+  return !getExpiryInfo(listing).expired;
+}
+
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -1776,6 +1853,11 @@ export default function App() {
     const withFairness = listings.map((l) => ({ ...l, fairness: estimateFairness(l, listings) }));
     return withFairness.map((l) => ({ ...l, credibility: computeCredibility(l, withFairness) }));
   }, [listings]);
+  // Sold/expired listings still exist for anyone with a direct link
+  // (ListingDetail uses the full enrichedListings above), but shouldn't show
+  // up in browse/category/quiz-match contexts — this is the filtered view
+  // for those.
+  const visibleListings = useMemo(() => enrichedListings.filter(isVisibleOnBrowse), [enrichedListings]);
 
   const handlePostSubmit = async (data) => {
     const { desc, ...rest } = data;
@@ -1820,14 +1902,14 @@ export default function App() {
       <ScrollToTop />
       <TopBar onPost={() => navigate("/post")} />
       <Routes>
-        <Route path="/" element={<Home allListings={enrichedListings} log={log} openListing={openListing} />} />
+        <Route path="/" element={<Home allListings={visibleListings} log={log} openListing={openListing} />} />
         <Route path="/listing/:id" element={<ListingDetail allListings={enrichedListings} log={log} />} />
-        <Route path="/category/:kind/:value/:state" element={<CategoryPage listings={enrichedListings} openListing={openListing} />} />
+        <Route path="/category/:kind/:value/:state" element={<CategoryPage listings={visibleListings} openListing={openListing} />} />
         <Route path="/post" element={<PostAd onSubmit={handlePostSubmit} existingListings={listings} log={log} />} />
         <Route path="/post/success" element={<Success />} />
         <Route path="/value" element={<ValueMyCar allListings={listings} log={log} />} />
         <Route path="/quiz" element={<Quiz log={log} onComplete={handleQuizComplete} />} />
-        <Route path="/quiz/results" element={<QuizResults allListings={enrichedListings} openListing={openListing} />} />
+        <Route path="/quiz/results" element={<QuizResults allListings={visibleListings} openListing={openListing} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="*" element={<NotFound />} />
