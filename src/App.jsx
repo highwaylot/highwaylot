@@ -11,7 +11,7 @@ import { supabase } from "./lib/supabaseClient";
 // privilege is revoked for the public role in the database itself (see
 // schema.sql). Using '*' would actually error for that reason, which is
 // the point: even a bypass of this app's own code can't read the token.
-const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,loan_balance,damage_points,description,phone,photos,created_at";
+const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,loan_balance,damage_points,issues,description,phone,photos,created_at";
 
 function generateToken() {
   if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
@@ -88,7 +88,8 @@ function FairnessBadge({ fairness, size = "small" }) {
 function computeCredibility(listing, allListings) {
   const flags = [];
   if (listing.fairness && listing.fairness.diffPct <= -0.4) {
-    const noIssuesReported = (!listing.damage_points || listing.damage_points.length === 0) && ["Excellent", "Good"].includes(listing.condition);
+    const hasNoDamageDisclosed = !listing.issues || !Object.values(listing.issues).some((v) => v === "Broken" || v === "Major" || v === true);
+    const noIssuesReported = hasNoDamageDisclosed && ["Excellent", "Good"].includes(listing.condition);
     if (noIssuesReported) flags.push({ weight: 40, label: "Priced far below similar listings with no reported issues" });
     else flags.push({ weight: 15, label: "Priced notably below similar listings" });
   }
@@ -525,235 +526,6 @@ function SavedSearchPrompt({ filters, log }) {
   );
 }
 
-// ---------- Damage diagram ----------
-// Top-down 2D diagram, not a rotatable 3D model — true 3D would need licensed
-// car models and a 3D engine, which isn't realistic to fake with placeholder
-// assets. This gets the actual job done: click a spot, mark what's wrong there.
-function getShapeType(bodyType) {
-  const map = {
-    Sedan: "sedan", Coupe: "coupe", Hatchback: "hatchback",
-    SUV: "suv", Truck: "truck", "Van/Minivan": "van", Convertible: "convertible",
-  };
-  return map[bodyType] || "sedan";
-}
-
-// Solid single-color silhouette, matching the reference sheet exactly — no
-// window band, no internal detail. Wheel arches are real negative-space cuts
-// (a background-colored patch layered over the body, since true path
-// subtraction isn't worth the risk here), with the wheel sitting inside the
-// gap rather than floating on the body edge. bg must match whatever the SVG
-// is actually rendered on top of, passed in per-picker.
-function CarShapeSvg({ shape, bg = "#FAFAF6" }) {
-  const Arch = ({ cx, groundY, r = 22 }) => <path d={`M ${cx - r} ${groundY} A ${r} ${r} 0 0 1 ${cx + r} ${groundY} Z`} fill={bg} />;
-  const Wheel = ({ cx, groundY }) => (
-    <g>
-      <circle cx={cx} cy={groundY - 3} r={14} fill="#12181F" />
-      <circle cx={cx} cy={groundY - 3} r={5.5} fill="#4A5058" />
-    </g>
-  );
-  const Lights = ({ frontX, backX, y }) => (
-    <>
-      <circle cx={frontX} cy={y} r={4} fill={C.yellow} />
-      <circle cx={backX} cy={y} r={4} fill="#E24B4A" />
-    </>
-  );
-
-  if (shape === "truck") {
-    return (
-      <g>
-        <path d="M 14 120 L 14 82 C 14 70 22 64 33 62 L 58 58 C 68 44 82 39 98 38 L 128 38 C 136 38 136 46 136 52 L 136 100 L 300 100 L 300 76 L 312 76 L 312 120 Z" fill={C.ink} />
-        <Arch cx={55} groundY={120} /><Arch cx={253} groundY={120} />
-        <Lights frontX={22} backX={304} y={90} />
-        <Wheel cx={55} groundY={120} /><Wheel cx={253} groundY={120} />
-      </g>
-    );
-  }
-  if (shape === "van") {
-    return (
-      <g>
-        <path d="M 14 120 L 14 56 C 14 44 22 38 34 38 L 290 38 C 300 38 306 46 306 58 L 306 120 Z" fill={C.ink} />
-        <Arch cx={58} groundY={120} /><Arch cx={262} groundY={120} />
-        <Lights frontX={22} backX={300} y={92} />
-        <Wheel cx={58} groundY={120} /><Wheel cx={262} groundY={120} />
-      </g>
-    );
-  }
-  if (shape === "suv") {
-    return (
-      <g>
-        <path d="M 14 120 L 14 76 C 14 62 24 55 36 52 L 58 46 C 72 34 90 30 108 30 L 216 30 C 246 30 262 36 274 50 L 288 55 C 300 58 306 64 306 76 L 306 120 Z" fill={C.ink} />
-        <Arch cx={62} groundY={120} /><Arch cx={258} groundY={120} />
-        <Lights frontX={22} backX={298} y={92} />
-        <Wheel cx={62} groundY={120} /><Wheel cx={258} groundY={120} />
-      </g>
-    );
-  }
-  if (shape === "hatchback") {
-    return (
-      <g>
-        <path d="M 14 120 L 14 96 C 14 86 22 79 33 77 L 58 72 C 74 46 96 34 124 32 C 154 30 184 34 202 46 C 216 55 222 68 224 82 L 232 90 C 236 94 236 100 236 106 L 236 100 L 300 100 C 306 100 306 106 306 112 L 306 120 Z" fill={C.ink} />
-        <path d="M 236 90 C 250 92 262 96 300 100 L 306 108 L 306 120 L 236 120 Z" fill={C.ink} />
-        <Arch cx={66} groundY={120} /><Arch cx={252} groundY={120} />
-        <Lights frontX={22} backX={300} y={92} />
-        <Wheel cx={66} groundY={120} /><Wheel cx={252} groundY={120} />
-      </g>
-    );
-  }
-  if (shape === "convertible") {
-    return (
-      <g>
-        <path d="M 14 120 L 14 100 C 14 92 20 87 28 85 L 60 80 C 78 62 100 52 126 49 L 190 49 C 210 51 226 60 240 74 L 284 82 C 298 85 306 90 306 102 L 306 120 Z" fill={C.ink} />
-        <Arch cx={70} groundY={120} /><Arch cx={254} groundY={120} />
-        <Lights frontX={22} backX={300} y={94} />
-        <Wheel cx={70} groundY={120} /><Wheel cx={254} groundY={120} />
-      </g>
-    );
-  }
-  if (shape === "coupe") {
-    return (
-      <g>
-        <path d="M 14 120 L 14 100 C 14 90 20 84 30 82 L 60 78 C 76 52 96 40 122 36 C 148 32 172 33 192 40 C 208 46 220 58 228 76 L 280 84 C 296 87 306 92 306 104 L 306 120 Z" fill={C.ink} />
-        <Arch cx={68} groundY={120} /><Arch cx={252} groundY={120} />
-        <Lights frontX={22} backX={300} y={94} />
-        <Wheel cx={68} groundY={120} /><Wheel cx={252} groundY={120} />
-      </g>
-    );
-  }
-  // sedan (default)
-  return (
-    <g>
-      <path d="M 14 120 L 14 98 C 14 87 21 80 32 78 L 62 74 C 76 50 96 38 122 34 C 150 30 178 30 202 34 C 224 38 240 48 252 68 L 284 78 C 298 82 306 88 306 100 L 306 120 Z" fill={C.ink} />
-      <Arch cx={72} groundY={120} /><Arch cx={254} groundY={120} />
-      <Lights frontX={22} backX={300} y={94} />
-      <Wheel cx={72} groundY={120} /><Wheel cx={254} groundY={120} />
-    </g>
-  );
-}
-// Simplified front/back-only picker for Value My Car — deliberately not the
-// full named-zone tool from the posting form. No body-style field exists
-// here, so it always uses the generic sedan silhouette. Doesn't affect the
-// price estimate yet — captured as data now so it can factor in once
-// there's enough of it to mean something.
-function FrontBackDamagePicker({ value, onChange, shape = "sedan" }) {
-  const [editingZone, setEditingZone] = useState(null); // "front" | "back" | null
-  const [note, setNote] = useState("");
-  const [severity, setSeverity] = useState("Minor");
-
-  const openZone = (zone) => {
-    setEditingZone(zone);
-    setNote(value[zone]?.note || "");
-    setSeverity(value[zone]?.severity || "Minor");
-  };
-  const confirm = () => {
-    if (!note.trim()) return;
-    onChange({ ...value, [editingZone]: { note: note.trim(), severity } });
-    setEditingZone(null);
-  };
-  const clearZone = (zone) => onChange({ ...value, [zone]: null });
-
-  const zoneFill = (zone) => (value[zone] ? (value[zone].severity === "Major" ? "#F7C1C1" : value[zone].severity === "Moderate" ? "#FAEEDA" : "#EAF3DE") : "transparent");
-
-  return (
-    <div>
-      <svg viewBox="0 0 320 150" style={{ width: "100%", maxWidth: 600, background: "#FAFAF6", borderRadius: 8, border: `1px solid ${C.line}`, display: "block" }}>
-        <CarShapeSvg shape={shape} />
-        {/* Clickable front half — the shape itself now has a yellow headlight up front and red taillight in back */}
-        <rect x={18} y={22} width={143} height={100} fill={zoneFill("front")} opacity={0.55} style={{ cursor: "pointer" }} onClick={() => openZone("front")} />
-        <text x={90} y={140} fontSize={12} fontWeight={600} textAnchor="middle" fill={C.steel}>FRONT</text>
-        <rect x={161} y={22} width={143} height={100} fill={zoneFill("back")} opacity={0.55} style={{ cursor: "pointer" }} onClick={() => openZone("back")} />
-        <text x={230} y={140} fontSize={12} fontWeight={600} textAnchor="middle" fill={C.steel}>BACK</text>
-      </svg>
-
-      {editingZone && (
-        <div style={{ marginTop: 10, padding: 12, border: `1px solid ${C.line}`, borderRadius: 6, maxWidth: 420 }}>
-          <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 6 }}>Any {editingZone} damage?</div>
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Cracked bumper, dent" style={inputStyle} />
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <select value={severity} onChange={(e) => setSeverity(e.target.value)} style={inputStyle}><option>Minor</option><option>Moderate</option><option>Major</option></select>
-            <button onClick={confirm} style={{ background: C.yellow, border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, cursor: "pointer", whiteSpace: "nowrap" }}>Save</button>
-            <button onClick={() => setEditingZone(null)} style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "0 12px", cursor: "pointer" }}><X size={13} /></button>
-          </div>
-        </div>
-      )}
-
-      {["front", "back"].map((zone) => value[zone] && (
-        <div key={zone} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, color: C.steel, padding: "4px 0", maxWidth: 420 }}>
-          <span style={{ textTransform: "capitalize" }}>{zone} — <strong style={{ color: C.ink }}>{value[zone].severity}</strong>: {value[zone].note}</span>
-          <span onClick={() => clearZone(zone)} style={{ cursor: "pointer", color: "#B23A3A" }}><X size={13} /></span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DamagePicker({ bodyType, points, onAddPoint, onRemovePoint, editable = true }) {
-  const svgRef = useRef(null);
-  const [pending, setPending] = useState(null);
-  const [note, setNote] = useState("");
-  const [severity, setSeverity] = useState("Minor");
-  const shape = getShapeType(bodyType);
-
-  const handleClick = (e) => {
-    if (!editable) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 320;
-    const y = ((e.clientY - rect.top) / rect.height) * 150;
-    setPending({ x, y });
-    setNote(""); setSeverity("Minor");
-  };
-  const confirm = () => {
-    if (!note.trim()) return;
-    onAddPoint({ x: pending.x, y: pending.y, note: note.trim(), severity });
-    setPending(null);
-  };
-
-  return (
-    <div>
-      <svg ref={svgRef} viewBox="0 0 320 150" onClick={handleClick} style={{ width: "100%", maxWidth: 600, background: "#FAFAF6", borderRadius: 8, cursor: editable ? "crosshair" : "default", display: "block", border: `1px solid ${C.line}` }}>
-        <CarShapeSvg shape={shape} />
-        <text x={90} y={140} fontSize={12} fontWeight={600} textAnchor="middle" fill={C.steel}>FRONT</text>
-        <text x={230} y={140} fontSize={12} fontWeight={600} textAnchor="middle" fill={C.steel}>BACK</text>
-        {points.map((p, i) => {
-          const fill = p.severity === "Major" ? "#E24B4A" : p.severity === "Moderate" ? C.yellow : "#F4F2EA";
-          const numberColor = p.severity === "Minor" ? C.ink : "#fff";
-          return (
-            <g key={i}>
-              <circle cx={p.x} cy={p.y} r={8} fill={fill} stroke="#fff" strokeWidth={1.5} />
-              <text x={p.x} y={p.y + 3.5} fontSize={9} textAnchor="middle" fill={numberColor} fontWeight="bold">{i + 1}</text>
-              <title>{p.severity}: {p.note}</title>
-            </g>
-          );
-        })}
-        {pending && <circle cx={pending.x} cy={pending.y} r={8} fill="none" stroke={C.yellow} strokeWidth={2} strokeDasharray="3,2" />}
-      </svg>
-
-      {editable && pending && (
-        <div style={{ marginTop: 10, padding: 12, border: `1px solid ${C.line}`, borderRadius: 6, maxWidth: 420 }}>
-          <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 6 }}>What's the damage here?</div>
-          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Small dent, scratch on paint" style={inputStyle} />
-          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-            <select value={severity} onChange={(e) => setSeverity(e.target.value)} style={inputStyle}><option>Minor</option><option>Moderate</option><option>Major</option></select>
-            <button onClick={confirm} style={{ background: C.yellow, border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, cursor: "pointer", whiteSpace: "nowrap" }}>Add</button>
-            <button onClick={() => setPending(null)} style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "0 12px", cursor: "pointer" }}><X size={13} /></button>
-          </div>
-        </div>
-      )}
-      {points.length > 0 && (
-        <div style={{ marginTop: 10, maxWidth: 420 }}>
-          {points.map((p, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5, color: C.steel, padding: "4px 0" }}>
-              <span>#{i + 1} — <strong style={{ color: C.ink }}>{p.severity}</strong>: {p.note}</span>
-              {editable && <span onClick={() => onRemovePoint(i)} style={{ cursor: "pointer", color: "#B23A3A" }}><X size={13} /></span>}
-            </div>
-          ))}
-        </div>
-      )}
-      {editable && points.length === 0 && !pending && (
-        <div style={{ fontSize: 12, color: C.steel, marginTop: 8 }}>Click anywhere on the car to mark a scratch, dent, or other damage. Optional — skip if the car has none to report.</div>
-      )}
-    </div>
-  );
-}
 
 // ---------- Listing detail + boost ----------
 function ListingDetail({ id, setView, allListings, onBoost, log }) {
@@ -804,10 +576,17 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
             <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 8 }}>Description</div>
             <p style={{ fontSize: 14.5, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>{listing.desc}</p>
           </div>
-          {listing.damage_points && listing.damage_points.length > 0 && (
+          {listing.issues && Object.keys(listing.issues).length > 0 && (
             <div style={{ marginTop: 26, borderTop: `1px solid ${C.line}`, paddingTop: 20 }}>
-              <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 12 }}>Damage report</div>
-              <DamagePicker bodyType={listing.body} points={listing.damage_points} editable={false} onAddPoint={() => {}} onRemovePoint={() => {}} />
+              <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 12 }}>Condition disclosed by seller</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
+                {getIssuesSummary(listing.issues).map((row, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, gap: 10 }}>
+                    <span style={{ color: C.steel }}>{row.label}</span>
+                    <span style={{ color: row.positive ? C.green : C.ink, fontWeight: 500 }}>{row.statusText}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -928,7 +707,7 @@ function BoostModal({ listing, onClose, onConfirm }) {
 function PostAd({ setView, onSubmit, existingListings, log }) {
   const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", loan_status:"Paid off", loan_balance:"", desc:"", phone:"" });
   const [photos, setPhotos] = useState([]);
-  const [damagePoints, setDamagePoints] = useState([]);
+  const [issues, setIssues] = useState({});
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
   const [honeypot, setHoneypot] = useState(""); // bots fill this; real users never see it
   const [errors, setErrors] = useState({});
@@ -961,7 +740,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
     if (Object.keys(errs).length > 0) return;
     if (possibleDuplicate) log("listing_duplicate_confirmed", { matchedId: possibleDuplicate.id });
     setSubmitting(true);
-    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), loan_balance: form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null, verified: false, featured: false, photos, damage_points: damagePoints, desc: form.desc || "No additional description provided." });
+    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), loan_balance: form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null, verified: false, featured: false, photos, issues, desc: form.desc || "No additional description provided." });
     setSubmitting(false);
     if (errMsg) setSubmitError(errMsg);
   };
@@ -1037,14 +816,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
       <div style={{ marginTop: 14 }}><Field label="Description"><textarea value={form.desc} onChange={set("desc")} rows={4} style={{ ...inputStyle, resize: "vertical" }} /></Field></div>
 
       <div style={{ marginTop: 18 }}>
-        <Field label="Damage report">
-          <div style={{ marginBottom: 10 }}><OptionalTag /></div>
-          {form.body ? (
-            <DamagePicker bodyType={form.body} points={damagePoints} onAddPoint={(p) => setDamagePoints([...damagePoints, p])} onRemovePoint={(i) => setDamagePoints(damagePoints.filter((_, idx) => idx !== i))} />
-          ) : (
-            <div style={{ fontSize: 12.5, color: C.steel }}>Pick a body style above first.</div>
-          )}
-        </Field>
+        <IssuesGate issues={issues} onChange={setIssues} />
       </div>
       <div style={{ fontSize: 11.5, color: C.steel, marginTop: 10 }}>
         We only share your phone number with buyers who request it, and it's never posted publicly. No ID or real name required to list.
@@ -1276,6 +1048,31 @@ const BURN_TIERS = [
 // labor adjustment applies here, not the brand multiplier.
 const ODOR_TREATMENT_COST = 115; // midpoint of real $80-$150 range found
 
+// Plain-language summary for public display — what's disclosed, not what it
+// costs. Pricing logic stays internal; the fact of a disclosed issue is fine
+// to show a buyer, the dollar breakdown isn't.
+function getIssuesSummary(issues) {
+  const rows = [];
+  MECHANICAL_SYSTEMS.forEach((sys) => {
+    const status = issues[sys.key];
+    if (!status) return;
+    const text = status === "Broken" ? "Not working" : status === "Ongoing" ? "Ongoing issue" : "Working fine";
+    rows.push({ label: sys.label, statusText: text, positive: status === "Fixed" });
+  });
+  COSMETIC_SYSTEMS.forEach((sys) => {
+    const status = issues[sys.key];
+    if (!status) return;
+    rows.push({ label: sys.label, statusText: status, positive: false });
+  });
+  if (issues.burnCount) {
+    const tier = BURN_TIERS.find((t) => t.key === issues.burnCount);
+    if (tier) rows.push({ label: "Burn marks", statusText: tier.label, positive: false });
+  }
+  if (issues.odorTreatment === true) rows.push({ label: "Smoke odor", statusText: "Present", positive: false });
+  if (issues.odorTreatment === false) rows.push({ label: "Smoke odor", statusText: "None", positive: true });
+  return rows;
+}
+
 // Real RepairPal average-annual-repair-cost-by-brand data (repairpal.com/reliability),
 // checked September 2026. All-brand average is $652/yr — every brand's ceiling gets
 // scaled by (brand figure ÷ 652). Brands not in this table (no RepairPal figure
@@ -1436,6 +1233,55 @@ function MechanicalChecklist({ issues, onChange }) {
   );
 }
 
+// A clean, explicit confirmed-good state — all mechanical systems marked
+// Fixed, odor explicitly marked absent. Cosmetic/burn categories stay unset,
+// since "unset" already means "no damage reported" for those.
+const NO_ISSUES_STATE = { engine: "Fixed", transmission: "Fixed", body: "Fixed", suspension: "Fixed", electrical: "Fixed", ac: "Fixed", brakes: "Fixed", odorTreatment: false };
+
+// Replaces the old 2D damage pickers. A clear yes/no decision up front —
+// makes the shift into this optional section obvious, and produces a real
+// data signal: "confirmed no issues" is meaningfully different from "skipped
+// this section entirely," which a blank form can't tell apart.
+function IssuesGate({ issues, onChange }) {
+  const [mode, setMode] = useState(null); // null | "none" | "some"
+
+  if (mode === null) {
+    return (
+      <div style={{ background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 8, padding: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+          <div style={{ width: 4, height: 20, background: C.yellow, borderRadius: 2 }} />
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink }}>Any known issues?</div>
+        </div>
+        <p style={{ fontSize: 13, color: C.steel, marginBottom: 14 }}>Optional — but honest detail here builds more buyer trust than leaving it blank.</p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <button onClick={() => { onChange(NO_ISSUES_STATE); setMode("none"); }} style={{ flex: "1 1 160px", background: C.greenBg, color: C.green, border: "none", borderRadius: 6, padding: "12px 8px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer" }}>No, it's in good shape</button>
+          <button onClick={() => setMode("some")} style={{ flex: "1 1 160px", background: "#fff", color: C.ink, border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 8px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer" }}>Yes, let me note a few things</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === "none") {
+    return (
+      <div style={{ background: C.greenBg, border: `1px solid ${C.line}`, borderRadius: 8, padding: 16, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+        <span style={{ fontSize: 13.5, color: C.green, display: "flex", alignItems: "center", gap: 6 }}><Check size={15} /> Marked as no known issues</span>
+        <button onClick={() => setMode("some")} style={{ background: "transparent", border: "none", color: C.steel, fontSize: 12.5, textDecoration: "underline", cursor: "pointer" }}>Actually, let me add something</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 8, padding: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <div style={{ width: 4, height: 20, background: C.yellow, borderRadius: 2 }} />
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink }}>What's going on?</div>
+      </div>
+      <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 12 }}>Only mark what applies — leave the rest blank.</p>
+      <MechanicalChecklist issues={issues} onChange={onChange} />
+    </div>
+  );
+}
+
 // Depreciation-curve baseline, adjusted for mileage vs. expected mileage for
 // the car's age, then blended with real comps from HIGHWAYLOT's own listings
 // once there are enough of them. Confidence is shown honestly rather than
@@ -1478,7 +1324,6 @@ function estimateValue(input, allListings, issues = {}) {
 function ValueMyCar({ allListings, log, setView }) {
   const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", loan_status: "Paid off", loan_balance: "" });
   const [issues, setIssues] = useState({});
-  const [damageZones, setDamageZones] = useState({ front: null, back: null });
   const [result, setResult] = useState(null);
   const [errors, setErrors] = useState({});
   const set = (k) => (e) => { const val = e.target.value; setForm((prev) => ({ ...prev, [k]: val })); setErrors((prev) => (prev[k] ? { ...prev, [k]: false } : prev)); };
@@ -1490,11 +1335,11 @@ function ValueMyCar({ allListings, log, setView }) {
     if (Object.keys(errs).length > 0) return;
 
     const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice) };
-    const res = estimateValue(input, allListings, issues); // damageZones and loan balance intentionally not passed in — neither affects the value estimate itself
+    const res = estimateValue(input, allListings, issues);
     setResult(res);
     const loanBalance = form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null;
-    log("valuation_submitted", { ...input, issues, damageZones, body: form.body, loan_balance: loanBalance });
-    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues, damage_zones: damageZones, body: form.body, loan_status: form.loan_status, loan_balance: loanBalance }).then(({ error }) => {
+    log("valuation_submitted", { ...input, issues, body: form.body, loan_balance: loanBalance });
+    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues, body: form.body, loan_status: form.loan_status, loan_balance: loanBalance }).then(({ error }) => {
       if (error) console.error("valuation save failed:", error.message);
     });
   };
@@ -1523,21 +1368,7 @@ function ValueMyCar({ allListings, log, setView }) {
       </div>
 
       <div style={{ marginTop: 22 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink }}>Known issues</div>
-          <OptionalTag />
-        </div>
-        <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>Flag anything specific and we'll factor it into the estimate. Leave everything blank if you're not sure or nothing's wrong.</div>
-        <MechanicalChecklist issues={issues} onChange={setIssues} />
-      </div>
-
-      <div style={{ marginTop: 22 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink }}>Body damage</div>
-          <OptionalTag />
-        </div>
-        <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>Click the front or back if there's damage there. This doesn't change your estimate yet — we're collecting it to make future estimates smarter.</div>
-        <FrontBackDamagePicker value={damageZones} onChange={setDamageZones} shape={getShapeType(form.body)} />
+        <IssuesGate issues={issues} onChange={setIssues} />
       </div>
 
       <button onClick={submit} style={{ marginTop: 20, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: "pointer" }}>Get my estimate</button>
