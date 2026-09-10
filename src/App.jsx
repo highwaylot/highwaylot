@@ -260,9 +260,14 @@ const selectStyle = { border: `1.5px solid ${C.line}`, borderRadius: 5, padding:
 const inputStyle = { width: "100%", border: `1.5px solid ${C.line}`, borderRadius: 5, padding: "11px 12px", fontSize: 15, color: C.ink, fontFamily: FONT_BODY, boxSizing: "border-box", background: "#fff" };
 
 function ListingCard({ listing, onOpen }) {
+  const photo = listing.photos && listing.photos.length ? listing.photos[0] : null;
   return (
     <div onClick={() => onOpen(listing.id)} style={{ background: C.card, border: listing.featured ? `2px solid ${C.yellow}` : `1.5px solid ${C.line}`, borderRadius: 6, cursor: "pointer", overflow: "hidden" }}>
-      <CarThumb make={listing.make} body={listing.body} />
+      {photo ? (
+        <img src={photo} alt={`${listing.year} ${listing.make} ${listing.model}`} style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+      ) : (
+        <CarThumb make={listing.make} body={listing.body} />
+      )}
       <div style={{ padding: "14px 14px 16px" }}>
         {listing.featured && <div style={{ marginBottom: 6 }}><Badge tone="yellow"><Star size={11} />Featured</Badge></div>}
         <div style={{ fontFamily: FONT_HEAD, fontSize: 17, color: C.ink, lineHeight: 1.25 }}>{listing.year} {listing.make} {listing.model}</div>
@@ -295,7 +300,11 @@ function FeaturedStrip({ listings, onOpen }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
         {featured.slice(0, 3).map((c) => (
           <div key={c.id} onClick={() => onOpen(c.id)} style={{ cursor: "pointer", border: `2px solid ${C.yellow}`, borderRadius: 6, overflow: "hidden", background: "#fff" }}>
-            <CarThumb make={c.make} body={c.body} size="hero" />
+            {c.photos && c.photos.length ? (
+              <img src={c.photos[0]} alt={`${c.year} ${c.make} ${c.model}`} style={{ width: "100%", height: 220, objectFit: "cover", display: "block" }} />
+            ) : (
+              <CarThumb make={c.make} body={c.body} size="hero" />
+            )}
             <div style={{ padding: "12px 14px" }}>
               <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink }}>{c.year} {c.make} {c.model}</div>
               <div style={{ fontFamily: FONT_HEAD, fontSize: 20, color: C.ink, marginTop: 4 }}>{fmtPrice(c.price)}</div>
@@ -576,12 +585,40 @@ function SavedSearchPrompt({ filters, log }) {
 
 
 // ---------- Listing detail + boost ----------
-function ListingDetail({ allListings, onBoost, log }) {
+function PhotoCarousel({ photos, alt }) {
+  const [index, setIndex] = useState(0);
+  const go = (dir) => setIndex((i) => (i + dir + photos.length) % photos.length);
+  return (
+    <div>
+      <div style={{ position: "relative" }}>
+        <img src={photos[index]} alt={alt} style={{ width: "100%", height: 340, objectFit: "cover", borderRadius: 8, display: "block" }} />
+        {photos.length > 1 && (
+          <>
+            <button onClick={go.bind(null, -1)} aria-label="Previous photo" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(27,36,49,0.65)", color: "#fff", border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ChevronLeft size={20} /></button>
+            <button onClick={go.bind(null, 1)} aria-label="Next photo" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "rgba(27,36,49,0.65)", color: "#fff", border: "none", borderRadius: "50%", width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><ChevronRight size={20} /></button>
+            <div style={{ position: "absolute", bottom: 10, right: 10, background: "rgba(27,36,49,0.65)", color: "#fff", fontSize: 11.5, padding: "3px 8px", borderRadius: 20 }}>{index + 1} / {photos.length}</div>
+          </>
+        )}
+      </div>
+      {photos.length > 1 && (
+        <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+          {photos.map((p, i) => (
+            <img
+              key={i} src={p} alt="" onClick={() => setIndex(i)}
+              style={{ width: 64, height: 48, objectFit: "cover", borderRadius: 4, cursor: "pointer", border: i === index ? `2px solid ${C.yellow}` : `2px solid transparent`, opacity: i === index ? 1 : 0.7 }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ListingDetail({ allListings, log }) {
   const { id: idParam } = useParams();
   const id = Number(idParam);
   const navigate = useNavigate();
   const [revealed, setRevealed] = useState(false);
-  const [showBoost, setShowBoost] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [fetchedListing, setFetchedListing] = useState(null);
   const [fetchState, setFetchState] = useState("idle"); // idle | loading | notfound
@@ -619,14 +656,7 @@ function ListingDetail({ allListings, onBoost, log }) {
       <div className="hl-detail-grid">
         <div>
           {photos ? (
-            <div>
-              <img src={photos[0]} alt={`${listing.year} ${listing.make} ${listing.model}`} style={{ width: "100%", height: 340, objectFit: "cover", borderRadius: 8 }} />
-              {photos.length > 1 && (
-                <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                  {photos.slice(1).map((p, i) => <img key={i} src={p} alt="" style={{ width: 84, height: 60, objectFit: "cover", borderRadius: 4 }} />)}
-                </div>
-              )}
-            </div>
+            <PhotoCarousel photos={photos} alt={`${listing.year} ${listing.make} ${listing.model}`} />
           ) : (
             <CarThumb make={listing.make} body={listing.body} size="large" />
           )}
@@ -706,14 +736,10 @@ function ListingDetail({ allListings, onBoost, log }) {
                 Meet in a public place. HIGHWAYLOT doesn't handle payments or verify vehicles between buyers and sellers — see our <Link to="/terms" style={{ textDecoration: "underline", color: "inherit" }}>terms</Link>.
               </div>
             </div>
-            {!listing.featured && (
-              <button onClick={() => setShowBoost(true)} style={{ width: "100%", marginTop: 10, background: "transparent", color: C.ink, border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 0", fontFamily: FONT_HEAD, fontSize: 13.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Zap size={14} /> Boost this listing</button>
-            )}
             <button onClick={() => setShowReport(true)} style={{ width: "100%", marginTop: 8, background: "transparent", color: C.steel, border: "none", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>Report this listing</button>
           </div>
         </div>
       </div>
-      {showBoost && <BoostModal listing={listing} onClose={() => setShowBoost(false)} onConfirm={() => { onBoost(listing.id); setShowBoost(false); }} />}
       {showReport && <ReportModal listing={listing} log={log} onClose={() => setShowReport(false)} />}
     </div>
   );
@@ -757,29 +783,8 @@ function Spec({ icon, label, value }) {
   return <div><div style={{ fontSize: 11.5, color: C.steel, display: "flex", alignItems: "center", gap: 4 }}>{icon}{label}</div><div style={{ fontSize: 14, color: C.ink, fontWeight: 500, marginTop: 2 }}>{value}</div></div>;
 }
 
-function BoostModal({ listing, onClose, onConfirm }) {
-  const plans = [{ days: 3, price: 9, label: "3-day boost" }, { days: 7, price: 19, label: "7-day boost" }, { days: 14, price: 29, label: "14-day boost" }];
-  const [selected, setSelected] = useState(1);
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(27,36,49,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 8, padding: 24, width: 360, maxWidth: "90vw" }}>
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 4 }}>Boost your listing</div>
-        <div style={{ fontSize: 13, color: C.steel, marginBottom: 16 }}>Featured listings get a yellow-bordered card and a top slot on the homepage.</div>
-        {plans.map((p, i) => (
-          <label key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", border: `1px solid ${selected === i ? C.ink : C.line}`, borderRadius: 4, padding: "10px 12px", marginBottom: 8, cursor: "pointer" }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14 }}><input type="radio" checked={selected === i} onChange={() => setSelected(i)} /> {p.label}</span>
-            <span style={{ fontFamily: FONT_HEAD, fontSize: 15 }}>${p.price}</span>
-          </label>
-        ))}
-        <div style={{ fontSize: 11.5, color: C.steel, margin: "8px 0 16px" }}>Payment isn't wired up yet — this confirms the flow only.</div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={onClose} style={{ flex: 1, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 0", fontFamily: FONT_HEAD, cursor: "pointer" }}>Cancel</button>
-          <button onClick={onConfirm} style={{ flex: 1, background: C.yellow, border: "none", borderRadius: 4, padding: "10px 0", fontFamily: FONT_HEAD, cursor: "pointer" }}>Confirm boost</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// BoostModal removed in v15 — see shelved-boost-feature.jsx. It was granting
+// free boosts with no actual payment step, a real bug, not just unfinished.
 
 // ---------- Post an ad (with photo requirement) ----------
 function PostAd({ onSubmit, existingListings, log }) {
@@ -1193,13 +1198,13 @@ function getBrandMultiplier(make) {
   return cost ? cost / ALL_BRAND_AVG_REPAIR_COST : 1.0;
 }
 
-// Real BLS OEWS wage data (May 2025) for automotive service techs/mechanics —
-// Florida statewide median vs. national median. HIGHWAYLOT is Florida-only right
-// now, so this applies everywhere rather than guessing a Key West-specific number
-// that BLS doesn't publish (see project notes — small-market data gets suppressed).
-const FL_REGIONAL_MULTIPLIER = 48260 / 50620; // ≈ 0.953
+// National baseline for the regional multiplier — real per-state figures
+// come from the state_labor_rates table in Supabase (fetched by ValueMyCar),
+// same BLS OEWS May 2025 source. States not yet in that table fall back to
+// this national figure (multiplier of 1.0) rather than guessing.
+const NATIONAL_MEDIAN_WAGE = 50620;
 
-function computeMechanicalDeduction(issues, make) {
+function computeMechanicalDeduction(issues, make, regionalMultiplier = 1.0) {
   const brandMult = getBrandMultiplier(make);
   const breakdown = [];
   let total = 0;
@@ -1207,7 +1212,7 @@ function computeMechanicalDeduction(issues, make) {
     const status = issues[sys.key];
     if (!status) return;
     const opt = STATUS_OPTIONS.find((o) => o.key === status);
-    const adjustedMax = sys.max * brandMult * FL_REGIONAL_MULTIPLIER;
+    const adjustedMax = sys.max * brandMult * regionalMultiplier;
     const deduction = Math.round(adjustedMax * opt.weight);
     if (deduction > 0) { breakdown.push({ label: sys.label, status, deduction }); total += deduction; }
     else breakdown.push({ label: sys.label, status, deduction: 0 });
@@ -1216,7 +1221,7 @@ function computeMechanicalDeduction(issues, make) {
     const status = issues[sys.key];
     if (!status) return;
     const opt = COSMETIC_OPTIONS.find((o) => o.key === status);
-    const adjustedMax = sys.max * brandMult * FL_REGIONAL_MULTIPLIER;
+    const adjustedMax = sys.max * brandMult * regionalMultiplier;
     const deduction = Math.round(adjustedMax * opt.weight);
     breakdown.push({ label: sys.label, status, deduction });
     total += deduction;
@@ -1224,7 +1229,7 @@ function computeMechanicalDeduction(issues, make) {
   if (issues.burnCount) {
     const tier = BURN_TIERS.find((t) => t.key === issues.burnCount);
     if (tier) {
-      const deduction = Math.round(tier.cost * brandMult * FL_REGIONAL_MULTIPLIER);
+      const deduction = Math.round(tier.cost * brandMult * regionalMultiplier);
       breakdown.push({ label: "Burn marks", status: tier.label, deduction });
       total += deduction;
     }
@@ -1232,7 +1237,7 @@ function computeMechanicalDeduction(issues, make) {
   if (issues.odorTreatment) {
     // Regional labor adjustment only — this is a flat detailing service, not
     // brand-specific repair work, so the brand multiplier doesn't apply.
-    const deduction = Math.round(ODOR_TREATMENT_COST * FL_REGIONAL_MULTIPLIER);
+    const deduction = Math.round(ODOR_TREATMENT_COST * regionalMultiplier);
     breakdown.push({ label: "Smoke odor treatment", status: "Needed", deduction });
     total += deduction;
   }
@@ -1416,7 +1421,7 @@ function estimateValue(input, allListings, issues = {}) {
     confidence = comps.length >= 5 ? "High" : comps.length >= 2 ? "Medium" : "Low";
   }
 
-  const { total: mechanicalDeduction, breakdown, brandMult, hasBrandData } = computeMechanicalDeduction(issues, input.make);
+  const { total: mechanicalDeduction, breakdown, brandMult, hasBrandData } = computeMechanicalDeduction(issues, input.make, input.regionalMultiplier ?? 1.0);
   // Floor the final number so a pile of deductions can't push it to $0 or negative —
   // a car is worth at least scrap/parts value even in bad shape.
   const floor = Math.max(estimate * 0.1, 400);
@@ -1426,12 +1431,28 @@ function estimateValue(input, allListings, issues = {}) {
 }
 
 function ValueMyCar({ allListings, log }) {
-  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", loan_status: "Paid off", loan_balance: "" });
+  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "" });
   const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
   const [errors, setErrors] = useState({});
+  const [stateRates, setStateRates] = useState({}); // { "Florida": { multiplier: 0.95 }, ... } — only states we have real data for
   const set = (k) => (e) => { const val = e.target.value; setForm((prev) => ({ ...prev, [k]: val })); setErrors((prev) => (prev[k] ? { ...prev, [k]: false } : prev)); };
   const setNumeric = (k) => (e) => { const val = e.target.value.replace(/[^0-9]/g, ""); setForm((prev) => ({ ...prev, [k]: val })); setErrors((prev) => (prev[k] ? { ...prev, [k]: false } : prev)); };
+
+  // Real state-by-state labor rate reference — only covers the states we've
+  // actually pulled BLS figures for. Anything not in here falls back to the
+  // national average honestly, rather than assuming Florida for everyone.
+  useEffect(() => {
+    supabase.from("state_labor_rates").select("state,multiplier").then(({ data, error }) => {
+      if (error) { console.error("state labor rates fetch failed:", error.message); return; }
+      const map = {};
+      (data || []).forEach((row) => { map[row.state] = Number(row.multiplier); });
+      setStateRates(map);
+    });
+  }, []);
+
+  const hasStateData = form.state && stateRates[form.state] !== undefined;
+  const regionalMultiplier = hasStateData ? stateRates[form.state] : 1.0;
 
   const submit = async () => {
     const req = ["year", "make", "model", "mileage", "originalPrice"];
@@ -1439,12 +1460,12 @@ function ValueMyCar({ allListings, log }) {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice) };
+    const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice), regionalMultiplier };
     const res = estimateValue(input, allListings, issues);
-    setResult(res);
+    setResult({ ...res, stateUsed: form.state, hasStateData });
     const loanBalance = form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null;
-    log("valuation_submitted", { ...input, issues, body: form.body, loan_balance: loanBalance });
-    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues, body: form.body, loan_status: form.loan_status, loan_balance: loanBalance }).then(({ error }) => {
+    log("valuation_submitted", { ...input, issues, body: form.body, loan_balance: loanBalance, state: form.state });
+    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues, body: form.body, loan_status: form.loan_status, loan_balance: loanBalance, state: form.state }).then(({ error }) => {
       if (error) console.error("valuation save failed:", error.message);
     });
   };
@@ -1466,6 +1487,7 @@ function ValueMyCar({ allListings, log }) {
         <Field label="Original price paid" required error={errors.originalPrice}><input value={form.originalPrice} onChange={setNumeric("originalPrice")} inputMode="numeric" placeholder="28000" style={inputStyle} /></Field>
         <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
         <Field label="Body style"><select value={form.body} onChange={set("body")} style={inputStyle}><option>Sedan</option><option>Coupe</option><option>Hatchback</option><option>SUV</option><option>Truck</option><option>Van/Minivan</option><option>Convertible</option></select></Field>
+        <Field label="State"><select value={form.state} onChange={set("state")} style={inputStyle}><option value="">Select state</option>{US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}</select></Field>
         <Field label="Ownership status"><select value={form.loan_status} onChange={set("loan_status")} style={inputStyle}><option>Paid off</option><option>Still financed (loan payoff needed)</option></select></Field>
         {form.loan_status === "Still financed (loan payoff needed)" && (
           <Field label="Remaining loan balance ($)"><input value={form.loan_balance} onChange={setNumeric("loan_balance")} inputMode="numeric" placeholder="8500" style={inputStyle} /></Field>
@@ -1517,9 +1539,12 @@ function ValueMyCar({ allListings, log }) {
                 </div>
               ))}
               <div style={{ fontSize: 11, color: C.steel, marginTop: 8 }}>
-                {result.hasBrandData
-                  ? `Adjusted for ${form.make}'s typical repair costs and Florida labor rates — not a mechanic's quote, actual costs vary by shop.`
-                  : "Adjusted for Florida labor rates. Rough repair-cost estimates, not a mechanic's quote — actual costs vary by shop and region."}
+                {(() => {
+                  const brandPart = result.hasBrandData ? `${form.make}'s typical repair costs` : null;
+                  const regionPart = result.hasStateData ? `${result.stateUsed}'s real labor rates` : (result.stateUsed ? `the national average labor rate (real ${result.stateUsed} data isn't available yet)` : "the national average labor rate");
+                  const parts = [brandPart, regionPart].filter(Boolean);
+                  return `Adjusted for ${parts.join(" and ")}. Rough repair-cost estimates, not a mechanic's quote — actual costs vary by shop.`;
+                })()}
               </div>
             </div>
           )}
@@ -1706,12 +1731,7 @@ export default function App() {
     return null;
   };
 
-  const handleBoost = async (id) => {
-    const { data: ok, error } = await supabase.rpc("boost_listing", { p_id: id });
-    if (error || !ok) { console.error("boost failed:", error?.message); return; }
-    setListings(listings.map((c) => (c.id === id ? { ...c, featured: true } : c)));
-    log("boost_confirmed", { listingId: id });
-  };
+  // handleBoost removed in v15, shelved — see shelved-boost-feature.jsx
 
   const handleQuizComplete = async (answers) => {
     const archetype = getArchetype(answers).name;
@@ -1742,7 +1762,7 @@ export default function App() {
       <TopBar onPost={() => navigate("/post")} />
       <Routes>
         <Route path="/" element={<Home allListings={enrichedListings} log={log} openListing={openListing} />} />
-        <Route path="/listing/:id" element={<ListingDetail allListings={enrichedListings} onBoost={handleBoost} log={log} />} />
+        <Route path="/listing/:id" element={<ListingDetail allListings={enrichedListings} log={log} />} />
         <Route path="/category/:kind/:value/:state" element={<CategoryPage listings={enrichedListings} openListing={openListing} />} />
         <Route path="/post" element={<PostAd onSubmit={handlePostSubmit} existingListings={listings} log={log} />} />
         <Route path="/post/success" element={<Success />} />
