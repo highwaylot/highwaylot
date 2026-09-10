@@ -4,7 +4,30 @@ import {
   ShieldCheck, Phone, SlidersHorizontal, Car as CarIcon, Check, Star,
   TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign, Info
 } from "lucide-react";
+import { Routes, Route, useNavigate, useParams, useLocation, Link } from "react-router-dom";
 import { supabase } from "./lib/supabaseClient";
+
+// Category URL slugs — explicit map for body types (not naive lowercasing,
+// since "Van/Minivan" has a slash that isn't a valid URL path segment on its
+// own). Make names are open-ended, so those get resolved against real
+// listing data by CategoryPage itself rather than a fixed map.
+const BODY_SLUGS = { Sedan: "sedan", Coupe: "coupe", Hatchback: "hatchback", SUV: "suv", Truck: "truck", "Van/Minivan": "van-minivan", Convertible: "convertible" };
+const BODY_SLUGS_REVERSE = Object.fromEntries(Object.entries(BODY_SLUGS).map(([k, v]) => [v, k]));
+const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+function categoryToPath(category) {
+  const stateSlug = slugify(category.state);
+  if (category.kind === "make") return `/category/make/${slugify(category.make)}/${stateSlug}`;
+  return `/category/body/${BODY_SLUGS[category.body] || slugify(category.body)}/${stateSlug}`;
+}
+
+// Scrolls to top on every route change — without this, navigating to a new
+// page keeps whatever scroll position the previous page was at, which reads
+// as broken.
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  return null;
+}
 
 // Explicit column list, deliberately excluding manage_token — every query
 // against listings uses this instead of '*', since manage_token's SELECT
@@ -119,9 +142,25 @@ function CredibilityDot({ credibility }) {
 // Every call writes a real row into Supabase's `events` table. Fire-and-forget:
 // we don't block the UI on it, and we don't read it back (no public read policy
 // on this table — see schema.sql).
+// QR/flyer attribution — captured once, the moment someone lands from a
+// tagged link (?src=flyer-keywest), then attached to every event for the
+// rest of that browser session. sessionStorage is the right tool here —
+// this is a real deployed site, not the sandboxed artifact preview where
+// browser storage is off-limits.
+function captureAttribution() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const src = params.get("src");
+    if (src) sessionStorage.setItem("hl_src", src);
+    return sessionStorage.getItem("hl_src") || null;
+  } catch { return null; }
+}
+
 function useAnalytics() {
   const log = (type, payload = {}) => {
-    supabase.from("events").insert({ type, payload }).then(({ error }) => {
+    let src = null;
+    try { src = sessionStorage.getItem("hl_src"); } catch {}
+    supabase.from("events").insert({ type, payload: src ? { ...payload, src } : payload }).then(({ error }) => {
       if (error) console.error("event log failed:", error.message);
     });
   };
@@ -301,37 +340,45 @@ function PopularSearches({ listings, onOpenCategory }) {
   );
 }
 
-function CategoryPage({ category, listings, openListing, setView }) {
-  const matches = category.kind === "make"
-    ? listings.filter((c) => c.make === category.make && c.state === category.state)
-    : listings.filter((c) => c.body === category.body && c.state === category.state);
+function CategoryPage({ listings, openListing }) {
+  const { kind, value, state: stateSlug } = useParams();
+  const stateName = US_STATES.find((s) => slugify(s) === stateSlug) || stateSlug.replace(/-/g, " ");
+  const bodyLabel = kind === "body" ? (BODY_SLUGS_REVERSE[value] || value) : null;
+
+  const matches = listings.filter((c) => {
+    if (slugify(c.state) !== stateSlug) return false;
+    if (kind === "make") return slugify(c.make) === value;
+    return c.body === bodyLabel;
+  });
   const avgPrice = matches.length ? Math.round(matches.reduce((s, c) => s + c.price, 0) / matches.length) : 0;
-  const title = category.kind === "make" ? `${category.make}s for sale in ${category.state}` : `${category.body}s for sale in ${category.state}`;
-  const noun = category.kind === "make" ? category.make.toLowerCase() : category.body.toLowerCase();
+  const noun = kind === "make" ? (matches[0]?.make || value) : (bodyLabel || value);
+  const title = `${noun}s for sale in ${stateName}`;
+
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 20px 60px" }}>
-      <span onClick={() => setView({ name: "home" })} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 16 }}><ChevronLeft size={15} /> Back to all listings</span>
+      <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 16, textDecoration: "none" }}><ChevronLeft size={15} /> Back to all listings</Link>
       <h1 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: "0 0 8px" }}>{title}</h1>
       <p style={{ color: C.steel, fontSize: 14.5, maxWidth: 640, marginBottom: 24 }}>
-        {matches.length} {noun}{matches.length === 1 ? "" : "s"} currently listed in {category.state}, averaging {fmtPrice(avgPrice)}. Updated automatically as sellers post and sell — this page is generated straight from live listing data.
+        {matches.length} {noun.toLowerCase()}{matches.length === 1 ? "" : "s"} currently listed in {stateName}, averaging {fmtPrice(avgPrice)}. Updated automatically as sellers post and sell — this page is generated straight from live listing data.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
         {matches.map((c) => <ListingCard key={c.id} listing={c} onOpen={openListing} />)}
       </div>
       <div style={{ marginTop: 24, padding: 14, background: "#F4F2EA", borderRadius: 6, fontSize: 12.5, color: C.steel }}>
-        In production, this page lives at its own address (like /trucks-for-sale/texas or /ford-for-sale/florida) so it can show up directly in Google search results — every combination gets one automatically as inventory grows. This is a read-only filtered view — nothing here needs a login, since it's just showing listings that are already public on the browse page.
+        This page lives at its own real address, so it can show up directly in Google search results — every combination gets one automatically as inventory grows. Read-only view of listings already public on the browse page.
       </div>
     </div>
   );
 }
 
 // ---------- Top nav ----------
-function TopBar({ view, setView, onPost }) {
+function TopBar({ onPost }) {
+  const { pathname } = useLocation();
   return (
     <div style={{ background: C.ink, borderBottom: `4px solid ${C.yellow}` }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 20, minHeight: 40 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
-          <div onClick={() => setView({ name: "home" })} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <Link to="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
             <div style={{ width: 32, height: 34, position: "relative", flexShrink: 0 }}>
               <svg viewBox="0 0 32 34" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
                 <path d="M 16 1 L 30 6.5 L 30 17 Q 30 27 16 33 Q 2 27 2 17 L 2 6.5 Z" fill={C.yellow} stroke={C.ink} strokeWidth={2} />
@@ -342,11 +389,11 @@ function TopBar({ view, setView, onPost }) {
               </div>
             </div>
             <span style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(15px, 4vw, 20px)", letterSpacing: 0.5, color: "#fff", whiteSpace: "nowrap" }}>HIGHWAYLOT</span>
-          </div>
+          </Link>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-            <NavLink label="Browse" active={["home","listing","category"].includes(view.name)} onClick={() => setView({ name: "home" })} />
-            <NavLink label="Value my car" active={view.name === "value"} onClick={() => setView({ name: "value" })} />
-            <NavLink label="Find my car" active={["quiz","quizResults"].includes(view.name)} onClick={() => setView({ name: "quiz" })} />
+            <NavLink label="Browse" to="/" active={pathname === "/" || pathname.startsWith("/listing") || pathname.startsWith("/category")} />
+            <NavLink label="Value my car" to="/value" active={pathname === "/value"} />
+            <NavLink label="Find my car" to="/quiz" active={pathname.startsWith("/quiz")} />
           </div>
         </div>
         <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 16px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
@@ -356,8 +403,8 @@ function TopBar({ view, setView, onPost }) {
     </div>
   );
 }
-function NavLink({ label, active, onClick }) {
-  return <span onClick={onClick} style={{ color: active ? "#fff" : "rgba(255,255,255,0.65)", fontSize: 13.5, fontWeight: 500, cursor: "pointer", display: "flex", alignItems: "center", padding: "4px 0", borderBottom: active ? `2px solid ${C.yellow}` : "2px solid transparent", whiteSpace: "nowrap" }}>{label}</span>;
+function NavLink({ label, to, active }) {
+  return <Link to={to} style={{ textDecoration: "none", color: active ? "#fff" : "rgba(255,255,255,0.65)", fontSize: 13.5, fontWeight: 500, display: "flex", alignItems: "center", padding: "4px 0", borderBottom: active ? `2px solid ${C.yellow}` : "2px solid transparent", whiteSpace: "nowrap" }}>{label}</Link>;
 }
 
 // ---------- Hero + filters ----------
@@ -447,7 +494,8 @@ function FilterBar({ filters, setFilters, count, sort, setSort, log }) {
 }
 
 // ---------- Home ----------
-function Home({ setView, allListings, log, openListing }) {
+function Home({ allListings, log, openListing }) {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState({ query: "", state: "", make: "", price: "", mileage: "", seller: "", age: "" });
   const [sort, setSort] = useState("new");
   const filtered = useMemo(() => {
@@ -474,7 +522,7 @@ function Home({ setView, allListings, log, openListing }) {
     <div>
       <Hero filters={filters} setFilters={setFilters} log={log} />
       <FeaturedStrip listings={allListings} onOpen={openListing} />
-      <PopularSearches listings={allListings} onOpenCategory={(cat) => { log("category_view", cat); setView({ name: "category", category: cat }); }} />
+      <PopularSearches listings={allListings} onOpenCategory={(cat) => { log("category_view", cat); navigate(categoryToPath(cat)); }} />
       <FilterBar filters={filters} setFilters={setFilters} count={filtered.length} sort={sort} setSort={setSort} log={log} />
       <SavedSearchPrompt filters={filters} log={log} />
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px 60px" }}>
@@ -528,16 +576,46 @@ function SavedSearchPrompt({ filters, log }) {
 
 
 // ---------- Listing detail + boost ----------
-function ListingDetail({ id, setView, allListings, onBoost, log }) {
+function ListingDetail({ allListings, onBoost, log }) {
+  const { id: idParam } = useParams();
+  const id = Number(idParam);
+  const navigate = useNavigate();
   const [revealed, setRevealed] = useState(false);
   const [showBoost, setShowBoost] = useState(false);
   const [showReport, setShowReport] = useState(false);
-  const listing = allListings.find((c) => c.id === id);
-  if (!listing) return null;
+  const [fetchedListing, setFetchedListing] = useState(null);
+  const [fetchState, setFetchState] = useState("idle"); // idle | loading | notfound
+  const listing = allListings.find((c) => c.id === id) || fetchedListing;
+
+  // If this listing isn't in the already-loaded list — a shared link opened
+  // in a fresh tab, a direct visit, a refresh — go get it directly instead
+  // of assuming it'll show up.
+  useEffect(() => {
+    if (listing || fetchState !== "idle") return;
+    setFetchState("loading");
+    supabase.from("listings").select(LISTING_COLUMNS).eq("id", id).single().then(({ data, error }) => {
+      if (error || !data) { setFetchState("notfound"); return; }
+      setFetchedListing(rowToListing(data));
+      setFetchState("idle");
+    });
+  }, [id, listing, fetchState]);
+
+  if (!listing && fetchState === "loading") {
+    return <div style={{ textAlign: "center", padding: "80px 20px", color: C.steel }}>Loading listing…</div>;
+  }
+  if (!listing) {
+    return (
+      <div style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.ink, marginBottom: 8 }}>Listing not found</div>
+        <p style={{ color: C.steel, fontSize: 14 }}>It may have been removed or the link's incorrect.</p>
+        <Link to="/" style={{ display: "inline-block", marginTop: 16, background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Back to HIGHWAYLOT</Link>
+      </div>
+    );
+  }
   const photos = listing.photos && listing.photos.length ? listing.photos : null;
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px 60px" }}>
-      <span onClick={() => setView({ name: "home" })} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 16 }}><ChevronLeft size={15} /> Back to listings</span>
+      <span onClick={() => navigate(-1)} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 16 }}><ChevronLeft size={15} /> Back</span>
       <div className="hl-detail-grid">
         <div>
           {photos ? (
@@ -625,7 +703,7 @@ function ListingDetail({ id, setView, allListings, onBoost, log }) {
                 </div>
               )}
               <div style={{ fontSize: 11, color: C.steel, marginTop: 8, lineHeight: 1.5 }}>
-                Meet in a public place. HIGHWAYLOT doesn't handle payments or verify vehicles between buyers and sellers — see our <span style={{ textDecoration: "underline", cursor: "pointer" }} onClick={() => setView({ name: "terms" })}>terms</span>.
+                Meet in a public place. HIGHWAYLOT doesn't handle payments or verify vehicles between buyers and sellers — see our <Link to="/terms" style={{ textDecoration: "underline", color: "inherit" }}>terms</Link>.
               </div>
             </div>
             {!listing.featured && (
@@ -704,7 +782,8 @@ function BoostModal({ listing, onClose, onConfirm }) {
 }
 
 // ---------- Post an ad (with photo requirement) ----------
-function PostAd({ setView, onSubmit, existingListings, log }) {
+function PostAd({ onSubmit, existingListings, log }) {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", loan_status:"Paid off", loan_balance:"", desc:"", phone:"" });
   const [photos, setPhotos] = useState([]);
   const [issues, setIssues] = useState({});
@@ -751,7 +830,7 @@ function PostAd({ setView, onSubmit, existingListings, log }) {
 
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "36px 20px 70px" }}>
-      <span onClick={() => setView({ name: "home" })} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 12 }}><ChevronLeft size={15} /> Cancel</span>
+      <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, marginBottom: 12, textDecoration: "none" }}><ChevronLeft size={15} /> Cancel</Link>
       <h2 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: "0 0 4px" }}>Post your car</h2>
       <p style={{ color: C.steel, fontSize: 14, marginBottom: 24 }}>Listings are visible across the United States. Fields marked required.</p>
 
@@ -838,11 +917,23 @@ function Field({ label, required, error, children }) {
   return <div><label style={{ fontSize: 12.5, color: error ? "#B23A3A" : C.steel, display: "block", marginBottom: 4 }}>{label}{required && " *"}{error && " — required"}</label>{children}</div>;
 }
 
-function Success({ setView, listingId, manageLink }) {
+function Success() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { listingId, manageLink } = location.state || {};
   const [copied, setCopied] = useState(false);
   const copy = () => {
     navigator.clipboard.writeText(manageLink).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   };
+
+  // This screen only makes sense right after a real submission — if someone
+  // refreshes or visits it directly, that transient data is gone. Send them
+  // somewhere useful instead of showing a broken confirmation.
+  useEffect(() => {
+    if (!listingId) navigate("/", { replace: true });
+  }, [listingId, navigate]);
+  if (!listingId) return null;
+
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "60px 20px", textAlign: "center" }}>
       <div style={{ width: 52, height: 52, borderRadius: "50%", background: C.greenBg, color: C.green, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}><Check size={26} /></div>
@@ -860,8 +951,8 @@ function Success({ setView, listingId, manageLink }) {
         </div>
       )}
 
-      <button onClick={() => setView({ name: "listing", id: listingId })} style={{ background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, cursor: "pointer", marginRight: 10 }}>View listing</button>
-      <button onClick={() => setView({ name: "home" })} style={{ background: "transparent", color: C.ink, border: `1px solid ${C.line}`, borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Back to browse</button>
+      <Link to={`/listing/${listingId}`} style={{ background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, cursor: "pointer", marginRight: 10, textDecoration: "none", display: "inline-block" }}>View listing</Link>
+      <Link to="/" style={{ background: "transparent", color: C.ink, border: `1px solid ${C.line}`, borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, textDecoration: "none", display: "inline-block" }}>Back to browse</Link>
     </div>
   );
 }
@@ -899,7 +990,7 @@ function getArchetype(answers) {
   return { name: "Daily Commuter", blurb: "Reliable, efficient, no drama — a car that just works, day after day." };
 }
 
-function Quiz({ setView, log, onComplete }) {
+function Quiz({ log, onComplete }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
   const q = ALL_QUESTIONS[step];
@@ -929,16 +1020,25 @@ function Quiz({ setView, log, onComplete }) {
   );
 }
 
-function QuizResults({ answers, allListings, openListing, setView }) {
+function QuizResults({ allListings, openListing }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const answers = location.state?.answers;
+  const [shared, setShared] = useState(false);
+
+  useEffect(() => {
+    if (!answers) navigate("/quiz", { replace: true });
+  }, [answers, navigate]);
+  if (!answers) return null;
+
   const archetype = getArchetype(answers);
   const bodyPref = BODY_MAP[answers.household] || "Sedan";
   const maxPrice = BUDGET_MAP[answers.budget] || 40000;
   const matches = allListings.filter((c) => c.body === bodyPref && c.price <= maxPrice).slice(0, 6);
-  const [shared, setShared] = useState(false);
 
   const shareResult = async () => {
     const text = `I'm a ${archetype.name} on HIGHWAYLOT! Find out what you are:`;
-    const url = `${window.location.origin}${window.location.pathname}`;
+    const url = `${window.location.origin}/quiz`;
     if (navigator.share) {
       try { await navigator.share({ title: "HIGHWAYLOT", text, url }); } catch (e) { /* user cancelled, ignore */ }
     } else {
@@ -964,7 +1064,7 @@ function QuizResults({ answers, allListings, openListing, setView }) {
         </div>
       )}
       <div style={{ textAlign: "center", marginTop: 26 }}>
-        <button onClick={() => setView({ name: "quiz" })} style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Retake quiz</button>
+        <Link to="/quiz" style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none", display: "inline-block", color: C.ink }}>Retake quiz</Link>
       </div>
     </div>
   );
@@ -1325,7 +1425,7 @@ function estimateValue(input, allListings, issues = {}) {
   return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown, brandMult, hasBrandData };
 }
 
-function ValueMyCar({ allListings, log, setView }) {
+function ValueMyCar({ allListings, log }) {
   const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", loan_status: "Paid off", loan_balance: "" });
   const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
@@ -1424,7 +1524,7 @@ function ValueMyCar({ allListings, log, setView }) {
             </div>
           )}
 
-          <button onClick={() => setView({ name: "post" })} style={{ marginTop: 16, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>List this car</button>
+          <Link to="/post" style={{ marginTop: 16, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none", display: "inline-block", color: C.ink }}>List this car</Link>
         </div>
       )}
     </div>
@@ -1439,7 +1539,10 @@ function ValueMyCar({ allListings, log, setView }) {
 // general-purpose open policy. It's "security by possession of a secret
 // link," not identity-based login — a real, honest tradeoff for a site with
 // no accounts, not a full substitute for one.
-function ManagePage({ idParam, token, setView }) {
+function ManagePage() {
+  const { id: idParamRaw, token } = useParams();
+  const idParam = Number(idParamRaw);
+  const navigate = useNavigate();
   const [status, setStatus] = useState("checking"); // checking | denied | ready | deleted
   const [listing, setListing] = useState(null);
   const [price, setPrice] = useState("");
@@ -1460,10 +1563,7 @@ function ManagePage({ idParam, token, setView }) {
     })();
   }, [idParam, token]);
 
-  const goHome = () => {
-    window.history.replaceState(null, "", window.location.pathname);
-    setView({ name: "home" });
-  };
+  const goHome = () => navigate("/");
 
   const saveChanges = async () => {
     setSaving(true);
@@ -1514,7 +1614,7 @@ function ManagePage({ idParam, token, setView }) {
 }
 
 // ---------- Terms ----------
-function Terms({ setView }) {
+function Terms() {
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
@@ -1532,19 +1632,19 @@ function Terms({ setView }) {
           <div style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6 }}>{body}</div>
         </div>
       ))}
-      <button onClick={() => setView({ name: "home" })} style={{ marginTop: 8, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Back</button>
+      <Link to="/" style={{ marginTop: 8, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none", display: "inline-block", color: C.ink }}>Back</Link>
     </div>
   );
 }
 
 // ---------- Footer ----------
-function Footer({ setView }) {
+function Footer() {
   return (
     <div style={{ background: C.ink, borderTop: `4px solid ${C.yellow}`, marginTop: 40 }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "26px 20px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12.5 }}>HIGHWAYLOT — buy and sell cars nationwide.</div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          <span onClick={() => setView({ name: "terms" })} style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, cursor: "pointer", textDecoration: "underline" }}>Terms</span>
+          <Link to="/terms" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Terms</Link>
           <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>United States only, for now.</div>
         </div>
       </div>
@@ -1566,36 +1666,27 @@ function timeAgo(iso) {
 // the app uses `desc`. This maps between the two at the boundary.
 const rowToListing = (row) => ({ ...row, desc: row.description, posted: timeAgo(row.created_at) });
 
-function getInitialView() {
-  const params = new URLSearchParams(window.location.search);
-  const manage = params.get("manage");
-  if (manage && manage.includes(".")) {
-    const [id, token] = manage.split(/\.(.+)/); // split on first dot only, token may contain dashes
-    if (id && token) return { name: "manage", id: Number(id), token };
-  }
-  return { name: "home" };
-}
-
 export default function App() {
-  const [view, setView] = useState(getInitialView);
+  const location = useLocation();
+  const navigate = useNavigate();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [lastPostedId, setLastPostedId] = useState(null);
-  const [lastManageLink, setLastManageLink] = useState(null);
-  const [quizAnswers, setQuizAnswers] = useState(null);
   const { log } = useAnalytics();
 
+  // Capture QR/flyer attribution once, on first load of any page.
+  useEffect(() => { captureAttribution(); }, []);
+
   useEffect(() => {
-    if (view.name === "manage") { setLoading(false); return; } // manage view fetches its own single listing
+    if (location.pathname.startsWith("/manage/")) { setLoading(false); return; } // manage route fetches its own single listing
     (async () => {
       const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).order("created_at", { ascending: false });
       if (error) { console.error("fetch listings failed:", error.message); setLoading(false); return; }
       setListings(data.map(rowToListing));
       setLoading(false);
     })();
-  }, []);
+  }, [location.pathname.startsWith("/manage/")]);
 
-  const openListing = (id) => { log("listing_view", { listingId: id }); setView({ name: "listing", id }); };
+  const openListing = (id) => { log("listing_view", { listingId: id }); navigate(`/listing/${id}`); };
 
   const enrichedListings = useMemo(() => {
     const withFairness = listings.map((l) => ({ ...l, fairness: estimateFairness(l, listings) }));
@@ -1609,10 +1700,9 @@ export default function App() {
     if (error) { console.error("post listing failed:", error.message); return error.message; }
     const newListing = rowToListing(inserted);
     setListings([newListing, ...listings]);
-    setLastPostedId(newListing.id);
-    setLastManageLink(`${window.location.origin}${window.location.pathname}?manage=${newListing.id}.${manage_token}`);
+    const manageLink = `${window.location.origin}/manage/${newListing.id}/${manage_token}`;
     log("listing_created", { listingId: newListing.id });
-    setView({ name: "success" });
+    navigate("/post/success", { state: { listingId: newListing.id, manageLink } });
     return null;
   };
 
@@ -1629,22 +1719,12 @@ export default function App() {
       if (error) console.error("quiz save failed:", error.message);
     });
     log("quiz_complete", answers);
-    setQuizAnswers(answers);
-    setView({ name: "quizResults" });
+    navigate("/quiz/results", { state: { answers } });
   };
 
-  if (view.name === "manage") {
-    return (
-      <div style={{ fontFamily: FONT_BODY, background: C.paper, minHeight: "100%" }}>
-        <style>{`@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');`}</style>
-        <TopBar view={view} setView={setView} onPost={() => setView({ name: "post" })} />
-        <ManagePage idParam={view.id} token={view.token} setView={setView} />
-        <Footer setView={setView} />
-      </div>
-    );
-  }
+  const isManageRoute = location.pathname.startsWith("/manage/");
 
-  if (loading) {
+  if (!isManageRoute && loading) {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_BODY, color: C.steel }}>Loading listings…</div>;
   }
 
@@ -1652,26 +1732,38 @@ export default function App() {
     <div style={{ fontFamily: FONT_BODY, background: C.paper, minHeight: "100%" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
-        /* Removed the appearance:none reset — it was stripping the dropdown arrow off
-           every select on the site with nothing replacing it, so dropdowns looked
-           like plain text boxes. Native arrows are more recognizable, not less. */
         .hl-detail-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 32px; }
         .hl-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .hl-spec-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 18px; }
         @media (max-width: 720px) { .hl-detail-grid { grid-template-columns: 1fr; gap: 24px; } }
         @media (max-width: 480px) { .hl-form-grid { grid-template-columns: 1fr; } .hl-spec-grid { grid-template-columns: 1fr 1fr; } }
       `}</style>
-      <TopBar view={view} setView={setView} onPost={() => setView({ name: "post" })} />
-      {view.name === "home" && <Home setView={setView} allListings={enrichedListings} log={log} openListing={openListing} />}
-      {view.name === "category" && <CategoryPage category={view.category} listings={enrichedListings} openListing={openListing} setView={setView} />}
-      {view.name === "listing" && <ListingDetail id={view.id} setView={setView} allListings={enrichedListings} onBoost={handleBoost} log={log} />}
-      {view.name === "post" && <PostAd setView={setView} onSubmit={handlePostSubmit} existingListings={listings} log={log} />}
-      {view.name === "success" && <Success setView={setView} listingId={lastPostedId} manageLink={lastManageLink} />}
-      {view.name === "quiz" && <Quiz setView={setView} log={log} onComplete={handleQuizComplete} />}
-      {view.name === "quizResults" && <QuizResults answers={quizAnswers} allListings={enrichedListings} openListing={openListing} setView={setView} />}
-      {view.name === "terms" && <Terms setView={setView} />}
-      {view.name === "value" && <ValueMyCar allListings={listings} log={log} setView={setView} />}
-      <Footer setView={setView} />
+      <ScrollToTop />
+      <TopBar onPost={() => navigate("/post")} />
+      <Routes>
+        <Route path="/" element={<Home allListings={enrichedListings} log={log} openListing={openListing} />} />
+        <Route path="/listing/:id" element={<ListingDetail allListings={enrichedListings} onBoost={handleBoost} log={log} />} />
+        <Route path="/category/:kind/:value/:state" element={<CategoryPage listings={enrichedListings} openListing={openListing} />} />
+        <Route path="/post" element={<PostAd onSubmit={handlePostSubmit} existingListings={listings} log={log} />} />
+        <Route path="/post/success" element={<Success />} />
+        <Route path="/value" element={<ValueMyCar allListings={listings} log={log} />} />
+        <Route path="/quiz" element={<Quiz log={log} onComplete={handleQuizComplete} />} />
+        <Route path="/quiz/results" element={<QuizResults allListings={enrichedListings} openListing={openListing} />} />
+        <Route path="/manage/:id/:token" element={<ManagePage />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+      <Footer />
+    </div>
+  );
+}
+
+function NotFound() {
+  return (
+    <div style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.ink, marginBottom: 8 }}>Page not found</div>
+      <p style={{ color: C.steel, fontSize: 14 }}>That link doesn't lead anywhere on HIGHWAYLOT.</p>
+      <Link to="/" style={{ display: "inline-block", marginTop: 16, background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Back to HIGHWAYLOT</Link>
     </div>
   );
 }
