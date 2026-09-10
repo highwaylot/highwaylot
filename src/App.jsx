@@ -966,14 +966,14 @@ function Success() {
 const QUIZ_STATEMENTS = [
   { key: "haul", text: "I need a car that can haul stuff." },
   { key: "speed", text: "Speed matters more to me than saving gas money." },
-  { key: "fun", text: "Driving itself is fun for me, not just a way to get somewhere." },
+  { key: "fun", text: "Driving is fun for me." },
   { key: "people", text: "I like having people in the car with me." },
   { key: "dirt", text: "A little dirt never hurt." },
-  { key: "identity", text: "My car says something about who I am." },
+  { key: "identity", text: "My car feels like an extension of me." },
   { key: "notice", text: "I want people to notice my car." },
   { key: "whim", text: "I could buy a car on a whim." },
   { key: "tradehp", text: "I'd trade horsepower for better gas mileage." },
-  { key: "opinion", text: "What people think of my car matters to me." },
+  { key: "opinion", text: "I'd be embarrassed showing up in a beat-up car." },
 ];
 
 // Each archetype's ideal answer (1-5) on every statement above. Scoring
@@ -1034,7 +1034,16 @@ function scoreQuiz(answers) {
     const secondDiff = Math.abs(userVal - ARCHETYPE_PROFILES[second.name][mostExtremeKey]);
     if (secondDiff < bestDiff) best = second;
   }
-  return { name: best.name, blurb: ARCHETYPE_BLURBS[best.name] };
+  // Runner-up is whichever wasn't picked as best, from the original top two —
+  // shown quietly on the results page, not part of the tie-break logic above.
+  const runnerUpEntry = distances.find((d) => d.name !== best.name);
+  const gap = runnerUpEntry ? runnerUpEntry.dist - best.dist : 999;
+  return {
+    name: best.name,
+    blurb: ARCHETYPE_BLURBS[best.name],
+    runnerUp: runnerUpEntry ? { name: runnerUpEntry.name } : null,
+    matchStrength: gap < 4 ? "close" : "strong",
+  };
 }
 
 function Quiz({ log, onComplete }) {
@@ -1064,7 +1073,7 @@ function Quiz({ log, onComplete }) {
         ))}
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 11.5, color: C.steel }}>
-        <span>Disagree</span><span>Agree</span>
+        <span>Disagree</span><span>Neutral</span><span>Agree</span>
       </div>
     </div>
   );
@@ -1100,8 +1109,14 @@ function QuizResults({ allListings, openListing }) {
       <div style={{ textAlign: "center", marginBottom: 30 }}>
         <div style={{ fontSize: 13, color: C.steel }}>Your result</div>
         <h2 style={{ fontFamily: FONT_HEAD, fontSize: 32, color: C.ink, margin: "6px 0" }}>You're a {archetype.name}</h2>
-        <p style={{ color: C.steel, fontSize: 14.5, maxWidth: 440, margin: "0 auto 16px" }}>{archetype.blurb}</p>
-        <button onClick={shareResult} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8 }}>
+        <p style={{ color: C.steel, fontSize: 14.5, maxWidth: 440, margin: "0 auto 8px" }}>{archetype.blurb}</p>
+        <div style={{ marginBottom: 4 }}>
+          <Badge tone={archetype.matchStrength === "close" ? "yellow" : "verified"}>{archetype.matchStrength === "close" ? "Close call between two types" : "Strong match"}</Badge>
+        </div>
+        {archetype.runnerUp && (
+          <div style={{ fontSize: 12, color: C.steel, marginBottom: 16 }}>with a bit of {archetype.runnerUp.name} in you</div>
+        )}
+        <button onClick={shareResult} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 8, marginTop: 8 }}>
           <Star size={15} /> {shared ? "Copied — go paste it!" : "Share my result"}
         </button>
       </div>
