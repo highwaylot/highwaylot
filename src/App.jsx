@@ -272,10 +272,10 @@ function ListingCard({ listing, onOpen }) {
         {listing.featured && <div style={{ marginBottom: 6 }}><Badge tone="yellow"><Star size={11} />Featured</Badge></div>}
         <div style={{ fontFamily: FONT_HEAD, fontSize: 17, color: C.ink, lineHeight: 1.25 }}>{listing.year} {listing.make} {listing.model}</div>
         <div style={{ fontSize: 13, color: C.steel, marginTop: 2 }}>{listing.trim}</div>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 22, color: C.ink, marginTop: 8 }}>{fmtPrice(listing.price)}</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, fontSize: 12.5, color: C.steel }}>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Gauge size={13} />{fmtMiles(listing.mileage)}</span>
-          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={13} />{listing.city}, {stateAbbr(listing.state)}</span>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 26, color: C.ink, marginTop: 8 }}>{fmtPrice(listing.price)}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8, fontSize: 14, fontWeight: 600, color: C.ink }}>
+          <span style={{ display: "flex", alignItems: "center", gap: 4 }}><Gauge size={14} />{fmtMiles(listing.mileage)}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: 400, color: C.steel, fontSize: 12.5 }}><MapPin size={13} />{listing.city}, {stateAbbr(listing.state)}</span>
         </div>
         <div style={{ fontSize: 11.5, color: C.steel, marginTop: 4 }}>Listed {listing.posted}</div>
         <div style={{ marginTop: 6 }}><CredibilityDot credibility={listing.credibility} /></div>
@@ -1758,6 +1758,162 @@ function ManagePage() {
 }
 
 // ---------- Terms ----------
+// ---------- Admin dashboard (v17) ----------
+// Secret-gated, not logged-in — see the admin RPC functions in schema.sql
+// for how the actual secret check works (entirely server-side, never
+// shipped in this bundle). Core operational views only: reports queue,
+// listing lifecycle, credibility distribution, quiz stats, valuation stats,
+// by-state breakdown. Sold-price analytics, the data-coverage tracker, and
+// the cross-reference tool are deliberately deferred to v17.1 — this is
+// already a large build on its own.
+function SimpleBarRow({ label, value, max, suffix = "" }) {
+  const pct = max > 0 ? Math.round((value / max) * 100) : 0;
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.ink, marginBottom: 3 }}>
+        <span>{label}</span><span style={{ fontWeight: 600 }}>{value}{suffix}</span>
+      </div>
+      <div style={{ height: 8, background: "#EFEDE4", borderRadius: 4, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${pct}%`, background: C.yellow }} />
+      </div>
+    </div>
+  );
+}
+function AdminSection({ title, children }) {
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 8, padding: 20, marginBottom: 20 }}>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 14 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function AdminPage() {
+  const { secret } = useParams();
+  const [status, setStatus] = useState("checking"); // checking | denied | ready
+  const [listings, setListings] = useState([]);
+  const [reports, setReports] = useState([]);
+  const [quizResponses, setQuizResponses] = useState([]);
+  const [valuations, setValuations] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      const [reportsRes, quizRes, valRes, listingsRes] = await Promise.all([
+        supabase.rpc("admin_get_reports", { p_secret: secret }),
+        supabase.rpc("admin_get_quiz_responses", { p_secret: secret }),
+        supabase.rpc("admin_get_valuations", { p_secret: secret }),
+        supabase.from("listings").select(LISTING_COLUMNS),
+      ]);
+      if (reportsRes.error || quizRes.error || valRes.error) { setStatus("denied"); return; }
+      setReports(reportsRes.data || []);
+      setQuizResponses(quizRes.data || []);
+      setValuations(valRes.data || []);
+      setListings((listingsRes.data || []).map(rowToListing));
+      setStatus("ready");
+    })();
+  }, [secret]);
+
+  const updateReportStatus = async (reportId, newStatus) => {
+    setReports(reports.map((r) => (r.id === reportId ? { ...r, status: newStatus } : r))); // optimistic
+    const { error } = await supabase.rpc("admin_update_report_status", { p_secret: secret, p_report_id: reportId, p_status: newStatus });
+    if (error) console.error("report status update failed:", error.message);
+  };
+
+  if (status === "checking") return <div style={{ textAlign: "center", padding: "80px 20px", color: C.steel }}>Checking access…</div>;
+  if (status === "denied") return (
+    <div style={{ maxWidth: 420, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 20, color: C.ink }}>Access denied</div>
+      <p style={{ color: C.steel, fontSize: 13.5, marginTop: 8 }}>This link isn't valid, or doesn't have admin access.</p>
+    </div>
+  );
+
+  // Lifecycle counts
+  const soldCount = listings.filter((l) => l.status === "sold").length;
+  const expiredCount = listings.filter((l) => l.status === "active" && getExpiryInfo(l).expired).length;
+  const activeCount = listings.filter((l) => l.status === "active" && !getExpiryInfo(l).expired).length;
+
+  // Credibility distribution — fairness has to be computed first, since
+  // computeCredibility's price-flag check depends on it.
+  const withFairness = listings.map((l) => ({ ...l, fairness: estimateFairness(l, listings) }));
+  const withCred = withFairness.map((l) => ({ ...l, credibility: computeCredibility(l, withFairness) }));
+  const credCounts = { green: 0, yellow: 0, red: 0 };
+  withCred.forEach((l) => { if (credCounts[l.credibility?.level] !== undefined) credCounts[l.credibility.level]++; });
+
+  // By-state breakdown
+  const byState = {};
+  listings.forEach((l) => { byState[l.state] = (byState[l.state] || 0) + 1; });
+  const stateEntries = Object.entries(byState).sort((a, b) => b[1] - a[1]);
+  const maxStateCount = stateEntries.length ? stateEntries[0][1] : 1;
+
+  // Quiz archetype counts
+  const archetypeCounts = {};
+  quizResponses.forEach((r) => { archetypeCounts[r.archetype] = (archetypeCounts[r.archetype] || 0) + 1; });
+  const archetypeEntries = Object.entries(archetypeCounts).sort((a, b) => b[1] - a[1]);
+  const maxArchetypeCount = archetypeEntries.length ? archetypeEntries[0][1] : 1;
+
+  // Valuation stats
+  const avgEstimate = valuations.length ? Math.round(valuations.reduce((s, v) => s + (v.estimate || 0), 0) / valuations.length) : 0;
+
+  const REPORT_STATUSES = ["New", "In review", "Resolved"];
+
+  return (
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 60px" }}>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, marginBottom: 2 }}>Admin dashboard</div>
+      <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 24 }}>Core operational views. Sold-price analytics, data-coverage tracking, and cross-referencing are coming in v17.1.</p>
+
+      <AdminSection title={`Listing lifecycle (${listings.length} total)`}>
+        <div style={{ display: "flex", gap: 24 }}>
+          <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.green }}>{activeCount}</div><div style={{ fontSize: 12, color: C.steel }}>Active</div></div>
+          <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.steel }}>{expiredCount}</div><div style={{ fontSize: 12, color: C.steel }}>Expired</div></div>
+          <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink }}>{soldCount}</div><div style={{ fontSize: 12, color: C.steel }}>Sold</div></div>
+        </div>
+      </AdminSection>
+
+      <AdminSection title="Credibility distribution">
+        <SimpleBarRow label="No issues detected" value={credCounts.green} max={listings.length} />
+        <SimpleBarRow label="Worth a closer look" value={credCounts.yellow} max={listings.length} />
+        <SimpleBarRow label="Flagged" value={credCounts.red} max={listings.length} />
+      </AdminSection>
+
+      <AdminSection title="Listings by state">
+        {stateEntries.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No listings yet.</div> :
+          stateEntries.map(([state, count]) => <SimpleBarRow key={state} label={state} value={count} max={maxStateCount} />)}
+      </AdminSection>
+
+      <AdminSection title={`Quiz results (${quizResponses.length} completed)`}>
+        {archetypeEntries.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No quiz completions yet.</div> :
+          archetypeEntries.map(([name, count]) => <SimpleBarRow key={name} label={name} value={count} max={maxArchetypeCount} />)}
+      </AdminSection>
+
+      <AdminSection title={`Value My Car submissions (${valuations.length} total)`}>
+        <div style={{ fontSize: 13.5, color: C.ink }}>Average estimate: <strong>{fmtPrice(avgEstimate)}</strong></div>
+      </AdminSection>
+
+      <AdminSection title={`Reports queue (${reports.length})`}>
+        {reports.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No reports yet.</div> : reports.map((r) => {
+          const listing = listings.find((l) => l.id === r.listing_id);
+          return (
+            <div key={r.id} style={{ borderBottom: `1px solid ${C.line}`, padding: "10px 0" }}>
+              <div style={{ fontSize: 13.5, color: C.ink }}>{listing ? `${listing.year} ${listing.make} ${listing.model}` : `Listing #${r.listing_id}`}</div>
+              <div style={{ fontSize: 12.5, color: C.steel, marginTop: 2 }}>{r.reason}</div>
+              <div style={{ fontSize: 11, color: C.steel, marginTop: 2 }}>{timeAgo(r.created_at)}</div>
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                {REPORT_STATUSES.map((s) => (
+                  <button key={s} onClick={() => updateReportStatus(r.id, s)} style={{
+                    fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer",
+                    border: r.status === s ? "none" : `1px solid ${C.line}`,
+                    background: r.status === s ? C.yellow : "#fff", color: C.ink, fontWeight: r.status === s ? 600 : 400,
+                  }}>{s}</button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+      </AdminSection>
+    </div>
+  );
+}
+
 function Terms() {
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
@@ -1832,20 +1988,21 @@ export default function App() {
   const navigate = useNavigate();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
   const { log } = useAnalytics();
 
   // Capture QR/flyer attribution once, on first load of any page.
   useEffect(() => { captureAttribution(); }, []);
 
   useEffect(() => {
-    if (location.pathname.startsWith("/manage/")) { setLoading(false); return; } // manage route fetches its own single listing
+    if (location.pathname.startsWith("/manage/") || location.pathname.startsWith("/admin/")) { setLoading(false); return; } // these routes fetch their own data
     (async () => {
       const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).order("created_at", { ascending: false });
-      if (error) { console.error("fetch listings failed:", error.message); setLoading(false); return; }
+      if (error) { console.error("fetch listings failed:", error.message); setFetchError(error.message); setLoading(false); return; }
       setListings(data.map(rowToListing));
       setLoading(false);
     })();
-  }, [location.pathname.startsWith("/manage/")]);
+  }, [location.pathname.startsWith("/manage/"), location.pathname.startsWith("/admin/")]);
 
   const openListing = (id) => { log("listing_view", { listingId: id }); navigate(`/listing/${id}`); };
 
@@ -1883,10 +2040,21 @@ export default function App() {
     navigate("/quiz/results", { state: { answers } });
   };
 
-  const isManageRoute = location.pathname.startsWith("/manage/");
+  const isManageRoute = location.pathname.startsWith("/manage/") || location.pathname.startsWith("/admin/");
 
   if (!isManageRoute && loading) {
     return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_BODY, color: C.steel }}>Loading listings…</div>;
+  }
+  if (!isManageRoute && fetchError) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_BODY, padding: 20 }}>
+        <div style={{ maxWidth: 440, textAlign: "center" }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 20, color: "#A32D2D", marginBottom: 8 }}>Couldn't load listings</div>
+          <div style={{ fontSize: 13, color: C.steel, marginBottom: 4 }}>{fetchError}</div>
+          <div style={{ fontSize: 12, color: C.steel }}>This is usually a database schema mismatch — check that the latest schema.sql has been run in Supabase.</div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1912,6 +2080,7 @@ export default function App() {
         <Route path="/quiz/results" element={<QuizResults allListings={visibleListings} openListing={openListing} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/admin/:secret" element={<AdminPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Footer />
