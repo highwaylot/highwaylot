@@ -2056,6 +2056,31 @@ function ListingSnippet({ listing }) {
 const TH = { textAlign: "left", padding: "8px 10px", fontSize: 11.5, color: C.steel, borderBottom: `1px solid ${C.line}`, whiteSpace: "nowrap" };
 const TD = { padding: "8px 10px", fontSize: 12.5, color: C.ink, borderBottom: `1px solid ${C.line}`, whiteSpace: "nowrap" };
 
+// Real click-to-sort column headers — every sortable column uses this,
+// consistently, across every admin table. Click once for ascending, click
+// the same column again to flip to descending.
+function SortableTH({ label, sortKey, sort, setSort }) {
+  const active = sort.key === sortKey;
+  const toggle = () => setSort(active ? { key: sortKey, dir: sort.dir === "asc" ? "desc" : "asc" } : { key: sortKey, dir: "asc" });
+  return (
+    <th onClick={toggle} style={{ ...TH, cursor: "pointer", userSelect: "none", color: active ? C.ink : C.steel, fontWeight: active ? 700 : 400 }}>
+      {label}{active && <span style={{ marginLeft: 3 }}>{sort.dir === "asc" ? "▲" : "▼"}</span>}
+    </th>
+  );
+}
+// accessors maps a sortKey to a function pulling the comparable value off a
+// row — needed for anything that isn't a plain field (credibility level,
+// price-diff %, days-to-sell, etc.).
+function sortRows(rows, sort, accessors = {}) {
+  const getVal = accessors[sort.key] || ((r) => r[sort.key]);
+  const sorted = [...rows].sort((a, b) => {
+    const av = getVal(a), bv = getVal(b);
+    if (typeof av === "string" || typeof bv === "string") return String(av ?? "").localeCompare(String(bv ?? ""));
+    return (av ?? 0) - (bv ?? 0);
+  });
+  return sort.dir === "desc" ? sorted.reverse() : sorted;
+}
+
 function AdminPage() {
   const { secret } = useParams();
   const [tab, setTab] = useState("overview");
@@ -2066,12 +2091,13 @@ function AdminPage() {
   const [valuations, setValuations] = useState([]);
   const [soldListings, setSoldListings] = useState([]);
   const [stateRates, setStateRates] = useState([]);
-  const [sortKey, setSortKey] = useState("created_at");
+  const [listingSort, setListingSort] = useState({ key: "created_at", dir: "desc" });
   const [xrefRowDim, setXrefRowDim] = useState("body");
   const [xrefColDim, setXrefColDim] = useState("state");
   const [listingSearch, setListingSearch] = useState("");
-  const [valSortKey, setValSortKey] = useState("created_at");
-  const [soldSortKey, setSoldSortKey] = useState("sold_at");
+  const [valSort, setValSort] = useState({ key: "created_at", dir: "desc" });
+  const [soldSort, setSoldSort] = useState({ key: "sold_at", dir: "desc" });
+  const [quizSort, setQuizSort] = useState({ key: "created_at", dir: "desc" });
   const [manageLinkIds, setManageLinkIds] = useState(new Set());
 
   useEffect(() => {
@@ -2155,20 +2181,29 @@ function AdminPage() {
   const avgEstimate = valuations.length ? Math.round(valuations.reduce((s, v) => s + (v.estimate || 0), 0) / valuations.length) : 0;
 
   // ----- Listings tab sort -----
-  const sortedValuations = [...valuations].sort((a, b) => {
-    if (valSortKey === "estimate") return (b.estimate || 0) - (a.estimate || 0);
-    if (valSortKey === "make") return a.make.localeCompare(b.make);
-    return new Date(b.created_at) - new Date(a.created_at);
-  });
-
+  const valuationAccessors = {
+    created_at: (v) => new Date(v.created_at).getTime(),
+    car: (v) => `${v.year} ${v.make} ${v.model}`,
+    mileage: (v) => v.mileage,
+    condition: (v) => v.condition || "",
+    state: (v) => v.state || "",
+    originalPrice: (v) => v.originalPrice || 0,
+    estimate: (v) => v.estimate || 0,
+    confidence: (v) => v.confidence || "",
+  };
+  const sortedValuations = sortRows(valuations, valSort, valuationAccessors);
   const CRED_SORT_WEIGHT = { red: 0, yellow: 1, green: 2 };
-  const sortedListings = [...withCred].sort((a, b) => {
-    if (sortKey === "price") return b.price - a.price;
-    if (sortKey === "mileage") return a.mileage - b.mileage;
-    if (sortKey === "make") return a.make.localeCompare(b.make);
-    if (sortKey === "credibility") return (CRED_SORT_WEIGHT[a.credibility?.level] ?? 3) - (CRED_SORT_WEIGHT[b.credibility?.level] ?? 3);
-    return new Date(b.created_at) - new Date(a.created_at);
-  });
+  const listingAccessors = {
+    car: (l) => `${l.year} ${l.make} ${l.model}`,
+    price: (l) => l.price,
+    mileage: (l) => l.mileage,
+    state: (l) => l.state,
+    status: (l) => (l.status === "sold" ? "Sold" : getExpiryInfo(l).expired ? "Expired" : "Active"),
+    credibility: (l) => CRED_SORT_WEIGHT[l.credibility?.level] ?? 3,
+    manage_link: (l) => (manageLinkIds.has(l.id) ? 1 : 0),
+    created_at: (l) => new Date(l.created_at).getTime(),
+  };
+  const sortedListings = sortRows(withCred, listingSort, listingAccessors);
   const filteredListings = listingSearch.trim()
     ? sortedListings.filter((l) => `${l.make} ${l.model} ${l.city}`.toLowerCase().includes(listingSearch.trim().toLowerCase()))
     : sortedListings;
@@ -2215,6 +2250,16 @@ function AdminPage() {
   const xrefColValues = [...new Set(listings.map((l) => l[xrefColDim]))].filter(Boolean).sort().slice(0, 8);
   const xrefMatrix = xrefRowValues.map((rv) => xrefColValues.map((cv) => listings.filter((l) => l[xrefRowDim] === rv && l[xrefColDim] === cv).length));
   const xrefMax = Math.max(1, ...xrefMatrix.flat());
+  // Same two dimensions, average price instead of count — worth having
+  // alongside the count matrix since "how many" and "how much" tell
+  // different stories over the same breakdown.
+  const xrefPriceMatrix = xrefRowValues.map((rv) => xrefColValues.map((cv) => {
+    const matches = listings.filter((l) => l[xrefRowDim] === rv && l[xrefColDim] === cv);
+    return matches.length ? Math.round(matches.reduce((s, l) => s + l.price, 0) / matches.length) : null;
+  }));
+  const xrefPriceValues = xrefPriceMatrix.flat().filter((v) => v != null);
+  const xrefPriceMin = xrefPriceValues.length ? Math.min(...xrefPriceValues) : 0;
+  const xrefPriceMax = xrefPriceValues.length ? Math.max(...xrefPriceValues) : 1;
 
   const pendingReports = reports.filter((r) => !r.status || r.status === "New");
   const resolvedNoIssue = reports.filter((r) => r.status === "Resolved - No Issue" || r.status === "Resolved"); // old generic "Resolved" from before this redesign lands here
@@ -2300,11 +2345,6 @@ function AdminPage() {
         <AdminSection title="All listings" span="full">
           <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
             <input value={listingSearch} onChange={(e) => setListingSearch(e.target.value)} placeholder="Search make, model, or city…" style={{ ...inputStyle, width: 240 }} />
-            <div style={{ display: "flex", gap: 6 }}>
-              {[{ k: "created_at", l: "Newest" }, { k: "price", l: "Price" }, { k: "mileage", l: "Mileage" }, { k: "credibility", l: "Credibility" }, { k: "make", l: "Make" }].map((s) => (
-                <button key={s.k} onClick={() => setSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: sortKey === s.k ? "none" : `1px solid ${C.line}`, background: sortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
-              ))}
-            </div>
             <button onClick={() => downloadCSV("highwaylot-listings.csv", filteredListings, [
               { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" }, { label: "Trim", value: "trim" },
               { label: "Price", value: "price" }, { label: "Mileage", value: "mileage" }, { label: "City", value: "city" }, { label: "State", value: "state" },
@@ -2312,9 +2352,22 @@ function AdminPage() {
               { label: "Credibility", value: (l) => l.credibility?.level }, { label: "Posted", value: "created_at" },
             ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff", marginLeft: "auto" }}>Export CSV</button>
           </div>
+          <div style={{ fontSize: 11, color: C.steel, marginBottom: 8 }}>Click any column header to sort — click again to reverse.</div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr>{["Car", "Price", "Mileage", "State", "Status", "Credibility", "Manage-link", "Posted", ""].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+              <thead>
+                <tr>
+                  <SortableTH label="Car" sortKey="car" sort={listingSort} setSort={setListingSort} />
+                  <SortableTH label="Price" sortKey="price" sort={listingSort} setSort={setListingSort} />
+                  <SortableTH label="Mileage" sortKey="mileage" sort={listingSort} setSort={setListingSort} />
+                  <SortableTH label="State" sortKey="state" sort={listingSort} setSort={setListingSort} />
+                  <SortableTH label="Status" sortKey="status" sort={listingSort} setSort={setListingSort} />
+                  <SortableTH label="Credibility" sortKey="credibility" sort={listingSort} setSort={setListingSort} />
+                  <SortableTH label="Manage-link" sortKey="manage_link" sort={listingSort} setSort={setListingSort} />
+                  <SortableTH label="Posted" sortKey="created_at" sort={listingSort} setSort={setListingSort} />
+                  <th style={TH}></th>
+                </tr>
+              </thead>
               <tbody>
                 {filteredListings.map((l) => (
                   <tr key={l.id}>
@@ -2345,14 +2398,25 @@ function AdminPage() {
               ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff" }}>Export CSV</button>
             </div>
           )}
+          <div style={{ fontSize: 11, color: C.steel, marginBottom: 8 }}>Click any column header to sort — click again to reverse.</div>
           {quizResponses.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No quiz completions yet.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr>{["Date", "Result", ...QUIZ_STATEMENTS.map((s) => s.key)].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+                <thead>
+                  <tr>
+                    <SortableTH label="Date" sortKey="created_at" sort={quizSort} setSort={setQuizSort} />
+                    <SortableTH label="Result" sortKey="archetype" sort={quizSort} setSort={setQuizSort} />
+                    {QUIZ_STATEMENTS.map((s) => <SortableTH key={s.key} label={s.key} sortKey={s.key} sort={quizSort} setSort={setQuizSort} />)}
+                  </tr>
+                </thead>
                 <tbody>
-                  {quizResponses.map((r) => (
+                  {sortRows(quizResponses, quizSort, {
+                    created_at: (r) => new Date(r.created_at).getTime(),
+                    archetype: (r) => r.archetype || "",
+                    ...Object.fromEntries(QUIZ_STATEMENTS.map((s) => [s.key, (r) => r.answers?.[s.key] ?? -1])),
+                  }).map((r) => (
                     <tr key={r.id}>
-                      <td style={TD}>{timeAgo(r.created_at)}</td>
+                      <td style={TD}>{adminDate(r.created_at)}</td>
                       <td style={{ ...TD, fontWeight: 600 }}>{r.archetype}</td>
                       {QUIZ_STATEMENTS.map((s) => <td key={s.key} style={TD}>{r.answers?.[s.key] ?? "—"}</td>)}
                     </tr>
@@ -2366,24 +2430,31 @@ function AdminPage() {
 
       {tab === "valuations" && (
         <AdminSection title="Individual valuation submissions" span="full">
-          <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 6 }}>
-              {[{ k: "created_at", l: "Newest" }, { k: "estimate", l: "Estimate" }, { k: "make", l: "Make" }].map((s) => (
-                <button key={s.k} onClick={() => setValSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: valSortKey === s.k ? "none" : `1px solid ${C.line}`, background: valSortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
-              ))}
-            </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
             {valuations.length > 0 && (
               <button onClick={() => downloadCSV("highwaylot-valuations.csv", sortedValuations, [
                 { label: "Date", value: "created_at" }, { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" },
                 { label: "Mileage", value: "mileage" }, { label: "Condition", value: "condition" }, { label: "State", value: "state" },
                 { label: "Original Price", value: "originalPrice" }, { label: "Estimate", value: "estimate" }, { label: "Confidence", value: "confidence" },
-              ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff", marginLeft: "auto" }}>Export CSV</button>
+              ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff" }}>Export CSV</button>
             )}
           </div>
+          <div style={{ fontSize: 11, color: C.steel, marginBottom: 8 }}>Click any column header to sort — click again to reverse.</div>
           {valuations.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No submissions yet.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr>{["Date", "Car", "Mileage", "Condition", "State", "Original price", "Estimate", "Confidence"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+                <thead>
+                  <tr>
+                    <SortableTH label="Date" sortKey="created_at" sort={valSort} setSort={setValSort} />
+                    <SortableTH label="Car" sortKey="car" sort={valSort} setSort={setValSort} />
+                    <SortableTH label="Mileage" sortKey="mileage" sort={valSort} setSort={setValSort} />
+                    <SortableTH label="Condition" sortKey="condition" sort={valSort} setSort={setValSort} />
+                    <SortableTH label="State" sortKey="state" sort={valSort} setSort={setValSort} />
+                    <SortableTH label="Original price" sortKey="originalPrice" sort={valSort} setSort={setValSort} />
+                    <SortableTH label="Estimate" sortKey="estimate" sort={valSort} setSort={setValSort} />
+                    <SortableTH label="Confidence" sortKey="confidence" sort={valSort} setSort={setValSort} />
+                  </tr>
+                </thead>
                 <tbody>
                   {sortedValuations.map((v) => (
                     <tr key={v.id}>
@@ -2435,35 +2506,42 @@ function AdminPage() {
       {tab === "sold" && (
         <AdminSection title="Sold — asking price vs. real sale price" span="full">
           <div style={{ fontSize: 12, color: C.steel, marginBottom: 12 }}>Sold price is private — sellers can optionally report it, it's never shown publicly. This is the only place it's visible.</div>
-          <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 6 }}>
-              {[{ k: "sold_at", l: "Newest" }, { k: "diff", l: "Price diff" }, { k: "days", l: "Days to sell" }, { k: "make", l: "Make" }].map((s) => (
-                <button key={s.k} onClick={() => setSoldSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: soldSortKey === s.k ? "none" : `1px solid ${C.line}`, background: soldSortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
-              ))}
-            </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
             {soldListings.length > 0 && (
               <button onClick={() => downloadCSV("highwaylot-sold.csv", soldListings, [
                 { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" }, { label: "State", value: "state" },
                 { label: "Asking", value: "price" }, { label: "Sold For", value: "sold_price" },
                 { label: "Confidence", value: (l) => computeSaleConfidence(l, soldWithPrice) || "" },
                 { label: "Sold Date", value: "sold_at" }, { label: "Posted Date", value: "created_at" },
-              ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff", marginLeft: "auto" }}>Export CSV</button>
+              ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff" }}>Export CSV</button>
             )}
           </div>
+          <div style={{ fontSize: 11, color: C.steel, marginBottom: 8 }}>Click any column header to sort — click again to reverse.</div>
           {soldListings.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No sold listings yet.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr>{["Car", "State", "Asking", "Sold for", "Difference", "Confidence", "Days to sell", ""].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+                <thead>
+                  <tr>
+                    <SortableTH label="Car" sortKey="car" sort={soldSort} setSort={setSoldSort} />
+                    <SortableTH label="State" sortKey="state" sort={soldSort} setSort={setSoldSort} />
+                    <SortableTH label="Asking" sortKey="price" sort={soldSort} setSort={setSoldSort} />
+                    <SortableTH label="Sold for" sortKey="sold_price" sort={soldSort} setSort={setSoldSort} />
+                    <SortableTH label="Difference" sortKey="diff" sort={soldSort} setSort={setSoldSort} />
+                    <SortableTH label="Confidence" sortKey="confidence" sort={soldSort} setSort={setSoldSort} />
+                    <SortableTH label="Days to sell" sortKey="days" sort={soldSort} setSort={setSoldSort} />
+                    <th style={TH}></th>
+                  </tr>
+                </thead>
                 <tbody>
-                  {[...soldListings].sort((a, b) => {
-                    const daysA = a.sold_at ? (new Date(a.sold_at) - new Date(a.created_at)) / 86400000 : 0;
-                    const daysB = b.sold_at ? (new Date(b.sold_at) - new Date(b.created_at)) / 86400000 : 0;
-                    const diffA = a.sold_price ? (a.sold_price - a.price) / a.price : 0;
-                    const diffB = b.sold_price ? (b.sold_price - b.price) / b.price : 0;
-                    if (soldSortKey === "diff") return diffA - diffB;
-                    if (soldSortKey === "days") return daysB - daysA;
-                    if (soldSortKey === "make") return a.make.localeCompare(b.make);
-                    return new Date(b.sold_at || 0) - new Date(a.sold_at || 0);
+                  {sortRows(soldListings, soldSort, {
+                    car: (l) => `${l.year} ${l.make} ${l.model}`,
+                    state: (l) => l.state,
+                    price: (l) => l.price,
+                    sold_price: (l) => l.sold_price || 0,
+                    diff: (l) => (l.sold_price ? (l.sold_price - l.price) / l.price : -999),
+                    confidence: (l) => { const order = { High: 2, Medium: 1, Low: 0 }; return order[computeSaleConfidence(l, soldWithPrice)] ?? -1; },
+                    days: (l) => (l.sold_at ? (new Date(l.sold_at) - new Date(l.created_at)) / 86400000 : -1),
+                    sold_at: (l) => new Date(l.sold_at || 0).getTime(),
                   }).map((l) => {
                     const daysToSell = l.sold_at ? Math.round((new Date(l.sold_at) - new Date(l.created_at)) / 86400000) : null;
                     const diffPct = l.sold_price ? Math.round(((l.sold_price - l.price) / l.price) * 100) : null;
@@ -2549,6 +2627,39 @@ function AdminPage() {
                         return (
                           <td key={cv} style={{ ...TD, textAlign: "center", background: count > 0 ? `rgba(245,183,0,${0.15 + intensity * 0.55})` : "transparent", fontWeight: count > 0 ? 600 : 400, color: count > 0 ? C.ink : C.steel }}>
                             {count || "—"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AdminSection>
+      )}
+
+      {tab === "xref" && (
+        <AdminSection title="Average price, same two dimensions" span="full">
+          {listings.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No listings yet.</div> : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={TH}></th>
+                    {xrefColValues.map((cv) => <th key={cv} style={{ ...TH, textAlign: "center" }}>{cv}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {xrefRowValues.map((rv, ri) => (
+                    <tr key={rv}>
+                      <td style={{ ...TD, fontWeight: 600 }}>{rv}</td>
+                      {xrefColValues.map((cv, ci) => {
+                        const price = xrefPriceMatrix[ri][ci];
+                        const intensity = price != null && xrefPriceMax > xrefPriceMin ? (price - xrefPriceMin) / (xrefPriceMax - xrefPriceMin) : 0;
+                        return (
+                          <td key={cv} style={{ ...TD, textAlign: "center", background: price != null ? `rgba(43,116,126,${0.12 + intensity * 0.4})` : "transparent", fontWeight: price != null ? 600 : 400, color: price != null ? C.ink : C.steel }}>
+                            {price != null ? fmtPrice(price) : "—"}
                           </td>
                         );
                       })}
