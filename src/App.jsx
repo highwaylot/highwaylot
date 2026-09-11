@@ -2056,6 +2056,20 @@ function ListingSnippet({ listing }) {
 const TH = { textAlign: "left", padding: "8px 10px", fontSize: 11.5, color: C.steel, borderBottom: `1px solid ${C.line}`, whiteSpace: "nowrap" };
 const TD = { padding: "8px 10px", fontSize: 12.5, color: C.ink, borderBottom: `1px solid ${C.line}`, whiteSpace: "nowrap" };
 
+// Click a column header to sort by it, click again to reverse direction —
+// spreadsheet-style, replacing the separate sort-button rows.
+function SortableTH({ label, sortKey, activeSort, activeDir, onSort }) {
+  const active = activeSort === sortKey;
+  return (
+    <th
+      style={{ ...TH, cursor: "pointer", userSelect: "none", color: active ? C.ink : C.steel }}
+      onClick={() => onSort(sortKey)}
+    >
+      {label}{active && <span style={{ marginLeft: 4 }}>{activeDir === "asc" ? "↑" : "↓"}</span>}
+    </th>
+  );
+}
+
 function AdminPage() {
   const { secret } = useParams();
   const [tab, setTab] = useState("overview");
@@ -2067,12 +2081,20 @@ function AdminPage() {
   const [soldListings, setSoldListings] = useState([]);
   const [stateRates, setStateRates] = useState([]);
   const [sortKey, setSortKey] = useState("created_at");
+  const [sortDir, setSortDir] = useState("desc");
   const [xrefMake, setXrefMake] = useState("");
   const [xrefState, setXrefState] = useState("");
   const [listingSearch, setListingSearch] = useState("");
   const [valSortKey, setValSortKey] = useState("created_at");
+  const [valSortDir, setValSortDir] = useState("desc");
   const [soldSortKey, setSoldSortKey] = useState("sold_at");
+  const [soldSortDir, setSoldSortDir] = useState("desc");
   const [manageLinkIds, setManageLinkIds] = useState(new Set());
+  // Click a header: same column reverses direction, a new column starts descending.
+  const makeSortHandler = (curKey, setKey, curDir, setDir) => (key) => {
+    if (key === curKey) setDir(curDir === "desc" ? "asc" : "desc");
+    else { setKey(key); setDir("desc"); }
+  };
 
   useEffect(() => {
     (async () => {
@@ -2147,18 +2169,23 @@ function AdminPage() {
 
   // ----- Listings tab sort -----
   const sortedValuations = [...valuations].sort((a, b) => {
-    if (valSortKey === "estimate") return (b.estimate || 0) - (a.estimate || 0);
-    if (valSortKey === "make") return a.make.localeCompare(b.make);
-    return new Date(b.created_at) - new Date(a.created_at);
+    let base;
+    if (valSortKey === "estimate") base = (b.estimate || 0) - (a.estimate || 0);
+    else if (valSortKey === "make") base = a.make.localeCompare(b.make);
+    else base = new Date(b.created_at) - new Date(a.created_at);
+    return valSortDir === "asc" ? -base : base;
   });
 
   const CRED_SORT_WEIGHT = { red: 0, yellow: 1, green: 2 };
   const sortedListings = [...withCred].sort((a, b) => {
-    if (sortKey === "price") return b.price - a.price;
-    if (sortKey === "mileage") return a.mileage - b.mileage;
-    if (sortKey === "make") return a.make.localeCompare(b.make);
-    if (sortKey === "credibility") return (CRED_SORT_WEIGHT[a.credibility?.level] ?? 3) - (CRED_SORT_WEIGHT[b.credibility?.level] ?? 3);
-    return new Date(b.created_at) - new Date(a.created_at);
+    let base;
+    if (sortKey === "price") base = b.price - a.price;
+    else if (sortKey === "mileage") base = b.mileage - a.mileage;
+    else if (sortKey === "make") base = a.make.localeCompare(b.make);
+    else if (sortKey === "credibility") base = (CRED_SORT_WEIGHT[a.credibility?.level] ?? 3) - (CRED_SORT_WEIGHT[b.credibility?.level] ?? 3);
+    else if (sortKey === "id") base = b.id - a.id;
+    else base = new Date(b.created_at) - new Date(a.created_at);
+    return sortDir === "asc" ? -base : base;
   });
   const filteredListings = listingSearch.trim()
     ? sortedListings.filter((l) => `${l.make} ${l.model} ${l.city}`.toLowerCase().includes(listingSearch.trim().toLowerCase()))
@@ -2271,13 +2298,9 @@ function AdminPage() {
         <AdminSection title="All listings" span="full">
           <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
             <input value={listingSearch} onChange={(e) => setListingSearch(e.target.value)} placeholder="Search make, model, or city…" style={{ ...inputStyle, width: 240 }} />
-            <div style={{ display: "flex", gap: 6 }}>
-              {[{ k: "created_at", l: "Newest" }, { k: "price", l: "Price" }, { k: "mileage", l: "Mileage" }, { k: "credibility", l: "Credibility" }, { k: "make", l: "Make" }].map((s) => (
-                <button key={s.k} onClick={() => setSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: sortKey === s.k ? "none" : `1px solid ${C.line}`, background: sortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
-              ))}
-            </div>
+            <div style={{ fontSize: 11, color: C.steel }}>Click a column header to sort — click again to reverse.</div>
             <button onClick={() => downloadCSV("highwaylot-listings.csv", filteredListings, [
-              { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" }, { label: "Trim", value: "trim" },
+              { label: "ID", value: "id" }, { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" }, { label: "Trim", value: "trim" },
               { label: "Price", value: "price" }, { label: "Mileage", value: "mileage" }, { label: "City", value: "city" }, { label: "State", value: "state" },
               { label: "Status", value: (l) => (l.status === "sold" ? "Sold" : getExpiryInfo(l).expired ? "Expired" : "Active") },
               { label: "Credibility", value: (l) => l.credibility?.level }, { label: "Posted", value: "created_at" },
@@ -2285,11 +2308,25 @@ function AdminPage() {
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr>{["Car", "Price", "Mileage", "State", "Status", "Credibility", "Manage-link", "Posted", ""].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+              <thead>
+                <tr>
+                  <SortableTH label="ID" sortKey="id" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
+                  <SortableTH label="Car" sortKey="make" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
+                  <SortableTH label="Price" sortKey="price" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
+                  <SortableTH label="Mileage" sortKey="mileage" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
+                  <th style={TH}>State</th>
+                  <th style={TH}>Status</th>
+                  <SortableTH label="Credibility" sortKey="credibility" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
+                  <th style={TH}>Manage-link</th>
+                  <SortableTH label="Posted" sortKey="created_at" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
+                  <th style={TH}></th>
+                </tr>
+              </thead>
               <tbody>
                 {filteredListings.map((l) => (
                   <tr key={l.id}>
-                    <td style={TD}>{l.year} {l.make} {l.model}</td>
+                    <td style={{ ...TD, color: C.steel }}>#{l.id}</td>
+                    <td style={TD}><Link to={`/listing/${l.id}`} target="_blank" style={{ color: C.ink, textDecoration: "underline" }}>{l.year} {l.make} {l.model}</Link></td>
                     <td style={TD}>{fmtPrice(l.price)}</td>
                     <td style={TD}>{fmtMiles(l.mileage)}</td>
                     <td style={TD}>{stateAbbr(l.state)}</td>
@@ -2338,11 +2375,7 @@ function AdminPage() {
       {tab === "valuations" && (
         <AdminSection title="Individual valuation submissions" span="full">
           <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 6 }}>
-              {[{ k: "created_at", l: "Newest" }, { k: "estimate", l: "Estimate" }, { k: "make", l: "Make" }].map((s) => (
-                <button key={s.k} onClick={() => setValSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: valSortKey === s.k ? "none" : `1px solid ${C.line}`, background: valSortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
-              ))}
-            </div>
+            <div style={{ fontSize: 11, color: C.steel }}>Click a column header to sort — click again to reverse.</div>
             {valuations.length > 0 && (
               <button onClick={() => downloadCSV("highwaylot-valuations.csv", sortedValuations, [
                 { label: "Date", value: "created_at" }, { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" },
@@ -2354,7 +2387,18 @@ function AdminPage() {
           {valuations.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No submissions yet.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr>{["Date", "Car", "Mileage", "Condition", "State", "Original price", "Estimate", "Confidence"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+                <thead>
+                  <tr>
+                    <SortableTH label="Date" sortKey="created_at" activeSort={valSortKey} activeDir={valSortDir} onSort={makeSortHandler(valSortKey, setValSortKey, valSortDir, setValSortDir)} />
+                    <SortableTH label="Car" sortKey="make" activeSort={valSortKey} activeDir={valSortDir} onSort={makeSortHandler(valSortKey, setValSortKey, valSortDir, setValSortDir)} />
+                    <th style={TH}>Mileage</th>
+                    <th style={TH}>Condition</th>
+                    <th style={TH}>State</th>
+                    <th style={TH}>Original price</th>
+                    <SortableTH label="Estimate" sortKey="estimate" activeSort={valSortKey} activeDir={valSortDir} onSort={makeSortHandler(valSortKey, setValSortKey, valSortDir, setValSortDir)} />
+                    <th style={TH}>Confidence</th>
+                  </tr>
+                </thead>
                 <tbody>
                   {sortedValuations.map((v) => (
                     <tr key={v.id}>
@@ -2407,11 +2451,7 @@ function AdminPage() {
         <AdminSection title="Sold — asking price vs. real sale price" span="full">
           <div style={{ fontSize: 12, color: C.steel, marginBottom: 12 }}>Sold price is private — sellers can optionally report it, it's never shown publicly. This is the only place it's visible.</div>
           <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ display: "flex", gap: 6 }}>
-              {[{ k: "sold_at", l: "Newest" }, { k: "diff", l: "Price diff" }, { k: "days", l: "Days to sell" }, { k: "make", l: "Make" }].map((s) => (
-                <button key={s.k} onClick={() => setSoldSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: soldSortKey === s.k ? "none" : `1px solid ${C.line}`, background: soldSortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
-              ))}
-            </div>
+            <div style={{ fontSize: 11, color: C.steel }}>Click a column header to sort — click again to reverse.</div>
             {soldListings.length > 0 && (
               <button onClick={() => downloadCSV("highwaylot-sold.csv", soldListings, [
                 { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" }, { label: "State", value: "state" },
@@ -2424,17 +2464,30 @@ function AdminPage() {
           {soldListings.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No sold listings yet.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr>{["Car", "State", "Asking", "Sold for", "Difference", "Confidence", "Days to sell", ""].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+                <thead>
+                  <tr>
+                    <SortableTH label="Car" sortKey="make" activeSort={soldSortKey} activeDir={soldSortDir} onSort={makeSortHandler(soldSortKey, setSoldSortKey, soldSortDir, setSoldSortDir)} />
+                    <th style={TH}>State</th>
+                    <th style={TH}>Asking</th>
+                    <th style={TH}>Sold for</th>
+                    <SortableTH label="Difference" sortKey="diff" activeSort={soldSortKey} activeDir={soldSortDir} onSort={makeSortHandler(soldSortKey, setSoldSortKey, soldSortDir, setSoldSortDir)} />
+                    <th style={TH}>Confidence</th>
+                    <SortableTH label="Days to sell" sortKey="days" activeSort={soldSortKey} activeDir={soldSortDir} onSort={makeSortHandler(soldSortKey, setSoldSortKey, soldSortDir, setSoldSortDir)} />
+                    <th style={TH}></th>
+                  </tr>
+                </thead>
                 <tbody>
                   {[...soldListings].sort((a, b) => {
                     const daysA = a.sold_at ? (new Date(a.sold_at) - new Date(a.created_at)) / 86400000 : 0;
                     const daysB = b.sold_at ? (new Date(b.sold_at) - new Date(b.created_at)) / 86400000 : 0;
                     const diffA = a.sold_price ? (a.sold_price - a.price) / a.price : 0;
                     const diffB = b.sold_price ? (b.sold_price - b.price) / b.price : 0;
-                    if (soldSortKey === "diff") return diffA - diffB;
-                    if (soldSortKey === "days") return daysB - daysA;
-                    if (soldSortKey === "make") return a.make.localeCompare(b.make);
-                    return new Date(b.sold_at || 0) - new Date(a.sold_at || 0);
+                    let base;
+                    if (soldSortKey === "diff") base = diffB - diffA;
+                    else if (soldSortKey === "days") base = daysB - daysA;
+                    else if (soldSortKey === "make") base = a.make.localeCompare(b.make);
+                    else base = new Date(b.sold_at || 0) - new Date(a.sold_at || 0);
+                    return soldSortDir === "asc" ? -base : base;
                   }).map((l) => {
                     const daysToSell = l.sold_at ? Math.round((new Date(l.sold_at) - new Date(l.created_at)) / 86400000) : null;
                     const diffPct = l.sold_price ? Math.round(((l.sold_price - l.price) / l.price) * 100) : null;
