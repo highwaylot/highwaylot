@@ -1604,6 +1604,7 @@ function ValueMyCar({ allListings, log }) {
   const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "" });
   const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
+  const [saveError, setSaveError] = useState(null);
   const [errors, setErrors] = useState({});
   const [stateRates, setStateRates] = useState({}); // { "Florida": { multiplier: 0.95 }, ... } — only states we have real data for
   const set = (k) => (e) => { const val = e.target.value; setForm((prev) => ({ ...prev, [k]: val })); setErrors((prev) => (prev[k] ? { ...prev, [k]: false } : prev)); };
@@ -1635,8 +1636,9 @@ function ValueMyCar({ allListings, log }) {
     setResult({ ...res, stateUsed: form.state, hasStateData });
     const loanBalance = form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null;
     log("valuation_submitted", { ...input, issues, body: form.body, loan_balance: loanBalance, state: form.state });
-    supabase.from("valuations").insert({ ...input, estimate: res.estimate, confidence: res.confidence, issues, body: form.body, loan_status: form.loan_status, loan_balance: loanBalance, state: form.state }).then(({ error }) => {
-      if (error) console.error("valuation save failed:", error.message);
+    const { regionalMultiplier: _rm, ...inputForDb } = input; // regionalMultiplier is calculation-only, no matching column
+    supabase.from("valuations").insert({ ...inputForDb, estimate: res.estimate, confidence: res.confidence, issues, body: form.body, loan_status: form.loan_status, loan_balance: loanBalance, state: form.state }).then(({ error }) => {
+      if (error) { console.error("valuation save failed:", error.message); setSaveError(error.message); }
     });
   };
 
@@ -1672,6 +1674,11 @@ function ValueMyCar({ allListings, log }) {
 
       {result && (
         <div style={{ marginTop: 28, border: `1px solid ${C.line}`, borderRadius: 8, padding: 24, textAlign: "center" }}>
+          {saveError && (
+            <div style={{ background: "#FBE4E3", color: "#A32D2D", fontSize: 12, padding: "8px 12px", borderRadius: 6, marginBottom: 14, textAlign: "left" }}>
+              Your estimate above is accurate, but this submission couldn't be saved on our end ({saveError}).
+            </div>
+          )}
           <div style={{ fontSize: 12.5, color: C.steel, textTransform: "uppercase", letterSpacing: 0.4 }}>Estimated value</div>
           <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(28px, 9vw, 40px)", color: C.ink, margin: "8px 0" }}>{fmtPrice(result.estimate)}</div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
