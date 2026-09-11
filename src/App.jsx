@@ -150,6 +150,33 @@ function CredibilityDot({ credibility }) {
 // Plain client-side CSV export — no library needed for something this
 // simple. Wraps any field containing a comma/quote/newline in quotes,
 // doubling internal quotes, which is the actual CSV escaping rule.
+// Compresses a photo before it ever leaves the browser — real storage means
+// real bandwidth and quota now, not just a throwaway blob URL. Resizes to a
+// reasonable max width and re-encodes as JPEG; a typical phone photo goes
+// from several MB down to a few hundred KB with no visible quality loss at
+// the sizes this site actually displays images.
+function compressImage(file, maxWidth = 1600, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Couldn't read the file"));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Couldn't read the image"));
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => { if (blob) resolve(blob); else reject(new Error("Compression failed")); }, "image/jpeg", quality);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function downloadCSV(filename, rows, columns) {
   const escape = (val) => {
     const s = val === null || val === undefined ? "" : String(val);
@@ -827,12 +854,24 @@ function PostAd({ onSubmit, existingListings, log }) {
   // can't end up in the field rather than being caught after the fact.
   const setNumeric = (k) => (e) => { const val = e.target.value.replace(/[^0-9]/g, ""); setForm((prev) => ({ ...prev, [k]: val })); setErrors((prev) => (prev[k] ? { ...prev, [k]: false } : prev)); };
 
-  const addPhotos = (fileList) => {
+  const [photoError, setPhotoError] = useState(null);
+  const addPhotos = async (fileList) => {
+    setPhotoError(null);
     const files = Array.from(fileList).slice(0, 8 - photos.length);
-    const urls = files.map((f) => URL.createObjectURL(f));
-    setPhotos([...photos, ...urls]);
+    try {
+      const compressed = await Promise.all(files.map(async (f) => {
+        const blob = await compressImage(f);
+        return { blob, previewUrl: URL.createObjectURL(blob) };
+      }));
+      setPhotos((prev) => [...prev, ...compressed]);
+    } catch (err) {
+      setPhotoError("One of those photos couldn't be processed — try a different file.");
+    }
   };
-  const removePhoto = (i) => setPhotos(photos.filter((_, idx) => idx !== i));
+  const removePhoto = (i) => {
+    URL.revokeObjectURL(photos[i].previewUrl);
+    setPhotos(photos.filter((_, idx) => idx !== i));
+  };
 
   const possibleDuplicate = useMemo(() => {
     if (!form.year || !form.make || !form.model || !form.mileage) return null;
@@ -852,7 +891,25 @@ function PostAd({ onSubmit, existingListings, log }) {
     if (Object.keys(errs).length > 0) return;
     if (possibleDuplicate) log("listing_duplicate_confirmed", { matchedId: possibleDuplicate.id });
     setSubmitting(true);
-    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), loan_balance: form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null, verified: false, featured: false, photos, issues, desc: form.desc || "No additional description provided." });
+
+    // Real upload, not a throwaway blob URL — this is what actually fixes
+    // photos disappearing on reload. If any single upload fails, stop and
+    // say so on screen rather than publishing a listing with some photos
+    // silently missing.
+    const photoUrls = [];
+    for (const p of photos) {
+      const path = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}.jpg`;
+      const { error: uploadError } = await supabase.storage.from("listing-photos").upload(path, p.blob, { contentType: "image/jpeg" });
+      if (uploadError) {
+        setSubmitting(false);
+        setSubmitError(`Photo upload failed: ${uploadError.message}`);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("listing-photos").getPublicUrl(path);
+      photoUrls.push(urlData.publicUrl);
+    }
+
+    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), loan_balance: form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null, verified: false, featured: false, photos: photoUrls, issues, desc: form.desc || "No additional description provided." });
     setSubmitting(false);
     if (errMsg) setSubmitError(errMsg);
   };
@@ -873,7 +930,7 @@ function PostAd({ onSubmit, existingListings, log }) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
           {photos.map((p, i) => (
             <div key={i} style={{ position: "relative", width: 84, height: 84 }}>
-              <img src={p} alt="" style={{ width: 84, height: 84, objectFit: "cover", borderRadius: 4, border: `1px solid ${C.line}` }} />
+              <img src={p.previewUrl} alt="" style={{ width: 84, height: 84, objectFit: "cover", borderRadius: 4, border: `1px solid ${C.line}` }} />
               <button onClick={() => removePhoto(i)} style={{ position: "absolute", top: -6, right: -6, background: C.ink, color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, cursor: "pointer", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center" }}><X size={12} /></button>
             </div>
           ))}
@@ -884,6 +941,7 @@ function PostAd({ onSubmit, existingListings, log }) {
             </label>
           )}
         </div>
+        {photoError && <div style={{ fontSize: 12, color: "#A32D2D", marginBottom: 6 }}>{photoError}</div>}
         <div style={{ fontSize: 12, color: C.steel }}>{photos.length} of 3 minimum added.</div>
       </Field>
 
