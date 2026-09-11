@@ -2056,20 +2056,6 @@ function ListingSnippet({ listing }) {
 const TH = { textAlign: "left", padding: "8px 10px", fontSize: 11.5, color: C.steel, borderBottom: `1px solid ${C.line}`, whiteSpace: "nowrap" };
 const TD = { padding: "8px 10px", fontSize: 12.5, color: C.ink, borderBottom: `1px solid ${C.line}`, whiteSpace: "nowrap" };
 
-// Click a column header to sort by it, click again to reverse direction —
-// spreadsheet-style, replacing the separate sort-button rows.
-function SortableTH({ label, sortKey, activeSort, activeDir, onSort }) {
-  const active = activeSort === sortKey;
-  return (
-    <th
-      style={{ ...TH, cursor: "pointer", userSelect: "none", color: active ? C.ink : C.steel }}
-      onClick={() => onSort(sortKey)}
-    >
-      {label}{active && <span style={{ marginLeft: 4 }}>{activeDir === "asc" ? "↑" : "↓"}</span>}
-    </th>
-  );
-}
-
 function AdminPage() {
   const { secret } = useParams();
   const [tab, setTab] = useState("overview");
@@ -2081,20 +2067,12 @@ function AdminPage() {
   const [soldListings, setSoldListings] = useState([]);
   const [stateRates, setStateRates] = useState([]);
   const [sortKey, setSortKey] = useState("created_at");
-  const [sortDir, setSortDir] = useState("desc");
-  const [xrefMake, setXrefMake] = useState("");
-  const [xrefState, setXrefState] = useState("");
+  const [xrefRowDim, setXrefRowDim] = useState("body");
+  const [xrefColDim, setXrefColDim] = useState("state");
   const [listingSearch, setListingSearch] = useState("");
   const [valSortKey, setValSortKey] = useState("created_at");
-  const [valSortDir, setValSortDir] = useState("desc");
   const [soldSortKey, setSoldSortKey] = useState("sold_at");
-  const [soldSortDir, setSoldSortDir] = useState("desc");
   const [manageLinkIds, setManageLinkIds] = useState(new Set());
-  // Click a header: same column reverses direction, a new column starts descending.
-  const makeSortHandler = (curKey, setKey, curDir, setDir) => (key) => {
-    if (key === curKey) setDir(curDir === "desc" ? "asc" : "desc");
-    else { setKey(key); setDir("desc"); }
-  };
 
   useEffect(() => {
     (async () => {
@@ -2124,6 +2102,18 @@ function AdminPage() {
     const { error } = await supabase.rpc("admin_update_report_status", { p_secret: secret, p_report_id: reportId, p_status: newStatus });
     if (error) console.error("report status update failed:", error.message);
   };
+  // Two real outcomes for a report, not just one generic "Resolved" — this
+  // is what actually keeps the inbox meaningful once it has history: a
+  // report that turned out fine vs. one that led to removing a real bad
+  // listing are different things worth being able to tell apart later.
+  const resolveNotSpam = (reportId) => updateReportStatus(reportId, "Resolved - No Issue");
+  const resolveSpam = async (report) => {
+    if (!window.confirm("Mark as spam and remove this listing? This can't be undone.")) return;
+    const { error } = await supabase.rpc("admin_delete_listing", { p_secret: secret, p_id: report.listing_id });
+    if (error) { console.error("admin delete failed:", error.message); return; }
+    setListings(listings.filter((l) => l.id !== report.listing_id));
+    updateReportStatus(report.id, "Resolved - Spam");
+  };
 
   const deleteListing = async (id, fromReportId = null) => {
     const hasLink = manageLinkIds.has(id);
@@ -2134,10 +2124,7 @@ function AdminPage() {
     const { error } = await supabase.rpc("admin_delete_listing", { p_secret: secret, p_id: id });
     if (error) { console.error("admin delete failed:", error.message); return; }
     setListings(listings.filter((l) => l.id !== id));
-    // Deleting straight from a report means there's nothing left to review —
-    // auto-resolve it instead of leaving a dangling report for a car that's
-    // already gone.
-    if (fromReportId) updateReportStatus(fromReportId, "Resolved");
+    if (fromReportId) updateReportStatus(fromReportId, "Resolved - Spam");
   };
 
   if (status === "checking") return <div style={{ textAlign: "center", padding: "80px 20px", color: C.steel }}>Checking access…</div>;
@@ -2169,23 +2156,18 @@ function AdminPage() {
 
   // ----- Listings tab sort -----
   const sortedValuations = [...valuations].sort((a, b) => {
-    let base;
-    if (valSortKey === "estimate") base = (b.estimate || 0) - (a.estimate || 0);
-    else if (valSortKey === "make") base = a.make.localeCompare(b.make);
-    else base = new Date(b.created_at) - new Date(a.created_at);
-    return valSortDir === "asc" ? -base : base;
+    if (valSortKey === "estimate") return (b.estimate || 0) - (a.estimate || 0);
+    if (valSortKey === "make") return a.make.localeCompare(b.make);
+    return new Date(b.created_at) - new Date(a.created_at);
   });
 
   const CRED_SORT_WEIGHT = { red: 0, yellow: 1, green: 2 };
   const sortedListings = [...withCred].sort((a, b) => {
-    let base;
-    if (sortKey === "price") base = b.price - a.price;
-    else if (sortKey === "mileage") base = b.mileage - a.mileage;
-    else if (sortKey === "make") base = a.make.localeCompare(b.make);
-    else if (sortKey === "credibility") base = (CRED_SORT_WEIGHT[a.credibility?.level] ?? 3) - (CRED_SORT_WEIGHT[b.credibility?.level] ?? 3);
-    else if (sortKey === "id") base = b.id - a.id;
-    else base = new Date(b.created_at) - new Date(a.created_at);
-    return sortDir === "asc" ? -base : base;
+    if (sortKey === "price") return b.price - a.price;
+    if (sortKey === "mileage") return a.mileage - b.mileage;
+    if (sortKey === "make") return a.make.localeCompare(b.make);
+    if (sortKey === "credibility") return (CRED_SORT_WEIGHT[a.credibility?.level] ?? 3) - (CRED_SORT_WEIGHT[b.credibility?.level] ?? 3);
+    return new Date(b.created_at) - new Date(a.created_at);
   });
   const filteredListings = listingSearch.trim()
     ? sortedListings.filter((l) => `${l.make} ${l.model} ${l.city}`.toLowerCase().includes(listingSearch.trim().toLowerCase()))
@@ -2225,10 +2207,18 @@ function AdminPage() {
 
 
   // ----- Cross-reference tool -----
-  const xrefMatches = listings.filter((l) => (!xrefMake || l.make === xrefMake) && (!xrefState || l.state === xrefState));
-  const xrefAvg = xrefMatches.length ? Math.round(xrefMatches.reduce((s, l) => s + l.price, 0) / xrefMatches.length) : 0;
+  // Real pivot table — pick any two dimensions, see a count matrix. This is
+  // what "cross-reference" should have meant from the start; a single
+  // filter dropdown pair wasn't actually cross-referencing anything.
+  const XREF_DIMENSIONS = { make: "Make", body: "Body type", state: "State", condition: "Condition" };
+  const xrefRowValues = [...new Set(listings.map((l) => l[xrefRowDim]))].filter(Boolean).sort().slice(0, 12);
+  const xrefColValues = [...new Set(listings.map((l) => l[xrefColDim]))].filter(Boolean).sort().slice(0, 8);
+  const xrefMatrix = xrefRowValues.map((rv) => xrefColValues.map((cv) => listings.filter((l) => l[xrefRowDim] === rv && l[xrefColDim] === cv).length));
+  const xrefMax = Math.max(1, ...xrefMatrix.flat());
 
-  const REPORT_STATUSES = ["New", "In review", "Resolved"];
+  const pendingReports = reports.filter((r) => !r.status || r.status === "New");
+  const resolvedNoIssue = reports.filter((r) => r.status === "Resolved - No Issue" || r.status === "Resolved"); // old generic "Resolved" from before this redesign lands here
+  const resolvedSpam = reports.filter((r) => r.status === "Resolved - Spam");
   const TABS = [
     { key: "overview", label: "Overview" },
     { key: "listings", label: `Listings (${listings.length})` },
@@ -2237,15 +2227,27 @@ function AdminPage() {
     { key: "sold", label: `Sold analytics (${soldListings.length})` },
     { key: "coverage", label: "Data coverage" },
     { key: "xref", label: "Cross-reference" },
-    { key: "reports", label: `Reports (${reports.length})` },
+    { key: "reports", label: `Reports (${pendingReports.length})` },
   ];
 
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "32px 20px 60px" }}>
-      <div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, marginBottom: 2 }}>Admin dashboard</div>
-      <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 18 }}>
-        {listings.length} listings ({credCounts.green} green · {credCounts.yellow} yellow · {credCounts.red} red) · {quizResponses.length} quiz completions · {valuations.length} valuations · {reports.length} reports
-      </p>
+      <div style={{ textAlign: "center", marginBottom: 20 }}>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, marginBottom: 12 }}>Admin dashboard</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+          <button onClick={() => setTab("listings")} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, padding: "6px 12px", borderRadius: 20, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", color: C.ink }}>
+            <strong>{listings.length}</strong> listings
+            <span style={{ display: "flex", gap: 3, marginLeft: 2 }}>
+              <span title="No issues" style={{ width: 7, height: 7, borderRadius: "50%", background: C.green, display: "inline-block" }} />
+              <span title="Worth a look" style={{ width: 7, height: 7, borderRadius: "50%", background: "#E0B33C", display: "inline-block" }} />
+              <span title="Flagged" style={{ width: 7, height: 7, borderRadius: "50%", background: "#A32D2D", display: "inline-block" }} />
+            </span>
+          </button>
+          <button onClick={() => setTab("quiz")} style={{ fontSize: 12.5, padding: "6px 12px", borderRadius: 20, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", color: C.ink }}><strong>{quizResponses.length}</strong> quiz completions</button>
+          <button onClick={() => setTab("valuations")} style={{ fontSize: 12.5, padding: "6px 12px", borderRadius: 20, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", color: C.ink }}><strong>{valuations.length}</strong> valuations</button>
+          <button onClick={() => setTab("reports")} style={{ fontSize: 12.5, padding: "6px 12px", borderRadius: 20, border: pendingReports.length > 0 ? "none" : `1px solid ${C.line}`, background: pendingReports.length > 0 ? "#FBE4E3" : "#fff", cursor: "pointer", color: pendingReports.length > 0 ? "#A32D2D" : C.ink, fontWeight: pendingReports.length > 0 ? 600 : 400 }}><strong>{pendingReports.length}</strong> pending report{pendingReports.length === 1 ? "" : "s"}</button>
+        </div>
+      </div>
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 22, borderBottom: `1px solid ${C.line}`, paddingBottom: 12 }}>
         {TABS.map((t) => (
@@ -2298,9 +2300,13 @@ function AdminPage() {
         <AdminSection title="All listings" span="full">
           <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
             <input value={listingSearch} onChange={(e) => setListingSearch(e.target.value)} placeholder="Search make, model, or city…" style={{ ...inputStyle, width: 240 }} />
-            <div style={{ fontSize: 11, color: C.steel }}>Click a column header to sort — click again to reverse.</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {[{ k: "created_at", l: "Newest" }, { k: "price", l: "Price" }, { k: "mileage", l: "Mileage" }, { k: "credibility", l: "Credibility" }, { k: "make", l: "Make" }].map((s) => (
+                <button key={s.k} onClick={() => setSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: sortKey === s.k ? "none" : `1px solid ${C.line}`, background: sortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
+              ))}
+            </div>
             <button onClick={() => downloadCSV("highwaylot-listings.csv", filteredListings, [
-              { label: "ID", value: "id" }, { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" }, { label: "Trim", value: "trim" },
+              { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" }, { label: "Trim", value: "trim" },
               { label: "Price", value: "price" }, { label: "Mileage", value: "mileage" }, { label: "City", value: "city" }, { label: "State", value: "state" },
               { label: "Status", value: (l) => (l.status === "sold" ? "Sold" : getExpiryInfo(l).expired ? "Expired" : "Active") },
               { label: "Credibility", value: (l) => l.credibility?.level }, { label: "Posted", value: "created_at" },
@@ -2308,32 +2314,18 @@ function AdminPage() {
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  <SortableTH label="ID" sortKey="id" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
-                  <SortableTH label="Car" sortKey="make" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
-                  <SortableTH label="Price" sortKey="price" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
-                  <SortableTH label="Mileage" sortKey="mileage" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
-                  <th style={TH}>State</th>
-                  <th style={TH}>Status</th>
-                  <SortableTH label="Credibility" sortKey="credibility" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
-                  <th style={TH}>Manage-link</th>
-                  <SortableTH label="Posted" sortKey="created_at" activeSort={sortKey} activeDir={sortDir} onSort={makeSortHandler(sortKey, setSortKey, sortDir, setSortDir)} />
-                  <th style={TH}></th>
-                </tr>
-              </thead>
+              <thead><tr>{["Car", "Price", "Mileage", "State", "Status", "Credibility", "Manage-link", "Posted", ""].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
               <tbody>
                 {filteredListings.map((l) => (
                   <tr key={l.id}>
-                    <td style={{ ...TD, color: C.steel }}>#{l.id}</td>
-                    <td style={TD}><Link to={`/listing/${l.id}`} target="_blank" style={{ color: C.ink, textDecoration: "underline" }}>{l.year} {l.make} {l.model}</Link></td>
+                    <td style={TD}>{l.year} {l.make} {l.model}</td>
                     <td style={TD}>{fmtPrice(l.price)}</td>
                     <td style={TD}>{fmtMiles(l.mileage)}</td>
                     <td style={TD}>{stateAbbr(l.state)}</td>
                     <td style={TD}>{l.status === "sold" ? "Sold" : getExpiryInfo(l).expired ? "Expired" : "Active"}</td>
                     <td style={TD}><CredibilityDot credibility={l.credibility} /></td>
                     <td style={TD}>{manageLinkIds.has(l.id) ? <span style={{ color: C.green }}>Active</span> : <span style={{ color: C.steel }}>None (test data)</span>}</td>
-                    <td style={TD}>{timeAgo(l.created_at)}</td>
+                    <td style={TD}>{adminDate(l.created_at)}</td>
                     <td style={TD}><button onClick={() => deleteListing(l.id)} style={{ fontSize: 11, color: "#A32D2D", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>Delete</button></td>
                   </tr>
                 ))}
@@ -2375,7 +2367,11 @@ function AdminPage() {
       {tab === "valuations" && (
         <AdminSection title="Individual valuation submissions" span="full">
           <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ fontSize: 11, color: C.steel }}>Click a column header to sort — click again to reverse.</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {[{ k: "created_at", l: "Newest" }, { k: "estimate", l: "Estimate" }, { k: "make", l: "Make" }].map((s) => (
+                <button key={s.k} onClick={() => setValSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: valSortKey === s.k ? "none" : `1px solid ${C.line}`, background: valSortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
+              ))}
+            </div>
             {valuations.length > 0 && (
               <button onClick={() => downloadCSV("highwaylot-valuations.csv", sortedValuations, [
                 { label: "Date", value: "created_at" }, { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" },
@@ -2387,22 +2383,11 @@ function AdminPage() {
           {valuations.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No submissions yet.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <SortableTH label="Date" sortKey="created_at" activeSort={valSortKey} activeDir={valSortDir} onSort={makeSortHandler(valSortKey, setValSortKey, valSortDir, setValSortDir)} />
-                    <SortableTH label="Car" sortKey="make" activeSort={valSortKey} activeDir={valSortDir} onSort={makeSortHandler(valSortKey, setValSortKey, valSortDir, setValSortDir)} />
-                    <th style={TH}>Mileage</th>
-                    <th style={TH}>Condition</th>
-                    <th style={TH}>State</th>
-                    <th style={TH}>Original price</th>
-                    <SortableTH label="Estimate" sortKey="estimate" activeSort={valSortKey} activeDir={valSortDir} onSort={makeSortHandler(valSortKey, setValSortKey, valSortDir, setValSortDir)} />
-                    <th style={TH}>Confidence</th>
-                  </tr>
-                </thead>
+                <thead><tr>{["Date", "Car", "Mileage", "Condition", "State", "Original price", "Estimate", "Confidence"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
                 <tbody>
                   {sortedValuations.map((v) => (
                     <tr key={v.id}>
-                      <td style={TD}>{timeAgo(v.created_at)}</td>
+                      <td style={TD}>{adminDate(v.created_at)}</td>
                       <td style={TD}>{v.year} {v.make} {v.model}</td>
                       <td style={TD}>{fmtMiles(v.mileage)}</td>
                       <td style={TD}>{v.condition}</td>
@@ -2451,7 +2436,11 @@ function AdminPage() {
         <AdminSection title="Sold — asking price vs. real sale price" span="full">
           <div style={{ fontSize: 12, color: C.steel, marginBottom: 12 }}>Sold price is private — sellers can optionally report it, it's never shown publicly. This is the only place it's visible.</div>
           <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ fontSize: 11, color: C.steel }}>Click a column header to sort — click again to reverse.</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {[{ k: "sold_at", l: "Newest" }, { k: "diff", l: "Price diff" }, { k: "days", l: "Days to sell" }, { k: "make", l: "Make" }].map((s) => (
+                <button key={s.k} onClick={() => setSoldSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: soldSortKey === s.k ? "none" : `1px solid ${C.line}`, background: soldSortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
+              ))}
+            </div>
             {soldListings.length > 0 && (
               <button onClick={() => downloadCSV("highwaylot-sold.csv", soldListings, [
                 { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" }, { label: "State", value: "state" },
@@ -2464,30 +2453,17 @@ function AdminPage() {
           {soldListings.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No sold listings yet.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr>
-                    <SortableTH label="Car" sortKey="make" activeSort={soldSortKey} activeDir={soldSortDir} onSort={makeSortHandler(soldSortKey, setSoldSortKey, soldSortDir, setSoldSortDir)} />
-                    <th style={TH}>State</th>
-                    <th style={TH}>Asking</th>
-                    <th style={TH}>Sold for</th>
-                    <SortableTH label="Difference" sortKey="diff" activeSort={soldSortKey} activeDir={soldSortDir} onSort={makeSortHandler(soldSortKey, setSoldSortKey, soldSortDir, setSoldSortDir)} />
-                    <th style={TH}>Confidence</th>
-                    <SortableTH label="Days to sell" sortKey="days" activeSort={soldSortKey} activeDir={soldSortDir} onSort={makeSortHandler(soldSortKey, setSoldSortKey, soldSortDir, setSoldSortDir)} />
-                    <th style={TH}></th>
-                  </tr>
-                </thead>
+                <thead><tr>{["Car", "State", "Asking", "Sold for", "Difference", "Confidence", "Days to sell", ""].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
                 <tbody>
                   {[...soldListings].sort((a, b) => {
                     const daysA = a.sold_at ? (new Date(a.sold_at) - new Date(a.created_at)) / 86400000 : 0;
                     const daysB = b.sold_at ? (new Date(b.sold_at) - new Date(b.created_at)) / 86400000 : 0;
                     const diffA = a.sold_price ? (a.sold_price - a.price) / a.price : 0;
                     const diffB = b.sold_price ? (b.sold_price - b.price) / b.price : 0;
-                    let base;
-                    if (soldSortKey === "diff") base = diffB - diffA;
-                    else if (soldSortKey === "days") base = daysB - daysA;
-                    else if (soldSortKey === "make") base = a.make.localeCompare(b.make);
-                    else base = new Date(b.sold_at || 0) - new Date(a.sold_at || 0);
-                    return soldSortDir === "asc" ? -base : base;
+                    if (soldSortKey === "diff") return diffA - diffB;
+                    if (soldSortKey === "days") return daysB - daysA;
+                    if (soldSortKey === "make") return a.make.localeCompare(b.make);
+                    return new Date(b.sold_at || 0) - new Date(a.sold_at || 0);
                   }).map((l) => {
                     const daysToSell = l.sold_at ? Math.round((new Date(l.sold_at) - new Date(l.created_at)) / 86400000) : null;
                     const diffPct = l.sold_price ? Math.round(((l.sold_price - l.price) / l.price) * 100) : null;
@@ -2543,42 +2519,96 @@ function AdminPage() {
 
       {tab === "xref" && (
         <AdminSection title="Cross-reference" span="full">
-          <div style={{ fontSize: 12, color: C.steel, marginBottom: 14 }}>Pick a make and/or state to see how many listings match and their average price.</div>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
-            <select value={xrefMake} onChange={(e) => setXrefMake(e.target.value)} style={{ ...inputStyle, width: 200 }}><option value="">Any make</option>{[...new Set(listings.map((l) => l.make))].sort().map((m) => <option key={m} value={m}>{m}</option>)}</select>
-            <select value={xrefState} onChange={(e) => setXrefState(e.target.value)} style={{ ...inputStyle, width: 200 }}><option value="">Any state</option>{[...new Set(listings.map((l) => l.state))].sort().map((s) => <option key={s} value={s}>{s}</option>)}</select>
+          <div style={{ fontSize: 12, color: C.steel, marginBottom: 14 }}>Pick two dimensions to see how listings break down across both at once. Showing top values if either has more than the table can fit cleanly.</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16, alignItems: "center" }}>
+            <label style={{ fontSize: 12, color: C.steel }}>Rows:</label>
+            <select value={xrefRowDim} onChange={(e) => { const v = e.target.value; setXrefRowDim(v); if (v === xrefColDim) setXrefColDim(Object.keys(XREF_DIMENSIONS).find((k) => k !== v)); }} style={{ ...inputStyle, width: 160 }}>
+              {Object.entries(XREF_DIMENSIONS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
+            <label style={{ fontSize: 12, color: C.steel }}>Columns:</label>
+            <select value={xrefColDim} onChange={(e) => setXrefColDim(e.target.value)} style={{ ...inputStyle, width: 160 }}>
+              {Object.entries(XREF_DIMENSIONS).filter(([k]) => k !== xrefRowDim).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+            </select>
           </div>
-          <div style={{ display: "flex", gap: 24 }}>
-            <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink }}>{xrefMatches.length}</div><div style={{ fontSize: 12, color: C.steel }}>Matching listings</div></div>
-            <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink }}>{xrefMatches.length ? fmtPrice(xrefAvg) : "—"}</div><div style={{ fontSize: 12, color: C.steel }}>Average price</div></div>
-          </div>
+          {listings.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No listings yet.</div> : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th style={TH}></th>
+                    {xrefColValues.map((cv) => <th key={cv} style={{ ...TH, textAlign: "center" }}>{cv}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {xrefRowValues.map((rv, ri) => (
+                    <tr key={rv}>
+                      <td style={{ ...TD, fontWeight: 600 }}>{rv}</td>
+                      {xrefColValues.map((cv, ci) => {
+                        const count = xrefMatrix[ri][ci];
+                        const intensity = count / xrefMax;
+                        return (
+                          <td key={cv} style={{ ...TD, textAlign: "center", background: count > 0 ? `rgba(245,183,0,${0.15 + intensity * 0.55})` : "transparent", fontWeight: count > 0 ? 600 : 400, color: count > 0 ? C.ink : C.steel }}>
+                            {count || "—"}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </AdminSection>
       )}
 
       {tab === "reports" && (
-        <AdminSection title="Reports queue" span="full">
-          {reports.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No reports yet.</div> : reports.map((r) => {
-            const listing = withCred.find((l) => l.id === r.listing_id);
-            return (
-              <div key={r.id} style={{ borderBottom: `1px solid ${C.line}`, padding: "14px 0" }}>
-                <div style={{ fontSize: 12.5, color: C.steel }}>{r.reason} · {timeAgo(r.created_at)}</div>
-                <ListingSnippet listing={listing} />
-                <div style={{ display: "flex", gap: 6, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  {REPORT_STATUSES.map((s) => (
-                    <button key={s} onClick={() => updateReportStatus(r.id, s)} style={{
-                      fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer",
-                      border: r.status === s ? "none" : `1px solid ${C.line}`,
-                      background: r.status === s ? C.yellow : "#fff", color: C.ink, fontWeight: r.status === s ? 600 : 400,
-                    }}>{s}</button>
-                  ))}
-                  {listing && (
-                    <button onClick={() => deleteListing(listing.id, r.id)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: "none", background: "#FBE4E3", color: "#A32D2D", fontWeight: 600, marginLeft: "auto" }}>Delete listing</button>
-                  )}
+        <div>
+          <AdminSection title={`Inbox (${pendingReports.length})`} span="full">
+            {pendingReports.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>Nothing pending — you're caught up.</div> : pendingReports.map((r) => {
+              const listing = withCred.find((l) => l.id === r.listing_id);
+              return (
+                <div key={r.id} style={{ borderBottom: `1px solid ${C.line}`, padding: "14px 0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 12.5, color: C.steel }}>{r.reason} · {adminDate(r.created_at)}</div>
+                    {listing && <Link to={`/listing/${listing.id}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, color: C.ink, textDecoration: "underline" }}>View listing ↗</Link>}
+                  </div>
+                  <ListingSnippet listing={listing} />
+                  <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                    <button onClick={() => resolveNotSpam(r.id)} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: "pointer", border: "none", background: C.greenBg, color: C.green, fontWeight: 600 }}>Not spam — dismiss</button>
+                    {listing && <button onClick={() => resolveSpam(r)} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: "pointer", border: "none", background: "#FBE4E3", color: "#A32D2D", fontWeight: 600 }}>Spam — remove listing</button>}
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </AdminSection>
+              );
+            })}
+          </AdminSection>
+
+          <details style={{ marginTop: 16 }}>
+            <summary style={{ cursor: "pointer", fontSize: 13, color: C.steel, padding: "8px 0" }}>Archived — no issue found ({resolvedNoIssue.length})</summary>
+            <AdminSection title="" span="full">
+              {resolvedNoIssue.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>Nothing here yet.</div> : resolvedNoIssue.map((r) => {
+                const listing = withCred.find((l) => l.id === r.listing_id);
+                return (
+                  <div key={r.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}`, fontSize: 12.5 }}>
+                    <span>{listing ? `${listing.year} ${listing.make} ${listing.model}` : `Listing #${r.listing_id}`} — {r.reason}</span>
+                    <span style={{ color: C.steel }}>{adminDate(r.created_at)}</span>
+                  </div>
+                );
+              })}
+            </AdminSection>
+          </details>
+
+          <details style={{ marginTop: 10 }}>
+            <summary style={{ cursor: "pointer", fontSize: 13, color: C.steel, padding: "8px 0" }}>Archived — spam removed ({resolvedSpam.length})</summary>
+            <AdminSection title="" span="full">
+              {resolvedSpam.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>Nothing here yet.</div> : resolvedSpam.map((r) => (
+                <div key={r.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.line}`, fontSize: 12.5 }}>
+                  <span>{r.reason} <span style={{ color: C.steel, fontStyle: "italic" }}>(listing removed)</span></span>
+                  <span style={{ color: C.steel }}>{adminDate(r.created_at)}</span>
+                </div>
+              ))}
+            </AdminSection>
+          </details>
+        </div>
       )}
     </div>
   );
@@ -2631,6 +2661,17 @@ function timeAgo(iso) {
   if (hrs < 24) return `${hrs} hour${hrs === 1 ? "" : "s"} ago`;
   const days = Math.floor(hrs / 24);
   return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+// Admin tables specifically: relative for anything recent (easier to scan
+// "2 days ago" than a date), but caps at 3 days — beyond that, a relative
+// string stops being useful at a glance and a real date is clearer.
+function adminDate(iso) {
+  const diffDays = (Date.now() - new Date(iso).getTime()) / 86400000;
+  if (diffDays < 3) return timeAgo(iso);
+  const d = new Date(iso);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
+  return `${day}${month}${d.getFullYear()}`;
 }
 // DB uses `description` (since `desc` is a reserved SQL word); the rest of
 // the app uses `desc`. This maps between the two at the boundary.
