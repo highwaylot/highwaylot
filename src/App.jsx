@@ -710,7 +710,7 @@ function ListingDetail({ allListings, log }) {
   useEffect(() => {
     if (listing || fetchState !== "idle") return;
     setFetchState("loading");
-    supabase.from("listings").select(LISTING_COLUMNS).eq("id", id).single().then(({ data, error }) => {
+    supabase.from("listings").select(LISTING_COLUMNS).eq("id", id).is("deleted_at", null).single().then(({ data, error }) => {
       if (error || !data) { setFetchState("notfound"); return; }
       setFetchedListing(rowToListing(data));
       setFetchState("idle");
@@ -875,7 +875,9 @@ function Spec({ icon, label, value }) {
 // ---------- Post an ad (with photo requirement) ----------
 function PostAd({ onSubmit, existingListings, log }) {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", loan_status:"Paid off", loan_balance:"", desc:"", phone:"" });
+  const location = useLocation();
+  const prefill = location.state?.prefill;
+  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", loan_status:"Paid off", loan_balance:"", desc:"", phone:"", ...prefill });
   const [photos, setPhotos] = useState([]);
   const [issues, setIssues] = useState({});
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
@@ -954,6 +956,11 @@ function PostAd({ onSubmit, existingListings, log }) {
       <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, marginBottom: 12, textDecoration: "none" }}><ChevronLeft size={15} /> Cancel</Link>
       <h2 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: "0 0 4px" }}>Post your car</h2>
       <p style={{ color: C.steel, fontSize: 14, marginBottom: 24 }}>Listings are visible across the United States. Fields marked required.</p>
+      {prefill && (
+        <div style={{ background: C.greenBg, color: C.green, fontSize: 12.5, padding: "8px 12px", borderRadius: 6, marginBottom: 18 }}>
+          Carried over from your Value My Car estimate — double-check everything before posting.
+        </div>
+      )}
 
       <input
         type="text" name="company_website" value={honeypot} onChange={(e) => setHoneypot(e.target.value)}
@@ -1601,6 +1608,7 @@ function estimateValue(input, allListings, issues = {}) {
 }
 
 function ValueMyCar({ allListings, log }) {
+  const navigate = useNavigate();
   const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "" });
   const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
@@ -1726,7 +1734,12 @@ function ValueMyCar({ allListings, log }) {
             </div>
           )}
 
-          <Link to="/post" style={{ marginTop: 16, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none", display: "inline-block", color: C.ink }}>List this car</Link>
+          <button onClick={() => navigate("/post", { state: { prefill: {
+            year: String(form.year), make: form.make, model: form.model, mileage: String(form.mileage),
+            condition: form.condition, body: form.body, state: form.state,
+            loan_status: form.loan_status, loan_balance: form.loan_balance,
+            price: result ? String(result.estimate) : "",
+          } } })} style={{ marginTop: 16, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer", color: C.ink }}>List this car</button>
         </div>
       )}
     </div>
@@ -1759,7 +1772,7 @@ function ManagePage() {
     (async () => {
       const { data: ok, error: verifyErr } = await supabase.rpc("verify_listing_token", { p_id: idParam, p_token: token });
       if (verifyErr || !ok) { setStatus("denied"); return; }
-      const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).eq("id", idParam).single();
+      const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).eq("id", idParam).is("deleted_at", null).single();
       if (error || !data) { setStatus("denied"); return; }
       setListing(rowToListing(data));
       setPrice(String(data.price));
@@ -1778,7 +1791,7 @@ function ManagePage() {
       // Refetch rather than assume — price_updated_at may or may not have
       // changed server-side depending on whether this crossed the 2.5%
       // threshold, and the countdown display needs the real value.
-      const { data } = await supabase.from("listings").select(LISTING_COLUMNS).eq("id", idParam).single();
+      const { data } = await supabase.from("listings").select(LISTING_COLUMNS).eq("id", idParam).is("deleted_at", null).single();
       if (data) setListing(rowToListing(data));
       setSaved(true); setTimeout(() => setSaved(false), 2500);
     }
@@ -2106,17 +2119,20 @@ function AdminPage() {
   const [soldSort, setSoldSort] = useState({ key: "sold_at", dir: "desc" });
   const [quizSort, setQuizSort] = useState({ key: "created_at", dir: "desc" });
   const [manageLinkIds, setManageLinkIds] = useState(new Set());
+  const [deletedListings, setDeletedListings] = useState([]);
+  const [trendPeriod, setTrendPeriod] = useState("weekly");
 
   useEffect(() => {
     (async () => {
-      const [reportsRes, quizRes, valRes, soldRes, listingsRes, ratesRes, mlRes] = await Promise.all([
+      const [reportsRes, quizRes, valRes, soldRes, listingsRes, ratesRes, mlRes, trashRes] = await Promise.all([
         supabase.rpc("admin_get_reports", { p_secret: secret }),
         supabase.rpc("admin_get_quiz_responses", { p_secret: secret }),
         supabase.rpc("admin_get_valuations", { p_secret: secret }),
         supabase.rpc("admin_get_sold_listings", { p_secret: secret }),
-        supabase.from("listings").select(LISTING_COLUMNS),
+        supabase.from("listings").select(LISTING_COLUMNS).is("deleted_at", null),
         supabase.from("state_labor_rates").select("state,median_annual_wage,multiplier"),
         supabase.rpc("admin_get_manage_link_ids", { p_secret: secret }),
+        supabase.rpc("admin_get_deleted_listings", { p_secret: secret }),
       ]);
       if (reportsRes.error || quizRes.error || valRes.error || soldRes.error) { setStatus("denied"); return; }
       setReports(reportsRes.data || []);
@@ -2126,6 +2142,7 @@ function AdminPage() {
       setListings((listingsRes.data || []).map(rowToListing));
       setStateRates(ratesRes.data || []);
       setManageLinkIds(new Set((mlRes.data || []).map((r) => r.id)));
+      setDeletedListings((trashRes.data || []).map(rowToListing));
       setStatus("ready");
     })();
   }, [secret]);
@@ -2151,13 +2168,30 @@ function AdminPage() {
   const deleteListing = async (id, fromReportId = null) => {
     const hasLink = manageLinkIds.has(id);
     const msg = hasLink
-      ? "This listing has an active seller manage-link. Deleting it won't notify the seller — their link will just silently stop working. Delete anyway?"
-      : "Delete this listing? This can't be undone.";
+      ? "This listing has an active seller manage-link. Removing it won't notify the seller — their link will just silently stop working. It'll sit in Trash for 14 days before being gone for good. Continue?"
+      : "Move this listing to Trash? It stays recoverable for 14 days, then gets purged automatically.";
     if (!window.confirm(msg)) return;
     const { error } = await supabase.rpc("admin_delete_listing", { p_secret: secret, p_id: id });
     if (error) { console.error("admin delete failed:", error.message); return; }
+    const moved = listings.find((l) => l.id === id);
     setListings(listings.filter((l) => l.id !== id));
+    if (moved) setDeletedListings([{ ...moved, deleted_at: new Date().toISOString() }, ...deletedListings]);
     if (fromReportId) updateReportStatus(fromReportId, "Resolved - Spam");
+  };
+
+  const restoreListing = async (id) => {
+    const { error } = await supabase.rpc("admin_restore_listing", { p_secret: secret, p_id: id });
+    if (error) { console.error("restore failed:", error.message); return; }
+    const restored = deletedListings.find((l) => l.id === id);
+    setDeletedListings(deletedListings.filter((l) => l.id !== id));
+    if (restored) setListings([{ ...restored, deleted_at: null }, ...listings]);
+  };
+
+  const purgeListing = async (id) => {
+    if (!window.confirm("Permanently delete this right now? This skips the rest of the 14-day window and can't be undone.")) return;
+    const { error } = await supabase.rpc("admin_purge_listing", { p_secret: secret, p_id: id });
+    if (error) { console.error("purge failed:", error.message); return; }
+    setDeletedListings(deletedListings.filter((l) => l.id !== id));
   };
 
   if (status === "checking") return <div style={{ textAlign: "center", padding: "80px 20px", color: C.steel }}>Checking access…</div>;
@@ -2271,8 +2305,43 @@ function AdminPage() {
   const pendingReports = reports.filter((r) => !r.status || r.status === "New");
   const resolvedNoIssue = reports.filter((r) => r.status === "Resolved - No Issue" || r.status === "Resolved"); // old generic "Resolved" from before this redesign lands here
   const resolvedSpam = reports.filter((r) => r.status === "Resolved - Spam");
+  // ----- Weekly/monthly/yearly trends — aggregate only, by design. Every
+  // number here is a count or an average within a time bucket, never a row
+  // that could identify a specific seller or buyer — same discipline this
+  // whole dashboard should hold going forward as more data products get
+  // built on top of it.
+  function getPeriodBucket(iso, period) {
+    const d = new Date(iso);
+    if (period === "yearly") { const key = `${d.getFullYear()}`; return { key, label: key }; }
+    if (period === "monthly") { const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; return { key, label: d.toLocaleString("en-US", { month: "short", year: "numeric" }) }; }
+    const day = d.getDay();
+    const monday = new Date(d);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(d.getDate() + ((day === 0 ? -6 : 1) - day));
+    const key = monday.toISOString().slice(0, 10);
+    return { key, label: `Week of ${String(monday.getMonth() + 1).padStart(2, "0")}/${String(monday.getDate()).padStart(2, "0")}` };
+  }
+  const trendMap = {};
+  const addToTrend = (iso, field) => {
+    if (!iso) return;
+    const { key, label } = getPeriodBucket(iso, trendPeriod);
+    if (!trendMap[key]) trendMap[key] = { key, label, newListings: 0, quiz: 0, valuations: 0, sold: 0, soldDiffs: [] };
+    trendMap[key][field]++;
+  };
+  listings.forEach((l) => addToTrend(l.created_at, "newListings"));
+  quizResponses.forEach((r) => addToTrend(r.created_at, "quiz"));
+  valuations.forEach((v) => addToTrend(v.created_at, "valuations"));
+  soldListings.forEach((l) => addToTrend(l.sold_at, "sold"));
+  soldIncludedInAverages.forEach((l) => {
+    if (!l.sold_at) return;
+    const { key } = getPeriodBucket(l.sold_at, trendPeriod);
+    if (trendMap[key]) trendMap[key].soldDiffs.push(((l.sold_price - l.price) / l.price) * 100);
+  });
+  const trendRows = Object.values(trendMap).sort((a, b) => b.key.localeCompare(a.key)).slice(0, 12);
+
   const TABS = [
     { key: "overview", label: "Overview" },
+    { key: "trends", label: "Trends" },
     { key: "listings", label: `Listings (${listings.length})` },
     { key: "quiz", label: `Quiz (${quizResponses.length})` },
     { key: "valuations", label: `Valuations (${valuations.length})` },
@@ -2280,6 +2349,7 @@ function AdminPage() {
     { key: "coverage", label: "Data coverage" },
     { key: "xref", label: "Cross-reference" },
     { key: "reports", label: `Reports (${pendingReports.length})` },
+    { key: "trash", label: `Trash (${deletedListings.length})` },
   ];
 
   return (
@@ -2346,6 +2416,38 @@ function AdminPage() {
               </div>}
           </AdminSection>
         </div>
+      )}
+
+      {tab === "trends" && (
+        <AdminSection title="Trends" span="full">
+          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+            {[{ k: "weekly", l: "Weekly" }, { k: "monthly", l: "Monthly" }, { k: "yearly", l: "Yearly" }].map((p) => (
+              <button key={p.k} onClick={() => setTrendPeriod(p.k)} style={{ fontSize: 12, padding: "6px 14px", borderRadius: 4, cursor: "pointer", border: trendPeriod === p.k ? "none" : `1px solid ${C.line}`, background: trendPeriod === p.k ? C.yellow : "#fff", fontWeight: trendPeriod === p.k ? 600 : 400 }}>{p.l}</button>
+            ))}
+          </div>
+          {trendRows.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>Not enough data yet to show trends.</div> : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr>{["Period", "New listings", "Quiz completions", "Valuations", "Sold", "Avg sold vs. asking"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {trendRows.map((row) => {
+                    const avgDiff = row.soldDiffs.length ? Math.round(row.soldDiffs.reduce((s, d) => s + d, 0) / row.soldDiffs.length) : null;
+                    return (
+                      <tr key={row.key}>
+                        <td style={{ ...TD, fontWeight: 600 }}>{row.label}</td>
+                        <td style={TD}>{row.newListings}</td>
+                        <td style={TD}>{row.quiz}</td>
+                        <td style={TD}>{row.valuations}</td>
+                        <td style={TD}>{row.sold}</td>
+                        <td style={{ ...TD, color: avgDiff == null ? C.steel : avgDiff < 0 ? "#A32D2D" : C.green }}>{avgDiff == null ? "—" : `${avgDiff > 0 ? "+" : ""}${avgDiff}%`}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AdminSection>
       )}
 
       {tab === "listings" && (
@@ -2728,6 +2830,27 @@ function AdminPage() {
           </details>
         </div>
       )}
+
+      {tab === "trash" && (
+        <AdminSection title="Trash — 14-day recovery window" span="full">
+          <div style={{ fontSize: 12, color: C.steel, marginBottom: 14 }}>Removed listings sit here for 14 days before being purged automatically. Restore anytime before then, or purge one immediately if you're sure.</div>
+          {deletedListings.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>Nothing in trash right now.</div> : deletedListings.map((l) => {
+            const daysLeft = Math.max(0, 14 - Math.floor((Date.now() - new Date(l.deleted_at).getTime()) / 86400000));
+            return (
+              <div key={l.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${C.line}`, gap: 10, flexWrap: "wrap" }}>
+                <div>
+                  <div style={{ fontSize: 13.5, color: C.ink }}>{l.year} {l.make} {l.model} — {fmtPrice(l.price)}</div>
+                  <div style={{ fontSize: 11.5, color: C.steel, marginTop: 2 }}>Deleted {adminDate(l.deleted_at)} · purges permanently in {daysLeft} day{daysLeft === 1 ? "" : "s"}</div>
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button onClick={() => restoreListing(l.id)} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: "pointer", border: "none", background: C.greenBg, color: C.green, fontWeight: 600 }}>Restore</button>
+                  <button onClick={() => purgeListing(l.id)} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: "pointer", border: "none", background: "#FBE4E3", color: "#A32D2D", fontWeight: 600 }}>Delete forever</button>
+                </div>
+              </div>
+            );
+          })}
+        </AdminSection>
+      )}
     </div>
   );
 }
@@ -2826,7 +2949,7 @@ export default function App() {
   useEffect(() => {
     if (location.pathname.startsWith("/manage/") || location.pathname.startsWith("/admin/")) { setLoading(false); return; } // these routes fetch their own data
     (async () => {
-      const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).order("created_at", { ascending: false });
+      const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).is("deleted_at", null).order("created_at", { ascending: false });
       if (error) { console.error("fetch listings failed:", error.message); setFetchError(error.message); setLoading(false); return; }
       setListings(data.map(rowToListing));
       setLoading(false);
