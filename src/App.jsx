@@ -362,6 +362,40 @@ function FeaturedStrip({ listings, onOpen }) {
   );
 }
 
+// Homepage subfeed, not its own page — social proof for a first-time
+// visitor without exposing real sale volume. Never shows sold_price (it's
+// private, and this component never even receives it — the data passed in
+// only ever has public fields). Capped upstream at 10, always, regardless
+// of how many cars have actually sold.
+function RecentlySold({ listings, onOpen }) {
+  if (!listings || listings.length === 0) return null;
+  return (
+    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px 0" }}>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.steel, letterSpacing: 0.5, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+        <Check size={14} color={C.green} /> RECENTLY SOLD
+      </div>
+      <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
+        {listings.map((c) => (
+          <div key={c.id} onClick={() => onOpen(c.id)} style={{ cursor: "pointer", border: `1.5px solid ${C.line}`, borderRadius: 6, overflow: "hidden", background: "#fff", flex: "0 0 180px", opacity: 0.9 }}>
+            <div style={{ position: "relative" }}>
+              {c.photos && c.photos.length ? (
+                <img src={c.photos[0]} alt={`${c.year} ${c.make} ${c.model}`} style={{ width: "100%", height: 110, objectFit: "cover", display: "block", filter: "grayscale(30%)" }} />
+              ) : (
+                <CarThumb make={c.make} body={c.body} />
+              )}
+              <div style={{ position: "absolute", top: 6, left: 6, background: C.ink, color: "#fff", fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 3 }}>SOLD</div>
+            </div>
+            <div style={{ padding: "8px 10px" }}>
+              <div style={{ fontFamily: FONT_HEAD, fontSize: 13, color: C.ink }}>{c.year} {c.make} {c.model}</div>
+              <div style={{ fontSize: 11, color: C.steel, marginTop: 2 }}>{c.city}, {stateAbbr(c.state)} · {timeAgo(c.sold_at)}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Auto-generated "Zillow method" landing pages — built from the data itself,
 // not hand-written. In a real deployment each of these becomes its own
 // crawlable URL (e.g. /trucks-for-sale/texas); here they're simulated as
@@ -548,7 +582,7 @@ function FilterBar({ filters, setFilters, count, sort, setSort, log }) {
 }
 
 // ---------- Home ----------
-function Home({ allListings, log, openListing }) {
+function Home({ allListings, recentlySold, log, openListing }) {
   const navigate = useNavigate();
   const [filters, setFilters] = useState({ query: "", state: "", make: "", price: "", mileage: "", seller: "", age: "" });
   const [sort, setSort] = useState("new");
@@ -576,6 +610,7 @@ function Home({ allListings, log, openListing }) {
     <div>
       <Hero filters={filters} setFilters={setFilters} log={log} />
       <FeaturedStrip listings={allListings} onOpen={openListing} />
+      <RecentlySold listings={recentlySold} onOpen={openListing} />
       <PopularSearches listings={allListings} onOpenCategory={(cat) => { log("category_view", cat); navigate(categoryToPath(cat)); }} />
       <FilterBar filters={filters} setFilters={setFilters} count={filtered.length} sort={sort} setSort={setSort} log={log} />
       <SavedSearchPrompt filters={filters} log={log} />
@@ -1483,8 +1518,11 @@ const NO_ISSUES_STATE = { engine: "Fixed", transmission: "Fixed", body: "Fixed",
 // makes the shift into this optional section obvious, and produces a real
 // data signal: "confirmed no issues" is meaningfully different from "skipped
 // this section entirely," which a blank form can't tell apart.
-function IssuesGate({ issues, onChange }) {
+function IssuesGate({ issues, onChange, context = "listing" }) {
   const [mode, setMode] = useState(null); // null | "none" | "some"
+  const introText = context === "valuation"
+    ? "Optional — but honest detail here gets you a more accurate estimate."
+    : "Optional — but honest detail here builds more buyer trust than leaving it blank.";
 
   if (mode === null) {
     return (
@@ -1493,7 +1531,7 @@ function IssuesGate({ issues, onChange }) {
           <div style={{ width: 4, height: 20, background: C.yellow, borderRadius: 2 }} />
           <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink }}>Any known issues?</div>
         </div>
-        <p style={{ fontSize: 13, color: C.steel, marginBottom: 14 }}>Optional — but honest detail here builds more buyer trust than leaving it blank.</p>
+        <p style={{ fontSize: 13, color: C.steel, marginBottom: 14 }}>{introText}</p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button onClick={() => { onChange(NO_ISSUES_STATE); setMode("none"); }} style={{ flex: "1 1 160px", background: C.greenBg, color: C.green, border: "none", borderRadius: 6, padding: "12px 8px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer" }}>No, it's in good shape</button>
           <button onClick={() => setMode("some")} style={{ flex: "1 1 160px", background: "#fff", color: C.ink, border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 8px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer" }}>Yes, let me note a few things</button>
@@ -1627,7 +1665,7 @@ function ValueMyCar({ allListings, log }) {
       </div>
 
       <div style={{ marginTop: 22 }}>
-        <IssuesGate issues={issues} onChange={setIssues} />
+        <IssuesGate issues={issues} onChange={setIssues} context="valuation" />
       </div>
 
       <button onClick={submit} style={{ marginTop: 20, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: "pointer" }}>Get my estimate</button>
@@ -1925,6 +1963,34 @@ const US_STATE_PATHS = {
   DC: "M801.8,253.8 l-1.1-1.6 -1-0.8 1.1-1.6 2.2,1.5z",
 };
 const STATE_NAME_BY_CODE = Object.fromEntries(Object.entries(STATE_ABBR).map(([name, code]) => [code, name]));
+// Sold-price confidence — designed to get sharper over time, not stay a
+// fixed rule forever. Below a real sample size for that make, everything
+// just gets checked against a broad, generic plausibility band (a sold
+// price wildly above or below asking is the clearest sign of a bad entry).
+// Once there's enough real same-make sold data, new entries get judged
+// against the make's own actual historical spread instead — a genuinely
+// better bar than a generic rule, and it keeps improving as more real
+// sales come in.
+const SOLD_CONFIDENCE_MIN_SAMPLE = 3;
+function computeSaleConfidence(listing, allSoldWithPrice) {
+  if (!listing.sold_price || !listing.price) return null;
+  const ratio = listing.sold_price / listing.price;
+  const withinBasicBand = ratio >= 0.4 && ratio <= 1.5;
+
+  const sameMakeSales = allSoldWithPrice.filter((l) => l.make === listing.make && l.id !== listing.id);
+  if (sameMakeSales.length >= SOLD_CONFIDENCE_MIN_SAMPLE) {
+    const ratios = sameMakeSales.map((l) => l.sold_price / l.price);
+    const avg = ratios.reduce((a, b) => a + b, 0) / ratios.length;
+    const stdDev = Math.sqrt(ratios.reduce((s, r) => s + Math.pow(r - avg, 2), 0) / ratios.length) || 0.01;
+    const deviation = Math.abs(ratio - avg);
+    if (deviation <= stdDev) return "High";
+    if (deviation <= stdDev * 2) return "Medium";
+    return "Low";
+  }
+  // Not enough same-make history yet — the generic band is all there is to judge against.
+  return withinBasicBand ? "Medium" : "Low";
+}
+
 function CoverageMap({ coveredStates }) {
   const [hovered, setHovered] = useState(null);
   const covered = new Set(Object.values(STATE_ABBR).filter((code) => coveredStates.has(STATE_NAME_BY_CODE[code])));
@@ -2004,6 +2070,8 @@ function AdminPage() {
   const [xrefMake, setXrefMake] = useState("");
   const [xrefState, setXrefState] = useState("");
   const [listingSearch, setListingSearch] = useState("");
+  const [valSortKey, setValSortKey] = useState("created_at");
+  const [soldSortKey, setSoldSortKey] = useState("sold_at");
   const [manageLinkIds, setManageLinkIds] = useState(new Set());
 
   useEffect(() => {
@@ -2078,9 +2146,18 @@ function AdminPage() {
   const avgEstimate = valuations.length ? Math.round(valuations.reduce((s, v) => s + (v.estimate || 0), 0) / valuations.length) : 0;
 
   // ----- Listings tab sort -----
+  const sortedValuations = [...valuations].sort((a, b) => {
+    if (valSortKey === "estimate") return (b.estimate || 0) - (a.estimate || 0);
+    if (valSortKey === "make") return a.make.localeCompare(b.make);
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+
+  const CRED_SORT_WEIGHT = { red: 0, yellow: 1, green: 2 };
   const sortedListings = [...withCred].sort((a, b) => {
     if (sortKey === "price") return b.price - a.price;
     if (sortKey === "mileage") return a.mileage - b.mileage;
+    if (sortKey === "make") return a.make.localeCompare(b.make);
+    if (sortKey === "credibility") return (CRED_SORT_WEIGHT[a.credibility?.level] ?? 3) - (CRED_SORT_WEIGHT[b.credibility?.level] ?? 3);
     return new Date(b.created_at) - new Date(a.created_at);
   });
   const filteredListings = listingSearch.trim()
@@ -2095,14 +2172,30 @@ function AdminPage() {
 
   // ----- Sold-price averages by make (only where a real sold price was reported) -----
   const soldWithPrice = soldListings.filter((l) => l.sold_price);
+  const soldWithConfidence = soldWithPrice.map((l) => ({ ...l, confidence: computeSaleConfidence(l, soldWithPrice) }));
+  const soldIncludedInAverages = soldWithConfidence.filter((l) => l.confidence !== "Low" || l.sold_confidence_override);
+  const soldNeedingReview = soldWithConfidence.filter((l) => l.confidence === "Low" && !l.sold_confidence_override);
   const soldByMake = {};
-  soldWithPrice.forEach((l) => {
+  soldIncludedInAverages.forEach((l) => {
     if (!soldByMake[l.make]) soldByMake[l.make] = [];
     soldByMake[l.make].push(((l.sold_price - l.price) / l.price) * 100);
   });
   const soldByMakeEntries = Object.entries(soldByMake)
     .map(([make, diffs]) => ({ make, count: diffs.length, avgPct: Math.round(diffs.reduce((s, d) => s + d, 0) / diffs.length) }))
     .sort((a, b) => b.avgPct - a.avgPct);
+
+  const setSoldOverride = async (id, override) => {
+    setSoldListings(soldListings.map((l) => (l.id === id ? { ...l, sold_confidence_override: override } : l)));
+    const { error } = await supabase.rpc("admin_set_sold_confidence_override", { p_secret: secret, p_id: id, p_override: override });
+    if (error) console.error("sold confidence override failed:", error.message);
+  };
+  const clearSoldPrice = async (id) => {
+    if (!window.confirm("Clear this reported sold price? The listing stays marked sold, just without a price.")) return;
+    setSoldListings(soldListings.map((l) => (l.id === id ? { ...l, sold_price: null, sold_confidence_override: false } : l)));
+    const { error } = await supabase.rpc("admin_clear_sold_price", { p_secret: secret, p_id: id });
+    if (error) console.error("clear sold price failed:", error.message);
+  };
+
 
   // ----- Cross-reference tool -----
   const xrefMatches = listings.filter((l) => (!xrefMake || l.make === xrefMake) && (!xrefState || l.state === xrefState));
@@ -2123,7 +2216,9 @@ function AdminPage() {
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "32px 20px 60px" }}>
       <div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, marginBottom: 2 }}>Admin dashboard</div>
-      <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 18 }}>{listings.length} listings · {quizResponses.length} quiz completions · {valuations.length} valuations · {reports.length} reports</p>
+      <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 18 }}>
+        {listings.length} listings ({credCounts.green} green · {credCounts.yellow} yellow · {credCounts.red} red) · {quizResponses.length} quiz completions · {valuations.length} valuations · {reports.length} reports
+      </p>
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 22, borderBottom: `1px solid ${C.line}`, paddingBottom: 12 }}>
         {TABS.map((t) => (
@@ -2177,7 +2272,7 @@ function AdminPage() {
           <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
             <input value={listingSearch} onChange={(e) => setListingSearch(e.target.value)} placeholder="Search make, model, or city…" style={{ ...inputStyle, width: 240 }} />
             <div style={{ display: "flex", gap: 6 }}>
-              {[{ k: "created_at", l: "Newest" }, { k: "price", l: "Price" }, { k: "mileage", l: "Mileage" }].map((s) => (
+              {[{ k: "created_at", l: "Newest" }, { k: "price", l: "Price" }, { k: "mileage", l: "Mileage" }, { k: "credibility", l: "Credibility" }, { k: "make", l: "Make" }].map((s) => (
                 <button key={s.k} onClick={() => setSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: sortKey === s.k ? "none" : `1px solid ${C.line}`, background: sortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
               ))}
             </div>
@@ -2242,21 +2337,26 @@ function AdminPage() {
 
       {tab === "valuations" && (
         <AdminSection title="Individual valuation submissions" span="full">
-          {valuations.length > 0 && (
-            <div style={{ marginBottom: 10 }}>
-              <button onClick={() => downloadCSV("highwaylot-valuations.csv", valuations, [
+          <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              {[{ k: "created_at", l: "Newest" }, { k: "estimate", l: "Estimate" }, { k: "make", l: "Make" }].map((s) => (
+                <button key={s.k} onClick={() => setValSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: valSortKey === s.k ? "none" : `1px solid ${C.line}`, background: valSortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
+              ))}
+            </div>
+            {valuations.length > 0 && (
+              <button onClick={() => downloadCSV("highwaylot-valuations.csv", sortedValuations, [
                 { label: "Date", value: "created_at" }, { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" },
                 { label: "Mileage", value: "mileage" }, { label: "Condition", value: "condition" }, { label: "State", value: "state" },
                 { label: "Original Price", value: "originalPrice" }, { label: "Estimate", value: "estimate" }, { label: "Confidence", value: "confidence" },
-              ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff" }}>Export CSV</button>
-            </div>
-          )}
+              ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff", marginLeft: "auto" }}>Export CSV</button>
+            )}
+          </div>
           {valuations.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No submissions yet.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead><tr>{["Date", "Car", "Mileage", "Condition", "State", "Original price", "Estimate", "Confidence"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
                 <tbody>
-                  {valuations.map((v) => (
+                  {sortedValuations.map((v) => (
                     <tr key={v.id}>
                       <td style={TD}>{timeAgo(v.created_at)}</td>
                       <td style={TD}>{v.year} {v.make} {v.model}</td>
@@ -2278,6 +2378,7 @@ function AdminPage() {
       {tab === "sold" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 16 }}>
           <AdminSection title="Average sold vs. asking, by make">
+            <div style={{ fontSize: 11.5, color: C.steel, marginBottom: 10 }}>Low-confidence entries are excluded automatically — see "Needs review" below.</div>
             {soldByMakeEntries.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No sold prices reported yet.</div> :
               soldByMakeEntries.map((e) => (
                 <div key={e.make} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderBottom: `1px solid ${C.line}` }}>
@@ -2286,19 +2387,59 @@ function AdminPage() {
                 </div>
               ))}
           </AdminSection>
+          {soldNeedingReview.length > 0 && (
+            <AdminSection title={`Needs review (${soldNeedingReview.length})`}>
+              <div style={{ fontSize: 11.5, color: C.steel, marginBottom: 10 }}>Flagged as an unlikely price — a plausible real outlier can still be included on purpose.</div>
+              {soldNeedingReview.map((l) => (
+                <div key={l.id} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <div style={{ fontSize: 13, color: C.ink }}>{l.year} {l.make} {l.model} — {fmtPrice(l.price)} → {fmtPrice(l.sold_price)}</div>
+                  <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+                    <button onClick={() => setSoldOverride(l.id, true)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer", border: "none", background: C.greenBg, color: C.green }}>Include anyway</button>
+                    <button onClick={() => clearSoldPrice(l.id)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer", border: "none", background: "#FBE4E3", color: "#A32D2D" }}>Clear price</button>
+                  </div>
+                </div>
+              ))}
+            </AdminSection>
+          )}
         </div>
       )}
       {tab === "sold" && (
         <AdminSection title="Sold — asking price vs. real sale price" span="full">
           <div style={{ fontSize: 12, color: C.steel, marginBottom: 12 }}>Sold price is private — sellers can optionally report it, it's never shown publicly. This is the only place it's visible.</div>
+          <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              {[{ k: "sold_at", l: "Newest" }, { k: "diff", l: "Price diff" }, { k: "days", l: "Days to sell" }, { k: "make", l: "Make" }].map((s) => (
+                <button key={s.k} onClick={() => setSoldSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: soldSortKey === s.k ? "none" : `1px solid ${C.line}`, background: soldSortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
+              ))}
+            </div>
+            {soldListings.length > 0 && (
+              <button onClick={() => downloadCSV("highwaylot-sold.csv", soldListings, [
+                { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" }, { label: "State", value: "state" },
+                { label: "Asking", value: "price" }, { label: "Sold For", value: "sold_price" },
+                { label: "Confidence", value: (l) => computeSaleConfidence(l, soldWithPrice) || "" },
+                { label: "Sold Date", value: "sold_at" }, { label: "Posted Date", value: "created_at" },
+              ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff", marginLeft: "auto" }}>Export CSV</button>
+            )}
+          </div>
           {soldListings.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No sold listings yet.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr>{["Car", "State", "Asking", "Sold for", "Difference", "Days to sell"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+                <thead><tr>{["Car", "State", "Asking", "Sold for", "Difference", "Confidence", "Days to sell", ""].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
                 <tbody>
-                  {soldListings.map((l) => {
+                  {[...soldListings].sort((a, b) => {
+                    const daysA = a.sold_at ? (new Date(a.sold_at) - new Date(a.created_at)) / 86400000 : 0;
+                    const daysB = b.sold_at ? (new Date(b.sold_at) - new Date(b.created_at)) / 86400000 : 0;
+                    const diffA = a.sold_price ? (a.sold_price - a.price) / a.price : 0;
+                    const diffB = b.sold_price ? (b.sold_price - b.price) / b.price : 0;
+                    if (soldSortKey === "diff") return diffA - diffB;
+                    if (soldSortKey === "days") return daysB - daysA;
+                    if (soldSortKey === "make") return a.make.localeCompare(b.make);
+                    return new Date(b.sold_at || 0) - new Date(a.sold_at || 0);
+                  }).map((l) => {
                     const daysToSell = l.sold_at ? Math.round((new Date(l.sold_at) - new Date(l.created_at)) / 86400000) : null;
                     const diffPct = l.sold_price ? Math.round(((l.sold_price - l.price) / l.price) * 100) : null;
+                    const confidence = l.sold_price ? computeSaleConfidence(l, soldWithPrice) : null;
+                    const confColor = confidence === "High" ? C.green : confidence === "Medium" ? C.yellowDark : confidence === "Low" ? "#A32D2D" : C.steel;
                     return (
                       <tr key={l.id}>
                         <td style={TD}>{l.year} {l.make} {l.model}</td>
@@ -2306,7 +2447,9 @@ function AdminPage() {
                         <td style={TD}>{fmtPrice(l.price)}</td>
                         <td style={TD}>{l.sold_price ? fmtPrice(l.sold_price) : <span style={{ color: C.steel, fontStyle: "italic" }}>Not reported</span>}</td>
                         <td style={{ ...TD, color: diffPct == null ? C.steel : diffPct < 0 ? "#A32D2D" : C.green }}>{diffPct == null ? "—" : `${diffPct > 0 ? "+" : ""}${diffPct}%`}</td>
+                        <td style={{ ...TD, color: confColor, fontWeight: 600 }}>{confidence || "—"}{l.sold_confidence_override && confidence === "Low" ? " (included)" : ""}</td>
                         <td style={TD}>{daysToSell == null ? "—" : `${daysToSell}d`}</td>
+                        <td style={TD}>{l.sold_price && <button onClick={() => clearSoldPrice(l.id)} style={{ fontSize: 11, color: "#A32D2D", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>Clear price</button>}</td>
                       </tr>
                     );
                   })}
@@ -2489,6 +2632,13 @@ export default function App() {
   // up in browse/category/quiz-match contexts — this is the filtered view
   // for those.
   const visibleListings = useMemo(() => enrichedListings.filter(isVisibleOnBrowse), [enrichedListings]);
+  // Homepage subfeed only — capped at 10 no matter what, and never shows
+  // sold_price (which is private anyway, never even fetched into this
+  // array). The cap is deliberate: this should look identical whether the
+  // site has sold 12 cars or 12,000, so nobody can infer real volume from it.
+  const recentlySold = useMemo(() =>
+    enrichedListings.filter((l) => l.status === "sold").sort((a, b) => new Date(b.sold_at || 0) - new Date(a.sold_at || 0)).slice(0, 10)
+  , [enrichedListings]);
 
   const handlePostSubmit = async (data) => {
     const { desc, ...rest } = data;
@@ -2544,7 +2694,7 @@ export default function App() {
       <ScrollToTop />
       <TopBar onPost={() => navigate("/post")} />
       <Routes>
-        <Route path="/" element={<Home allListings={visibleListings} log={log} openListing={openListing} />} />
+        <Route path="/" element={<Home allListings={visibleListings} recentlySold={recentlySold} log={log} openListing={openListing} />} />
         <Route path="/listing/:id" element={<ListingDetail allListings={enrichedListings} log={log} />} />
         <Route path="/category/:kind/:value/:state" element={<CategoryPage listings={visibleListings} openListing={openListing} />} />
         <Route path="/post" element={<PostAd onSubmit={handlePostSubmit} existingListings={listings} log={log} />} />
