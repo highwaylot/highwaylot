@@ -147,6 +147,24 @@ function CredibilityDot({ credibility }) {
 // rest of that browser session. sessionStorage is the right tool here —
 // this is a real deployed site, not the sandboxed artifact preview where
 // browser storage is off-limits.
+// Plain client-side CSV export — no library needed for something this
+// simple. Wraps any field containing a comma/quote/newline in quotes,
+// doubling internal quotes, which is the actual CSV escaping rule.
+function downloadCSV(filename, rows, columns) {
+  const escape = (val) => {
+    const s = val === null || val === undefined ? "" : String(val);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = columns.map((c) => escape(c.label)).join(",");
+  const body = rows.map((row) => columns.map((c) => escape(typeof c.value === "function" ? c.value(row) : row[c.value])).join(",")).join("\n");
+  const blob = new Blob([header + "\n" + body], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function captureAttribution() {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -1828,16 +1846,19 @@ function AdminPage() {
   const [sortKey, setSortKey] = useState("created_at");
   const [xrefMake, setXrefMake] = useState("");
   const [xrefState, setXrefState] = useState("");
+  const [listingSearch, setListingSearch] = useState("");
+  const [manageLinkIds, setManageLinkIds] = useState(new Set());
 
   useEffect(() => {
     (async () => {
-      const [reportsRes, quizRes, valRes, soldRes, listingsRes, ratesRes] = await Promise.all([
+      const [reportsRes, quizRes, valRes, soldRes, listingsRes, ratesRes, mlRes] = await Promise.all([
         supabase.rpc("admin_get_reports", { p_secret: secret }),
         supabase.rpc("admin_get_quiz_responses", { p_secret: secret }),
         supabase.rpc("admin_get_valuations", { p_secret: secret }),
         supabase.rpc("admin_get_sold_listings", { p_secret: secret }),
         supabase.from("listings").select(LISTING_COLUMNS),
         supabase.from("state_labor_rates").select("state,median_annual_wage,multiplier"),
+        supabase.rpc("admin_get_manage_link_ids", { p_secret: secret }),
       ]);
       if (reportsRes.error || quizRes.error || valRes.error || soldRes.error) { setStatus("denied"); return; }
       setReports(reportsRes.data || []);
@@ -1846,6 +1867,7 @@ function AdminPage() {
       setSoldListings((soldRes.data || []).map(rowToListing));
       setListings((listingsRes.data || []).map(rowToListing));
       setStateRates(ratesRes.data || []);
+      setManageLinkIds(new Set((mlRes.data || []).map((r) => r.id)));
       setStatus("ready");
     })();
   }, [secret]);
@@ -1854,6 +1876,21 @@ function AdminPage() {
     setReports(reports.map((r) => (r.id === reportId ? { ...r, status: newStatus } : r))); // optimistic
     const { error } = await supabase.rpc("admin_update_report_status", { p_secret: secret, p_report_id: reportId, p_status: newStatus });
     if (error) console.error("report status update failed:", error.message);
+  };
+
+  const deleteListing = async (id, fromReportId = null) => {
+    const hasLink = manageLinkIds.has(id);
+    const msg = hasLink
+      ? "This listing has an active seller manage-link. Deleting it won't notify the seller — their link will just silently stop working. Delete anyway?"
+      : "Delete this listing? This can't be undone.";
+    if (!window.confirm(msg)) return;
+    const { error } = await supabase.rpc("admin_delete_listing", { p_secret: secret, p_id: id });
+    if (error) { console.error("admin delete failed:", error.message); return; }
+    setListings(listings.filter((l) => l.id !== id));
+    // Deleting straight from a report means there's nothing left to review —
+    // auto-resolve it instead of leaving a dangling report for a car that's
+    // already gone.
+    if (fromReportId) updateReportStatus(fromReportId, "Resolved");
   };
 
   if (status === "checking") return <div style={{ textAlign: "center", padding: "80px 20px", color: C.steel }}>Checking access…</div>;
@@ -1889,12 +1926,26 @@ function AdminPage() {
     if (sortKey === "mileage") return a.mileage - b.mileage;
     return new Date(b.created_at) - new Date(a.created_at);
   });
+  const filteredListings = listingSearch.trim()
+    ? sortedListings.filter((l) => `${l.make} ${l.model} ${l.city}`.toLowerCase().includes(listingSearch.trim().toLowerCase()))
+    : sortedListings;
 
   // ----- Coverage tracker -----
   const coveredStates = new Set(stateRates.map((r) => r.state));
   const missingStates = US_STATES.filter((s) => !coveredStates.has(s));
   const coveredMakes = Object.keys(BRAND_REPAIR_COST);
   const missingMakes = POPULAR_MAKES.filter((m) => !coveredMakes.includes(m));
+
+  // ----- Sold-price averages by make (only where a real sold price was reported) -----
+  const soldWithPrice = soldListings.filter((l) => l.sold_price);
+  const soldByMake = {};
+  soldWithPrice.forEach((l) => {
+    if (!soldByMake[l.make]) soldByMake[l.make] = [];
+    soldByMake[l.make].push(((l.sold_price - l.price) / l.price) * 100);
+  });
+  const soldByMakeEntries = Object.entries(soldByMake)
+    .map(([make, diffs]) => ({ make, count: diffs.length, avgPct: Math.round(diffs.reduce((s, d) => s + d, 0) / diffs.length) }))
+    .sort((a, b) => b.avgPct - a.avgPct);
 
   // ----- Cross-reference tool -----
   const xrefMatches = listings.filter((l) => (!xrefMake || l.make === xrefMake) && (!xrefState || l.state === xrefState));
@@ -1966,16 +2017,25 @@ function AdminPage() {
 
       {tab === "listings" && (
         <AdminSection title="All listings" span="full">
-          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
-            {[{ k: "created_at", l: "Newest" }, { k: "price", l: "Price" }, { k: "mileage", l: "Mileage" }].map((s) => (
-              <button key={s.k} onClick={() => setSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: sortKey === s.k ? "none" : `1px solid ${C.line}`, background: sortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
-            ))}
+          <div style={{ display: "flex", gap: 10, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+            <input value={listingSearch} onChange={(e) => setListingSearch(e.target.value)} placeholder="Search make, model, or city…" style={{ ...inputStyle, width: 240 }} />
+            <div style={{ display: "flex", gap: 6 }}>
+              {[{ k: "created_at", l: "Newest" }, { k: "price", l: "Price" }, { k: "mileage", l: "Mileage" }].map((s) => (
+                <button key={s.k} onClick={() => setSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: sortKey === s.k ? "none" : `1px solid ${C.line}`, background: sortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
+              ))}
+            </div>
+            <button onClick={() => downloadCSV("highwaylot-listings.csv", filteredListings, [
+              { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" }, { label: "Trim", value: "trim" },
+              { label: "Price", value: "price" }, { label: "Mileage", value: "mileage" }, { label: "City", value: "city" }, { label: "State", value: "state" },
+              { label: "Status", value: (l) => (l.status === "sold" ? "Sold" : getExpiryInfo(l).expired ? "Expired" : "Active") },
+              { label: "Credibility", value: (l) => l.credibility?.level }, { label: "Posted", value: "created_at" },
+            ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff", marginLeft: "auto" }}>Export CSV</button>
           </div>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr>{["Car", "Price", "Mileage", "State", "Status", "Credibility", "Posted"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+              <thead><tr>{["Car", "Price", "Mileage", "State", "Status", "Credibility", "Manage-link", "Posted", ""].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
               <tbody>
-                {sortedListings.map((l) => (
+                {filteredListings.map((l) => (
                   <tr key={l.id}>
                     <td style={TD}>{l.year} {l.make} {l.model}</td>
                     <td style={TD}>{fmtPrice(l.price)}</td>
@@ -1983,7 +2043,9 @@ function AdminPage() {
                     <td style={TD}>{stateAbbr(l.state)}</td>
                     <td style={TD}>{l.status === "sold" ? "Sold" : getExpiryInfo(l).expired ? "Expired" : "Active"}</td>
                     <td style={TD}><CredibilityDot credibility={l.credibility} /></td>
+                    <td style={TD}>{manageLinkIds.has(l.id) ? <span style={{ color: C.green }}>Active</span> : <span style={{ color: C.steel }}>None (test data)</span>}</td>
                     <td style={TD}>{timeAgo(l.created_at)}</td>
+                    <td style={TD}><button onClick={() => deleteListing(l.id)} style={{ fontSize: 11, color: "#A32D2D", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>Delete</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -1994,6 +2056,14 @@ function AdminPage() {
 
       {tab === "quiz" && (
         <AdminSection title="Individual quiz responses" span="full">
+          {quizResponses.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <button onClick={() => downloadCSV("highwaylot-quiz-responses.csv", quizResponses, [
+                { label: "Date", value: "created_at" }, { label: "Archetype", value: "archetype" },
+                ...QUIZ_STATEMENTS.map((s) => ({ label: s.key, value: (r) => r.answers?.[s.key] })),
+              ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff" }}>Export CSV</button>
+            </div>
+          )}
           {quizResponses.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No quiz completions yet.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -2015,6 +2085,15 @@ function AdminPage() {
 
       {tab === "valuations" && (
         <AdminSection title="Individual valuation submissions" span="full">
+          {valuations.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              <button onClick={() => downloadCSV("highwaylot-valuations.csv", valuations, [
+                { label: "Date", value: "created_at" }, { label: "Year", value: "year" }, { label: "Make", value: "make" }, { label: "Model", value: "model" },
+                { label: "Mileage", value: "mileage" }, { label: "Condition", value: "condition" }, { label: "State", value: "state" },
+                { label: "Original Price", value: "originalPrice" }, { label: "Estimate", value: "estimate" }, { label: "Confidence", value: "confidence" },
+              ])} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: `1px solid ${C.line}`, background: "#fff" }}>Export CSV</button>
+            </div>
+          )}
           {valuations.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No submissions yet.</div> : (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -2039,6 +2118,19 @@ function AdminPage() {
         </AdminSection>
       )}
 
+      {tab === "sold" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16, marginBottom: 16 }}>
+          <AdminSection title="Average sold vs. asking, by make">
+            {soldByMakeEntries.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No sold prices reported yet.</div> :
+              soldByMakeEntries.map((e) => (
+                <div key={e.make} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderBottom: `1px solid ${C.line}` }}>
+                  <span>{e.make} <span style={{ color: C.steel, fontSize: 11.5 }}>({e.count})</span></span>
+                  <span style={{ fontWeight: 600, color: e.avgPct < 0 ? "#A32D2D" : C.green }}>{e.avgPct > 0 ? "+" : ""}{e.avgPct}%</span>
+                </div>
+              ))}
+          </AdminSection>
+        </div>
+      )}
       {tab === "sold" && (
         <AdminSection title="Sold — asking price vs. real sale price" span="full">
           <div style={{ fontSize: 12, color: C.steel, marginBottom: 12 }}>Sold price is private — sellers can optionally report it, it's never shown publicly. This is the only place it's visible.</div>
@@ -2103,7 +2195,7 @@ function AdminPage() {
               <div key={r.id} style={{ borderBottom: `1px solid ${C.line}`, padding: "14px 0" }}>
                 <div style={{ fontSize: 12.5, color: C.steel }}>{r.reason} · {timeAgo(r.created_at)}</div>
                 <ListingSnippet listing={listing} />
-                <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                <div style={{ display: "flex", gap: 6, marginTop: 10, alignItems: "center", flexWrap: "wrap" }}>
                   {REPORT_STATUSES.map((s) => (
                     <button key={s} onClick={() => updateReportStatus(r.id, s)} style={{
                       fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer",
@@ -2111,6 +2203,9 @@ function AdminPage() {
                       background: r.status === s ? C.yellow : "#fff", color: C.ink, fontWeight: r.status === s ? 600 : 400,
                     }}>{s}</button>
                   ))}
+                  {listing && (
+                    <button onClick={() => deleteListing(listing.id, r.id)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: "none", background: "#FBE4E3", color: "#A32D2D", fontWeight: 600, marginLeft: "auto" }}>Delete listing</button>
+                  )}
                 </div>
               </div>
             );
