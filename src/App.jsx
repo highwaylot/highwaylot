@@ -1761,11 +1761,13 @@ function ManagePage() {
 // ---------- Admin dashboard (v17) ----------
 // Secret-gated, not logged-in — see the admin RPC functions in schema.sql
 // for how the actual secret check works (entirely server-side, never
-// shipped in this bundle). Core operational views only: reports queue,
-// listing lifecycle, credibility distribution, quiz stats, valuation stats,
-// by-state breakdown. Sold-price analytics, the data-coverage tracker, and
-// the cross-reference tool are deliberately deferred to v17.1 — this is
-// already a large build on its own.
+// shipped in this bundle).
+//
+// v17.1 — added detailed per-category drill-down tabs (Listings, Quiz,
+// Valuations), sold-price analytics, a data-coverage tracker for the
+// repair estimator's brand/state tables, a simple two-dimension
+// cross-reference tool, and inline report snippets instead of a dead link.
+// Overview tab uses a responsive grid instead of full-width stacked cards.
 function SimpleBarRow({ label, value, max, suffix = "" }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
@@ -1779,36 +1781,71 @@ function SimpleBarRow({ label, value, max, suffix = "" }) {
     </div>
   );
 }
-function AdminSection({ title, children }) {
+function AdminSection({ title, children, span }) {
   return (
-    <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 8, padding: 20, marginBottom: 20 }}>
+    <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 8, padding: 20, gridColumn: span === "full" ? "1 / -1" : undefined }}>
       <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 14 }}>{title}</div>
       {children}
     </div>
   );
 }
+// Compact inline detail card for a listing — used on the reports queue so
+// an admin can judge a report without navigating away (the link never
+// worked well as a review flow; the actual details are what's needed).
+function ListingSnippet({ listing }) {
+  if (!listing) return <div style={{ fontSize: 12.5, color: C.steel, fontStyle: "italic" }}>Listing not found (may have been deleted).</div>;
+  return (
+    <div style={{ background: "#FAFAF6", border: `1px solid ${C.line}`, borderRadius: 6, padding: 12, marginTop: 6 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 14.5, color: C.ink }}>{listing.year} {listing.make} {listing.model} {listing.trim}</div>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 16, color: C.ink }}>{fmtPrice(listing.price)}</div>
+      </div>
+      <div style={{ fontSize: 12, color: C.steel, marginTop: 4 }}>{fmtMiles(listing.mileage)} · {listing.city}, {stateAbbr(listing.state)} · {listing.condition} · {listing.seller}</div>
+      <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+        <CredibilityDot credibility={listing.credibility} />
+        {listing.verified && <Badge tone="verified">Verified</Badge>}
+        {listing.featured && <Badge tone="yellow">Featured</Badge>}
+        <FairnessBadge fairness={listing.fairness} />
+      </div>
+      <div style={{ fontSize: 12, color: "#3B4250", marginTop: 8, lineHeight: 1.5 }}>{listing.desc}</div>
+    </div>
+  );
+}
+
+const TH = { textAlign: "left", padding: "8px 10px", fontSize: 11.5, color: C.steel, borderBottom: `1px solid ${C.line}`, whiteSpace: "nowrap" };
+const TD = { padding: "8px 10px", fontSize: 12.5, color: C.ink, borderBottom: `1px solid ${C.line}`, whiteSpace: "nowrap" };
 
 function AdminPage() {
   const { secret } = useParams();
+  const [tab, setTab] = useState("overview");
   const [status, setStatus] = useState("checking"); // checking | denied | ready
   const [listings, setListings] = useState([]);
   const [reports, setReports] = useState([]);
   const [quizResponses, setQuizResponses] = useState([]);
   const [valuations, setValuations] = useState([]);
+  const [soldListings, setSoldListings] = useState([]);
+  const [stateRates, setStateRates] = useState([]);
+  const [sortKey, setSortKey] = useState("created_at");
+  const [xrefMake, setXrefMake] = useState("");
+  const [xrefState, setXrefState] = useState("");
 
   useEffect(() => {
     (async () => {
-      const [reportsRes, quizRes, valRes, listingsRes] = await Promise.all([
+      const [reportsRes, quizRes, valRes, soldRes, listingsRes, ratesRes] = await Promise.all([
         supabase.rpc("admin_get_reports", { p_secret: secret }),
         supabase.rpc("admin_get_quiz_responses", { p_secret: secret }),
         supabase.rpc("admin_get_valuations", { p_secret: secret }),
+        supabase.rpc("admin_get_sold_listings", { p_secret: secret }),
         supabase.from("listings").select(LISTING_COLUMNS),
+        supabase.from("state_labor_rates").select("state,median_annual_wage,multiplier"),
       ]);
-      if (reportsRes.error || quizRes.error || valRes.error) { setStatus("denied"); return; }
+      if (reportsRes.error || quizRes.error || valRes.error || soldRes.error) { setStatus("denied"); return; }
       setReports(reportsRes.data || []);
       setQuizResponses(quizRes.data || []);
       setValuations(valRes.data || []);
+      setSoldListings((soldRes.data || []).map(rowToListing));
       setListings((listingsRes.data || []).map(rowToListing));
+      setStateRates(ratesRes.data || []);
       setStatus("ready");
     })();
   }, [secret]);
@@ -1827,89 +1864,259 @@ function AdminPage() {
     </div>
   );
 
-  // Lifecycle counts
+  const withFairness = listings.map((l) => ({ ...l, fairness: estimateFairness(l, listings) }));
+  const withCred = withFairness.map((l) => ({ ...l, credibility: computeCredibility(l, withFairness) }));
+
+  // ----- Overview computations -----
   const soldCount = listings.filter((l) => l.status === "sold").length;
   const expiredCount = listings.filter((l) => l.status === "active" && getExpiryInfo(l).expired).length;
   const activeCount = listings.filter((l) => l.status === "active" && !getExpiryInfo(l).expired).length;
-
-  // Credibility distribution — fairness has to be computed first, since
-  // computeCredibility's price-flag check depends on it.
-  const withFairness = listings.map((l) => ({ ...l, fairness: estimateFairness(l, listings) }));
-  const withCred = withFairness.map((l) => ({ ...l, credibility: computeCredibility(l, withFairness) }));
   const credCounts = { green: 0, yellow: 0, red: 0 };
   withCred.forEach((l) => { if (credCounts[l.credibility?.level] !== undefined) credCounts[l.credibility.level]++; });
-
-  // By-state breakdown
   const byState = {};
   listings.forEach((l) => { byState[l.state] = (byState[l.state] || 0) + 1; });
   const stateEntries = Object.entries(byState).sort((a, b) => b[1] - a[1]);
   const maxStateCount = stateEntries.length ? stateEntries[0][1] : 1;
-
-  // Quiz archetype counts
   const archetypeCounts = {};
   quizResponses.forEach((r) => { archetypeCounts[r.archetype] = (archetypeCounts[r.archetype] || 0) + 1; });
   const archetypeEntries = Object.entries(archetypeCounts).sort((a, b) => b[1] - a[1]);
   const maxArchetypeCount = archetypeEntries.length ? archetypeEntries[0][1] : 1;
-
-  // Valuation stats
   const avgEstimate = valuations.length ? Math.round(valuations.reduce((s, v) => s + (v.estimate || 0), 0) / valuations.length) : 0;
 
+  // ----- Listings tab sort -----
+  const sortedListings = [...withCred].sort((a, b) => {
+    if (sortKey === "price") return b.price - a.price;
+    if (sortKey === "mileage") return a.mileage - b.mileage;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+
+  // ----- Coverage tracker -----
+  const coveredStates = new Set(stateRates.map((r) => r.state));
+  const missingStates = US_STATES.filter((s) => !coveredStates.has(s));
+  const coveredMakes = Object.keys(BRAND_REPAIR_COST);
+  const missingMakes = POPULAR_MAKES.filter((m) => !coveredMakes.includes(m));
+
+  // ----- Cross-reference tool -----
+  const xrefMatches = listings.filter((l) => (!xrefMake || l.make === xrefMake) && (!xrefState || l.state === xrefState));
+  const xrefAvg = xrefMatches.length ? Math.round(xrefMatches.reduce((s, l) => s + l.price, 0) / xrefMatches.length) : 0;
+
   const REPORT_STATUSES = ["New", "In review", "Resolved"];
+  const TABS = [
+    { key: "overview", label: "Overview" },
+    { key: "listings", label: `Listings (${listings.length})` },
+    { key: "quiz", label: `Quiz (${quizResponses.length})` },
+    { key: "valuations", label: `Valuations (${valuations.length})` },
+    { key: "sold", label: `Sold analytics (${soldListings.length})` },
+    { key: "coverage", label: "Data coverage" },
+    { key: "xref", label: "Cross-reference" },
+    { key: "reports", label: `Reports (${reports.length})` },
+  ];
 
   return (
-    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 60px" }}>
+    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "32px 20px 60px" }}>
       <div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, marginBottom: 2 }}>Admin dashboard</div>
-      <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 24 }}>Core operational views. Sold-price analytics, data-coverage tracking, and cross-referencing are coming in v17.1.</p>
+      <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 18 }}>{listings.length} listings · {quizResponses.length} quiz completions · {valuations.length} valuations · {reports.length} reports</p>
 
-      <AdminSection title={`Listing lifecycle (${listings.length} total)`}>
-        <div style={{ display: "flex", gap: 24 }}>
-          <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.green }}>{activeCount}</div><div style={{ fontSize: 12, color: C.steel }}>Active</div></div>
-          <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.steel }}>{expiredCount}</div><div style={{ fontSize: 12, color: C.steel }}>Expired</div></div>
-          <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink }}>{soldCount}</div><div style={{ fontSize: 12, color: C.steel }}>Sold</div></div>
-        </div>
-      </AdminSection>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 22, borderBottom: `1px solid ${C.line}`, paddingBottom: 12 }}>
+        {TABS.map((t) => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            fontSize: 12.5, padding: "7px 12px", borderRadius: 4, cursor: "pointer",
+            border: tab === t.key ? "none" : `1px solid ${C.line}`,
+            background: tab === t.key ? C.ink : "#fff", color: tab === t.key ? "#fff" : C.ink, fontWeight: tab === t.key ? 600 : 400,
+          }}>{t.label}</button>
+        ))}
+      </div>
 
-      <AdminSection title="Credibility distribution">
-        <SimpleBarRow label="No issues detected" value={credCounts.green} max={listings.length} />
-        <SimpleBarRow label="Worth a closer look" value={credCounts.yellow} max={listings.length} />
-        <SimpleBarRow label="Flagged" value={credCounts.red} max={listings.length} />
-      </AdminSection>
-
-      <AdminSection title="Listings by state">
-        {stateEntries.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No listings yet.</div> :
-          stateEntries.map(([state, count]) => <SimpleBarRow key={state} label={state} value={count} max={maxStateCount} />)}
-      </AdminSection>
-
-      <AdminSection title={`Quiz results (${quizResponses.length} completed)`}>
-        {archetypeEntries.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No quiz completions yet.</div> :
-          archetypeEntries.map(([name, count]) => <SimpleBarRow key={name} label={name} value={count} max={maxArchetypeCount} />)}
-      </AdminSection>
-
-      <AdminSection title={`Value My Car submissions (${valuations.length} total)`}>
-        <div style={{ fontSize: 13.5, color: C.ink }}>Average estimate: <strong>{fmtPrice(avgEstimate)}</strong></div>
-      </AdminSection>
-
-      <AdminSection title={`Reports queue (${reports.length})`}>
-        {reports.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No reports yet.</div> : reports.map((r) => {
-          const listing = listings.find((l) => l.id === r.listing_id);
-          return (
-            <div key={r.id} style={{ borderBottom: `1px solid ${C.line}`, padding: "10px 0" }}>
-              <div style={{ fontSize: 13.5, color: C.ink }}>{listing ? `${listing.year} ${listing.make} ${listing.model}` : `Listing #${r.listing_id}`}</div>
-              <div style={{ fontSize: 12.5, color: C.steel, marginTop: 2 }}>{r.reason}</div>
-              <div style={{ fontSize: 11, color: C.steel, marginTop: 2 }}>{timeAgo(r.created_at)}</div>
-              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                {REPORT_STATUSES.map((s) => (
-                  <button key={s} onClick={() => updateReportStatus(r.id, s)} style={{
-                    fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer",
-                    border: r.status === s ? "none" : `1px solid ${C.line}`,
-                    background: r.status === s ? C.yellow : "#fff", color: C.ink, fontWeight: r.status === s ? 600 : 400,
-                  }}>{s}</button>
-                ))}
-              </div>
+      {tab === "overview" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 }}>
+          <AdminSection title={`Listing lifecycle (${listings.length} total)`}>
+            <div style={{ display: "flex", gap: 24 }}>
+              <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.green }}>{activeCount}</div><div style={{ fontSize: 12, color: C.steel }}>Active</div></div>
+              <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.steel }}>{expiredCount}</div><div style={{ fontSize: 12, color: C.steel }}>Expired</div></div>
+              <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink }}>{soldCount}</div><div style={{ fontSize: 12, color: C.steel }}>Sold</div></div>
             </div>
-          );
-        })}
-      </AdminSection>
+          </AdminSection>
+
+          <AdminSection title="Credibility distribution">
+            <SimpleBarRow label="No issues detected" value={credCounts.green} max={listings.length} />
+            <SimpleBarRow label="Worth a closer look" value={credCounts.yellow} max={listings.length} />
+            <SimpleBarRow label="Flagged" value={credCounts.red} max={listings.length} />
+          </AdminSection>
+
+          <AdminSection title="Value My Car submissions">
+            <div style={{ fontSize: 13.5, color: C.ink }}>Average estimate: <strong>{fmtPrice(avgEstimate)}</strong></div>
+            <div style={{ fontSize: 12, color: C.steel, marginTop: 4 }}>{valuations.length} total submissions</div>
+          </AdminSection>
+
+          <AdminSection title="Quiz results" span="full">
+            {archetypeEntries.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No quiz completions yet.</div> :
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "4px 24px" }}>
+                {archetypeEntries.map(([name, count]) => <SimpleBarRow key={name} label={name} value={count} max={maxArchetypeCount} />)}
+              </div>}
+          </AdminSection>
+
+          <AdminSection title="Listings by state" span="full">
+            {stateEntries.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No listings yet.</div> :
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "4px 24px" }}>
+                {stateEntries.map(([state, count]) => <SimpleBarRow key={state} label={state} value={count} max={maxStateCount} />)}
+              </div>}
+          </AdminSection>
+        </div>
+      )}
+
+      {tab === "listings" && (
+        <AdminSection title="All listings" span="full">
+          <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+            {[{ k: "created_at", l: "Newest" }, { k: "price", l: "Price" }, { k: "mileage", l: "Mileage" }].map((s) => (
+              <button key={s.k} onClick={() => setSortKey(s.k)} style={{ fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer", border: sortKey === s.k ? "none" : `1px solid ${C.line}`, background: sortKey === s.k ? C.yellow : "#fff" }}>{s.l}</button>
+            ))}
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr>{["Car", "Price", "Mileage", "State", "Status", "Credibility", "Posted"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+              <tbody>
+                {sortedListings.map((l) => (
+                  <tr key={l.id}>
+                    <td style={TD}>{l.year} {l.make} {l.model}</td>
+                    <td style={TD}>{fmtPrice(l.price)}</td>
+                    <td style={TD}>{fmtMiles(l.mileage)}</td>
+                    <td style={TD}>{stateAbbr(l.state)}</td>
+                    <td style={TD}>{l.status === "sold" ? "Sold" : getExpiryInfo(l).expired ? "Expired" : "Active"}</td>
+                    <td style={TD}><CredibilityDot credibility={l.credibility} /></td>
+                    <td style={TD}>{timeAgo(l.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </AdminSection>
+      )}
+
+      {tab === "quiz" && (
+        <AdminSection title="Individual quiz responses" span="full">
+          {quizResponses.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No quiz completions yet.</div> : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr>{["Date", "Result", ...QUIZ_STATEMENTS.map((s) => s.key)].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {quizResponses.map((r) => (
+                    <tr key={r.id}>
+                      <td style={TD}>{timeAgo(r.created_at)}</td>
+                      <td style={{ ...TD, fontWeight: 600 }}>{r.archetype}</td>
+                      {QUIZ_STATEMENTS.map((s) => <td key={s.key} style={TD}>{r.answers?.[s.key] ?? "—"}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AdminSection>
+      )}
+
+      {tab === "valuations" && (
+        <AdminSection title="Individual valuation submissions" span="full">
+          {valuations.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No submissions yet.</div> : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr>{["Date", "Car", "Mileage", "Condition", "State", "Original price", "Estimate", "Confidence"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {valuations.map((v) => (
+                    <tr key={v.id}>
+                      <td style={TD}>{timeAgo(v.created_at)}</td>
+                      <td style={TD}>{v.year} {v.make} {v.model}</td>
+                      <td style={TD}>{fmtMiles(v.mileage)}</td>
+                      <td style={TD}>{v.condition}</td>
+                      <td style={TD}>{v.state ? stateAbbr(v.state) : "—"}</td>
+                      <td style={TD}>{fmtPrice(v.originalPrice)}</td>
+                      <td style={{ ...TD, fontWeight: 600 }}>{fmtPrice(v.estimate)}</td>
+                      <td style={TD}>{v.confidence}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AdminSection>
+      )}
+
+      {tab === "sold" && (
+        <AdminSection title="Sold — asking price vs. real sale price" span="full">
+          <div style={{ fontSize: 12, color: C.steel, marginBottom: 12 }}>Sold price is private — sellers can optionally report it, it's never shown publicly. This is the only place it's visible.</div>
+          {soldListings.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No sold listings yet.</div> : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr>{["Car", "State", "Asking", "Sold for", "Difference", "Days to sell"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {soldListings.map((l) => {
+                    const daysToSell = l.sold_at ? Math.round((new Date(l.sold_at) - new Date(l.created_at)) / 86400000) : null;
+                    const diffPct = l.sold_price ? Math.round(((l.sold_price - l.price) / l.price) * 100) : null;
+                    return (
+                      <tr key={l.id}>
+                        <td style={TD}>{l.year} {l.make} {l.model}</td>
+                        <td style={TD}>{stateAbbr(l.state)}</td>
+                        <td style={TD}>{fmtPrice(l.price)}</td>
+                        <td style={TD}>{l.sold_price ? fmtPrice(l.sold_price) : <span style={{ color: C.steel, fontStyle: "italic" }}>Not reported</span>}</td>
+                        <td style={{ ...TD, color: diffPct == null ? C.steel : diffPct < 0 ? "#A32D2D" : C.green }}>{diffPct == null ? "—" : `${diffPct > 0 ? "+" : ""}${diffPct}%`}</td>
+                        <td style={TD}>{daysToSell == null ? "—" : `${daysToSell}d`}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </AdminSection>
+      )}
+
+      {tab === "coverage" && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
+          <AdminSection title={`Regional labor data — ${coveredStates.size} of ${US_STATES.length} states`}>
+            <div style={{ fontSize: 12, color: C.steel, marginBottom: 10 }}>States without real BLS data fall back to the national average, not a guess.</div>
+            <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.8 }}>{missingStates.join(", ")}</div>
+          </AdminSection>
+          <AdminSection title={`Brand repair-cost data — ${coveredMakes.length} of ${POPULAR_MAKES.length} makes`}>
+            <div style={{ fontSize: 12, color: C.steel, marginBottom: 10 }}>Makes without real RepairPal data fall back to a neutral multiplier, not a guess.</div>
+            <div style={{ fontSize: 12.5, color: C.ink, lineHeight: 1.8 }}>{missingMakes.join(", ")}</div>
+          </AdminSection>
+        </div>
+      )}
+
+      {tab === "xref" && (
+        <AdminSection title="Cross-reference" span="full">
+          <div style={{ fontSize: 12, color: C.steel, marginBottom: 14 }}>Pick a make and/or state to see how many listings match and their average price.</div>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
+            <select value={xrefMake} onChange={(e) => setXrefMake(e.target.value)} style={{ ...inputStyle, width: 200 }}><option value="">Any make</option>{[...new Set(listings.map((l) => l.make))].sort().map((m) => <option key={m} value={m}>{m}</option>)}</select>
+            <select value={xrefState} onChange={(e) => setXrefState(e.target.value)} style={{ ...inputStyle, width: 200 }}><option value="">Any state</option>{[...new Set(listings.map((l) => l.state))].sort().map((s) => <option key={s} value={s}>{s}</option>)}</select>
+          </div>
+          <div style={{ display: "flex", gap: 24 }}>
+            <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink }}>{xrefMatches.length}</div><div style={{ fontSize: 12, color: C.steel }}>Matching listings</div></div>
+            <div><div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink }}>{xrefMatches.length ? fmtPrice(xrefAvg) : "—"}</div><div style={{ fontSize: 12, color: C.steel }}>Average price</div></div>
+          </div>
+        </AdminSection>
+      )}
+
+      {tab === "reports" && (
+        <AdminSection title="Reports queue" span="full">
+          {reports.length === 0 ? <div style={{ fontSize: 13, color: C.steel }}>No reports yet.</div> : reports.map((r) => {
+            const listing = withCred.find((l) => l.id === r.listing_id);
+            return (
+              <div key={r.id} style={{ borderBottom: `1px solid ${C.line}`, padding: "14px 0" }}>
+                <div style={{ fontSize: 12.5, color: C.steel }}>{r.reason} · {timeAgo(r.created_at)}</div>
+                <ListingSnippet listing={listing} />
+                <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+                  {REPORT_STATUSES.map((s) => (
+                    <button key={s} onClick={() => updateReportStatus(r.id, s)} style={{
+                      fontSize: 11.5, padding: "4px 10px", borderRadius: 4, cursor: "pointer",
+                      border: r.status === s ? "none" : `1px solid ${C.line}`,
+                      background: r.status === s ? C.yellow : "#fff", color: C.ink, fontWeight: r.status === s ? 600 : 400,
+                    }}>{s}</button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </AdminSection>
+      )}
     </div>
   );
 }
