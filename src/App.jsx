@@ -4,7 +4,7 @@ import {
   ShieldCheck, Phone, SlidersHorizontal, Car as CarIcon, Check, Star,
   TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign, Info
 } from "lucide-react";
-import { Routes, Route, useNavigate, useParams, useLocation, Link } from "react-router-dom";
+import { Routes, Route, useNavigate, useParams, useLocation, useSearchParams, Link } from "react-router-dom";
 import { supabase } from "./lib/supabaseClient";
 
 // Category URL slugs — explicit map for body types (not naive lowercasing,
@@ -2153,7 +2153,9 @@ function sortRows(rows, sort, accessors = {}) {
 
 function AdminPage() {
   const { secret } = useParams();
-  const [tab, setTab] = useState("overview");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") || "overview";
+  const setTab = (t) => setSearchParams({ tab: t }, { replace: true });
   const [status, setStatus] = useState("checking"); // checking | denied | ready
   const [listings, setListings] = useState([]);
   const [reports, setReports] = useState([]);
