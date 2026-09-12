@@ -34,7 +34,7 @@ function ScrollToTop() {
 // privilege is revoked for the public role in the database itself (see
 // schema.sql). Using '*' would actually error for that reason, which is
 // the point: even a bypass of this app's own code can't read the token.
-const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,loan_balance,damage_points,issues,description,phone,photos,created_at,status,price_updated_at,sold_at";
+const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,loan_balance,damage_points,issues,description,phone,photos,created_at,status,price_updated_at,sold_at,source";
 
 function generateToken() {
   if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
@@ -199,17 +199,36 @@ function captureAttribution() {
     if (src) {
       const isNew = sessionStorage.getItem("hl_src") !== src;
       sessionStorage.setItem("hl_src", src);
+      // A real per-visit id, only generated for QR-tagged sessions — this is
+      // what lets admin group one anonymous visitor's actions together
+      // (their valuation, their quiz result, what they browsed) without
+      // ever tying it to a name or contact info.
+      if (!sessionStorage.getItem("hl_session_id")) {
+        const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        sessionStorage.setItem("hl_session_id", id);
+      }
       return { src, isNew };
     }
     return { src: sessionStorage.getItem("hl_src") || null, isNew: false };
   } catch { return { src: null, isNew: false }; }
 }
+// For attaching attribution to a real database row (valuations, quiz
+// responses, listings) at the moment it's submitted — separate from the
+// event-logging path below, since these go into their own tables, not events.
+function getAttribution() {
+  try {
+    return { source: sessionStorage.getItem("hl_src") || null, session_id: sessionStorage.getItem("hl_session_id") || null };
+  } catch { return { source: null, session_id: null }; }
+}
 
 function useAnalytics() {
   const log = (type, payload = {}) => {
-    let src = null;
-    try { src = sessionStorage.getItem("hl_src"); } catch {}
-    supabase.from("events").insert({ type, payload: src ? { ...payload, src } : payload }).then(({ error }) => {
+    let src = null, sessionId = null;
+    try { src = sessionStorage.getItem("hl_src"); sessionId = sessionStorage.getItem("hl_session_id"); } catch {}
+    const extra = {};
+    if (src) extra.src = src;
+    if (sessionId) extra.session_id = sessionId;
+    supabase.from("events").insert({ type, payload: Object.keys(extra).length ? { ...payload, ...extra } : payload }).then(({ error }) => {
       if (error) console.error("event log failed:", error.message);
     });
   };
@@ -1649,7 +1668,7 @@ function ValueMyCar({ allListings, log }) {
     const loanBalance = form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null;
     log("valuation_submitted", { ...input, issues, body: form.body, loan_balance: loanBalance, state: form.state });
     const { regionalMultiplier: _rm, ...inputForDb } = input; // regionalMultiplier is calculation-only, no matching column
-    supabase.from("valuations").insert({ ...inputForDb, estimate: res.estimate, confidence: res.confidence, issues, body: form.body, loan_status: form.loan_status, loan_balance: loanBalance, state: form.state }).then(({ error }) => {
+    supabase.from("valuations").insert({ ...inputForDb, estimate: res.estimate, confidence: res.confidence, issues, body: form.body, loan_status: form.loan_status, loan_balance: loanBalance, state: form.state, ...getAttribution() }).then(({ error }) => {
       if (error) { console.error("valuation save failed:", error.message); setSaveError(error.message); }
     });
   };
@@ -1927,6 +1946,33 @@ function AdminSection({ title, children, span }) {
     </div>
   );
 }
+// The "signifier" — a small tag showing which flyer/QR source a listing,
+// quiz, or valuation came from. Renders nothing for organic traffic.
+function SourceBadge({ source }) {
+  if (!source) return null;
+  return <span style={{ fontSize: 9.5, background: C.yellow, color: C.ink, padding: "1px 6px", borderRadius: 10, marginLeft: 6, fontWeight: 600, whiteSpace: "nowrap", display: "inline-block" }}>{source}</span>;
+}
+// Simple, clean vertical bar chart — no charting library, just styled divs.
+// Used in the QR Results scroll-carousel.
+function MiniBarChart({ title, data }) {
+  const max = Math.max(1, ...data.map((d) => d.value));
+  return (
+    <div style={{ minWidth: 260, maxWidth: 260, scrollSnapAlign: "start", background: "#fff", border: `1px solid ${C.line}`, borderRadius: 8, padding: 16, flexShrink: 0 }}>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: C.ink, marginBottom: 14 }}>{title}</div>
+      {data.length === 0 ? <div style={{ fontSize: 12, color: C.steel }}>No data yet.</div> : (
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 140 }}>
+          {data.map((d) => (
+            <div key={d.label} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%", justifyContent: "flex-end" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.ink, marginBottom: 4 }}>{d.value}</div>
+              <div style={{ width: "100%", maxWidth: 36, height: `${Math.max(4, (d.value / max) * 100)}px`, background: C.yellow, borderRadius: "3px 3px 0 0" }} />
+              <div style={{ fontSize: 9.5, color: C.steel, marginTop: 6, textAlign: "center", lineHeight: 1.2 }}>{d.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // Real US state geometry (react-us-state-map, MIT/CC-BY-SA) — not a
 // hand-drawn shape, so none of the risk that made the car icon hard. Each
@@ -2126,6 +2172,7 @@ function AdminPage() {
   const [deletedListings, setDeletedListings] = useState([]);
   const [trendPeriod, setTrendPeriod] = useState("weekly");
   const [attributionEvents, setAttributionEvents] = useState([]);
+  const [sessionPage, setSessionPage] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -2361,6 +2408,47 @@ function AdminPage() {
   });
   const attributionEntries = Object.entries(attributionBySource).sort((a, b) => b[1].landings - a[1].landings);
 
+  // Chart data — three angles on the same QR traffic, aggregate only.
+  const qrTotals = Object.values(attributionBySource).reduce((acc, c) => ({
+    landings: acc.landings + c.landings, valuations: acc.valuations + c.valuations,
+    quizzes: acc.quizzes + c.quizzes, listingViews: acc.listingViews + c.listingViews, other: acc.other + c.other,
+  }), { landings: 0, valuations: 0, quizzes: 0, listingViews: 0, other: 0 });
+  const qrActionBreakdown = [
+    { label: "Valuations", value: qrTotals.valuations },
+    { label: "Quiz done", value: qrTotals.quizzes },
+    { label: "Listings viewed", value: qrTotals.listingViews },
+    { label: "Other", value: qrTotals.other },
+  ];
+  const qrArchetypeCounts = {};
+  quizResponses.forEach((r) => { if (r.source) qrArchetypeCounts[r.archetype] = (qrArchetypeCounts[r.archetype] || 0) + 1; });
+  const qrArchetypeChart = Object.entries(qrArchetypeCounts).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+
+  // Per-session breakdown — the actual "individual visitor" view. Grouped
+  // by the anonymous session_id, combining their valuation(s), quiz
+  // result(s), listing(s) posted, and listings they viewed. No name, no
+  // contact info — just a consistent anonymous id tying one visit's
+  // actions together.
+  const sessionMap = {};
+  const ensureSession = (sessionId, src) => {
+    if (!sessionId) return null;
+    if (!sessionMap[sessionId]) sessionMap[sessionId] = { sessionId, src, valuations: [], quizzes: [], listings: [], listingViews: [], firstSeen: null };
+    return sessionMap[sessionId];
+  };
+  valuations.forEach((v) => { const s = ensureSession(v.session_id, v.source); if (s) { s.valuations.push(v); if (!s.firstSeen || v.created_at < s.firstSeen) s.firstSeen = v.created_at; } });
+  quizResponses.forEach((r) => { const s = ensureSession(r.session_id, r.source); if (s) { s.quizzes.push(r); if (!s.firstSeen || r.created_at < s.firstSeen) s.firstSeen = r.created_at; } });
+  listings.forEach((l) => { const s = ensureSession(l.session_id, l.source); if (s) { s.listings.push(l); if (!s.firstSeen || l.created_at < s.firstSeen) s.firstSeen = l.created_at; } });
+  attributionEvents.forEach((e) => {
+    const sid = e.payload?.session_id;
+    if (!sid || e.type !== "listing_view") return;
+    const s = ensureSession(sid, e.payload?.src);
+    if (s) { s.listingViews.push(e); if (!s.firstSeen || e.created_at < s.firstSeen) s.firstSeen = e.created_at; }
+  });
+  const sessionEntries = Object.values(sessionMap).sort((a, b) => new Date(b.firstSeen || 0) - new Date(a.firstSeen || 0));
+  const SESSIONS_PER_PAGE = 10;
+  const sessionPageCount = Math.max(1, Math.ceil(sessionEntries.length / SESSIONS_PER_PAGE));
+  const sessionPageClamped = Math.min(sessionPage, sessionPageCount - 1);
+  const sessionPageRows = sessionEntries.slice(sessionPageClamped * SESSIONS_PER_PAGE, sessionPageClamped * SESSIONS_PER_PAGE + SESSIONS_PER_PAGE);
+
   const TABS = [
     { key: "overview", label: "Overview" },
     { key: "trends", label: "Trends" },
@@ -2474,35 +2562,75 @@ function AdminPage() {
       )}
 
       {tab === "qr" && (
-        <AdminSection title="QR / flyer attribution" span="full">
-          <div style={{ fontSize: 12, color: C.steel, marginBottom: 16, lineHeight: 1.6 }}>
-            Any link tagged with <code>?src=name</code> gets tracked from the moment someone lands, for the rest of that visit. "Landings" is a real scan-to-page count — everything else shows what they actually did once here.
-          </div>
-          {attributionEntries.length === 0 ? (
-            <div style={{ fontSize: 13, color: C.steel }}>No tagged traffic yet — once a QR code or tagged link gets used, it shows up here.</div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr>{["Source", "Landings", "→ Valuations", "→ Quiz completions", "→ Listing views", "→ Other actions"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
-                <tbody>
+        <div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: 16, marginBottom: 16 }}>
+            {/* LEFT — aggregated data pool, consolidated */}
+            <AdminSection title="QR / flyer attribution — overview">
+              <div style={{ fontSize: 11.5, color: C.steel, marginBottom: 14, lineHeight: 1.6 }}>
+                A tagged link (<code>?src=name</code>) gets tracked from the moment someone lands, for the rest of that visit.
+              </div>
+              <div style={{ display: "flex", gap: 20, marginBottom: 18 }}>
+                <div><div style={{ fontFamily: FONT_HEAD, fontSize: 26, color: C.ink }}>{qrTotals.landings}</div><div style={{ fontSize: 11, color: C.steel }}>Total landings</div></div>
+                <div><div style={{ fontFamily: FONT_HEAD, fontSize: 26, color: C.green }}>{qrTotals.landings ? Math.round(((qrTotals.valuations + qrTotals.quizzes + qrTotals.listingViews + qrTotals.other) / qrTotals.landings) * 100) : 0}%</div><div style={{ fontSize: 11, color: C.steel }}>Took an action</div></div>
+              </div>
+              {attributionEntries.length === 0 ? (
+                <div style={{ fontSize: 13, color: C.steel }}>No tagged traffic yet.</div>
+              ) : (
+                <div>
                   {attributionEntries.map(([src, counts]) => (
-                    <tr key={src}>
-                      <td style={{ ...TD, fontWeight: 600 }}>{src}</td>
-                      <td style={TD}>{counts.landings}</td>
-                      <td style={TD}>{counts.valuations}</td>
-                      <td style={TD}>{counts.quizzes}</td>
-                      <td style={TD}>{counts.listingViews}</td>
-                      <td style={TD}>{counts.other}</td>
-                    </tr>
+                    <div key={src} style={{ padding: "8px 0", borderBottom: `1px solid ${C.line}` }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: C.ink, marginBottom: 3 }}>{src}</div>
+                      <div style={{ fontSize: 11, color: C.steel }}>{counts.landings} landed · {counts.valuations} valuations · {counts.quizzes} quizzes · {counts.listingViews} views</div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              )}
+              <div style={{ fontSize: 10.5, color: C.steel, marginTop: 14 }}>
+                Honest limitation: only counts someone who actually loaded the page — a scan that never opened the link isn't measurable.
+              </div>
+            </AdminSection>
+
+            {/* RIGHT — horizontal-scroll chart carousel */}
+            <div style={{ overflowX: "auto", scrollSnapType: "x mandatory", display: "flex", gap: 14, paddingBottom: 6 }}>
+              <MiniBarChart title="Landings by source" data={attributionEntries.map(([src, c]) => ({ label: src, value: c.landings }))} />
+              <MiniBarChart title="What QR visitors did" data={qrActionBreakdown} />
+              <MiniBarChart title="Quiz results from QR traffic" data={qrArchetypeChart} />
             </div>
-          )}
-          <div style={{ fontSize: 11, color: C.steel, marginTop: 14 }}>
-            Honest limitation: this only counts someone who actually loaded the page — there's no way to count a scan that never opened the link at all.
           </div>
-        </AdminSection>
+
+          {/* BOTTOM — per-visitor breakdown, paginated 10 at a time */}
+          <AdminSection title={`Individual visitors (${sessionEntries.length})`} span="full">
+            <div style={{ fontSize: 11.5, color: C.steel, marginBottom: 14 }}>
+              Each row is one anonymous visit — no name or contact info, just a consistent id tying together what that one visitor actually did.
+            </div>
+            {sessionEntries.length === 0 ? (
+              <div style={{ fontSize: 13, color: C.steel }}>No individual QR visitors tracked yet.</div>
+            ) : (
+              <>
+                {sessionPageRows.map((s) => (
+                  <div key={s.sessionId} style={{ padding: "10px 0", borderBottom: `1px solid ${C.line}` }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>{s.src}</span>
+                      <span style={{ fontSize: 11, color: C.steel }}>{s.firstSeen ? adminDate(s.firstSeen) : "—"}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: "#3B4250", marginTop: 4, lineHeight: 1.6 }}>
+                      {s.valuations.map((v, i) => <div key={`v${i}`}>Valuation: {v.year} {v.make} {v.model} → {fmtPrice(v.estimate)}</div>)}
+                      {s.quizzes.map((r, i) => <div key={`q${i}`}>Quiz: {r.archetype}</div>)}
+                      {s.listings.map((l, i) => <div key={`l${i}`}>Posted: {l.year} {l.make} {l.model} — {fmtPrice(l.price)}</div>)}
+                      {s.listingViews.length > 0 && <div>Viewed {s.listingViews.length} listing{s.listingViews.length === 1 ? "" : "s"}</div>}
+                      {s.valuations.length === 0 && s.quizzes.length === 0 && s.listings.length === 0 && s.listingViews.length === 0 && <div style={{ fontStyle: "italic", color: C.steel }}>Landed, no further action yet</div>}
+                    </div>
+                  </div>
+                ))}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14 }}>
+                  <button onClick={() => setSessionPage((p) => Math.max(0, p - 1))} disabled={sessionPageClamped === 0} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: sessionPageClamped === 0 ? "default" : "pointer", border: `1px solid ${C.line}`, background: "#fff", opacity: sessionPageClamped === 0 ? 0.4 : 1 }}>← Previous</button>
+                  <span style={{ fontSize: 11.5, color: C.steel }}>Page {sessionPageClamped + 1} of {sessionPageCount}</span>
+                  <button onClick={() => setSessionPage((p) => Math.min(sessionPageCount - 1, p + 1))} disabled={sessionPageClamped >= sessionPageCount - 1} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: sessionPageClamped >= sessionPageCount - 1 ? "default" : "pointer", border: `1px solid ${C.line}`, background: "#fff", opacity: sessionPageClamped >= sessionPageCount - 1 ? 0.4 : 1 }}>Next →</button>
+                </div>
+              </>
+            )}
+          </AdminSection>
+        </div>
       )}
 
       {tab === "listings" && (
@@ -2535,7 +2663,7 @@ function AdminPage() {
               <tbody>
                 {filteredListings.map((l) => (
                   <tr key={l.id}>
-                    <td style={TD}>{l.year} {l.make} {l.model}</td>
+                    <td style={TD}>{l.year} {l.make} {l.model}<SourceBadge source={l.source} /></td>
                     <td style={TD}>{fmtPrice(l.price)}</td>
                     <td style={TD}>{fmtMiles(l.mileage)}</td>
                     <td style={TD}>{stateAbbr(l.state)}</td>
@@ -2581,7 +2709,7 @@ function AdminPage() {
                   }).map((r) => (
                     <tr key={r.id}>
                       <td style={TD}>{adminDate(r.created_at)}</td>
-                      <td style={{ ...TD, fontWeight: 600 }}>{r.archetype}</td>
+                      <td style={{ ...TD, fontWeight: 600 }}>{r.archetype}<SourceBadge source={r.source} /></td>
                       {QUIZ_STATEMENTS.map((s) => <td key={s.key} style={TD}>{r.answers?.[s.key] ?? "—"}</td>)}
                     </tr>
                   ))}
@@ -2623,7 +2751,7 @@ function AdminPage() {
                   {sortedValuations.map((v) => (
                     <tr key={v.id}>
                       <td style={TD}>{adminDate(v.created_at)}</td>
-                      <td style={TD}>{v.year} {v.make} {v.model}</td>
+                      <td style={TD}>{v.year} {v.make} {v.model}<SourceBadge source={v.source} /></td>
                       <td style={TD}>{fmtMiles(v.mileage)}</td>
                       <td style={TD}>{v.condition}</td>
                       <td style={TD}>{v.state ? stateAbbr(v.state) : "—"}</td>
@@ -3040,7 +3168,7 @@ export default function App() {
   const handlePostSubmit = async (data) => {
     const { desc, ...rest } = data;
     const manage_token = generateToken();
-    const { data: inserted, error } = await supabase.from("listings").insert({ ...rest, description: desc, manage_token }).select(LISTING_COLUMNS).single();
+    const { data: inserted, error } = await supabase.from("listings").insert({ ...rest, description: desc, manage_token, ...getAttribution() }).select(LISTING_COLUMNS).single();
     if (error) { console.error("post listing failed:", error.message); return error.message; }
     const newListing = rowToListing(inserted);
     setListings([newListing, ...listings]);
@@ -3054,7 +3182,7 @@ export default function App() {
 
   const handleQuizComplete = async (answers) => {
     const archetype = scoreQuiz(answers).name;
-    supabase.from("quiz_responses").insert({ answers, archetype }).then(({ error }) => {
+    supabase.from("quiz_responses").insert({ answers, archetype, ...getAttribution() }).then(({ error }) => {
       if (error) console.error("quiz save failed:", error.message);
     });
     log("quiz_complete", answers);
