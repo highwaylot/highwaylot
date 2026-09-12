@@ -196,9 +196,13 @@ function captureAttribution() {
   try {
     const params = new URLSearchParams(window.location.search);
     const src = params.get("src");
-    if (src) sessionStorage.setItem("hl_src", src);
-    return sessionStorage.getItem("hl_src") || null;
-  } catch { return null; }
+    if (src) {
+      const isNew = sessionStorage.getItem("hl_src") !== src;
+      sessionStorage.setItem("hl_src", src);
+      return { src, isNew };
+    }
+    return { src: sessionStorage.getItem("hl_src") || null, isNew: false };
+  } catch { return { src: null, isNew: false }; }
 }
 
 function useAnalytics() {
@@ -2121,10 +2125,11 @@ function AdminPage() {
   const [manageLinkIds, setManageLinkIds] = useState(new Set());
   const [deletedListings, setDeletedListings] = useState([]);
   const [trendPeriod, setTrendPeriod] = useState("weekly");
+  const [attributionEvents, setAttributionEvents] = useState([]);
 
   useEffect(() => {
     (async () => {
-      const [reportsRes, quizRes, valRes, soldRes, listingsRes, ratesRes, mlRes, trashRes] = await Promise.all([
+      const [reportsRes, quizRes, valRes, soldRes, listingsRes, ratesRes, mlRes, trashRes, attrRes] = await Promise.all([
         supabase.rpc("admin_get_reports", { p_secret: secret }),
         supabase.rpc("admin_get_quiz_responses", { p_secret: secret }),
         supabase.rpc("admin_get_valuations", { p_secret: secret }),
@@ -2133,6 +2138,7 @@ function AdminPage() {
         supabase.from("state_labor_rates").select("state,median_annual_wage,multiplier"),
         supabase.rpc("admin_get_manage_link_ids", { p_secret: secret }),
         supabase.rpc("admin_get_deleted_listings", { p_secret: secret }),
+        supabase.rpc("admin_get_attribution_events", { p_secret: secret }),
       ]);
       if (reportsRes.error || quizRes.error || valRes.error || soldRes.error) { setStatus("denied"); return; }
       setReports(reportsRes.data || []);
@@ -2143,6 +2149,7 @@ function AdminPage() {
       setStateRates(ratesRes.data || []);
       setManageLinkIds(new Set((mlRes.data || []).map((r) => r.id)));
       setDeletedListings((trashRes.data || []).map(rowToListing));
+      setAttributionEvents(attrRes.data || []);
       setStatus("ready");
     })();
   }, [secret]);
@@ -2339,6 +2346,21 @@ function AdminPage() {
   });
   const trendRows = Object.values(trendMap).sort((a, b) => b.key.localeCompare(a.key)).slice(0, 12);
 
+  // ----- QR/flyer attribution breakdown — aggregate counts only, grouped by
+  // source tag and by what action (if any) followed the landing. -----
+  const attributionBySource = {};
+  attributionEvents.forEach((e) => {
+    const src = e.payload?.src;
+    if (!src) return;
+    if (!attributionBySource[src]) attributionBySource[src] = { landings: 0, valuations: 0, quizzes: 0, listingViews: 0, other: 0 };
+    if (e.type === "qr_landing") attributionBySource[src].landings++;
+    else if (e.type === "valuation_submitted") attributionBySource[src].valuations++;
+    else if (e.type === "quiz_complete") attributionBySource[src].quizzes++;
+    else if (e.type === "listing_view") attributionBySource[src].listingViews++;
+    else attributionBySource[src].other++;
+  });
+  const attributionEntries = Object.entries(attributionBySource).sort((a, b) => b[1].landings - a[1].landings);
+
   const TABS = [
     { key: "overview", label: "Overview" },
     { key: "trends", label: "Trends" },
@@ -2349,6 +2371,7 @@ function AdminPage() {
     { key: "coverage", label: "Data coverage" },
     { key: "xref", label: "Cross-reference" },
     { key: "reports", label: `Reports (${pendingReports.length})` },
+    { key: "qr", label: "QR results" },
     { key: "trash", label: `Trash (${deletedListings.length})` },
   ];
 
@@ -2447,6 +2470,38 @@ function AdminPage() {
               </table>
             </div>
           )}
+        </AdminSection>
+      )}
+
+      {tab === "qr" && (
+        <AdminSection title="QR / flyer attribution" span="full">
+          <div style={{ fontSize: 12, color: C.steel, marginBottom: 16, lineHeight: 1.6 }}>
+            Any link tagged with <code>?src=name</code> gets tracked from the moment someone lands, for the rest of that visit. "Landings" is a real scan-to-page count — everything else shows what they actually did once here.
+          </div>
+          {attributionEntries.length === 0 ? (
+            <div style={{ fontSize: 13, color: C.steel }}>No tagged traffic yet — once a QR code or tagged link gets used, it shows up here.</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr>{["Source", "Landings", "→ Valuations", "→ Quiz completions", "→ Listing views", "→ Other actions"].map((h) => <th key={h} style={TH}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {attributionEntries.map(([src, counts]) => (
+                    <tr key={src}>
+                      <td style={{ ...TD, fontWeight: 600 }}>{src}</td>
+                      <td style={TD}>{counts.landings}</td>
+                      <td style={TD}>{counts.valuations}</td>
+                      <td style={TD}>{counts.quizzes}</td>
+                      <td style={TD}>{counts.listingViews}</td>
+                      <td style={TD}>{counts.other}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: C.steel, marginTop: 14 }}>
+            Honest limitation: this only counts someone who actually loaded the page — there's no way to count a scan that never opened the link at all.
+          </div>
         </AdminSection>
       )}
 
@@ -2943,8 +2998,15 @@ export default function App() {
   const [fetchError, setFetchError] = useState(null);
   const { log } = useAnalytics();
 
-  // Capture QR/flyer attribution once, on first load of any page.
-  useEffect(() => { captureAttribution(); }, []);
+  // Capture QR/flyer attribution once, on first load of any page. Fires a
+  // real "landing" event only when this is a genuinely new tagged visit —
+  // this is the piece that makes raw scan counts measurable at all, since
+  // every other event only fires from an actual action (submitting a
+  // valuation, finishing the quiz), never from just showing up.
+  useEffect(() => {
+    const { isNew } = captureAttribution();
+    if (isNew) log("qr_landing", {});
+  }, []);
 
   useEffect(() => {
     if (location.pathname.startsWith("/manage/") || location.pathname.startsWith("/admin/")) { setLoading(false); return; } // these routes fetch their own data
