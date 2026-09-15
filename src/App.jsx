@@ -2445,7 +2445,10 @@ function AdminPage() {
     const s = ensureSession(sid, e.payload?.src);
     if (s) { s.listingViews.push(e); if (!s.firstSeen || e.created_at < s.firstSeen) s.firstSeen = e.created_at; }
   });
-  const sessionEntries = Object.values(sessionMap).sort((a, b) => new Date(b.firstSeen || 0) - new Date(a.firstSeen || 0));
+  const sessionEntries = Object.values(sessionMap)
+    .sort((a, b) => new Date(a.firstSeen || 0) - new Date(b.firstSeen || 0)) // oldest first, to assign stable ref numbers
+    .map((s, i) => ({ ...s, refNum: i + 1 }))
+    .reverse(); // then flip to show newest first, ref numbers stay attached
   const SESSIONS_PER_PAGE = 10;
   const sessionPageCount = Math.max(1, Math.ceil(sessionEntries.length / SESSIONS_PER_PAGE));
   const sessionPageClamped = Math.min(sessionPage, sessionPageCount - 1);
@@ -2612,8 +2615,8 @@ function AdminPage() {
                 {sessionPageRows.map((s) => (
                   <div key={s.sessionId} style={{ padding: "10px 0", borderBottom: `1px solid ${C.line}` }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
-                      <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>{s.src}</span>
-                      <span style={{ fontSize: 11, color: C.steel }}>{s.firstSeen ? adminDate(s.firstSeen) : "—"}</span>
+                      <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>Visitor #{s.refNum} <span style={{ fontWeight: 400, color: C.steel }}>· {s.src}</span></span>
+                      <span style={{ fontSize: 11, color: C.steel }}>{s.firstSeen ? exactDateTime(s.firstSeen) : "—"}</span>
                     </div>
                     <div style={{ fontSize: 12, color: "#3B4250", marginTop: 4, lineHeight: 1.6 }}>
                       {s.valuations.map((v, i) => <div key={`v${i}`}>Valuation: {v.year} {v.make} {v.model} → {fmtPrice(v.estimate)}</div>)}
@@ -3098,6 +3101,11 @@ function adminDate(iso) {
   const day = String(d.getDate()).padStart(2, "0");
   const month = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
   return `${day}${month}${d.getFullYear()}`;
+}
+// Full exact timestamp, no relative language — for the QR visitor list,
+// where "when exactly" matters more than "how long ago."
+function exactDateTime(iso) {
+  return new Date(iso).toLocaleString("en-US", { month: "short", day: "2-digit", year: "numeric", hour: "numeric", minute: "2-digit" });
 }
 // DB uses `description` (since `desc` is a reserved SQL word); the rest of
 // the app uses `desc`. This maps between the two at the boundary.
