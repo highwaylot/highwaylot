@@ -260,6 +260,18 @@ function OptionalTag() {
 }
 const POPULAR_MAKES = ["Ford", "Toyota", "Honda", "Chevrolet", "Jeep", "Ram", "GMC", "Nissan", "Hyundai", "Kia", "Subaru", "Volkswagen", "BMW", "Mercedes-Benz", "Audi", "Lexus", "Mazda", "Dodge", "Chrysler", "Buick", "Cadillac", "Tesla", "Mitsubishi", "Volvo", "Acura"];
 
+// Active QR/flyer campaigns — each src tag matches the ?src= value baked
+// into that location's printed QR code. Add a new entry here whenever a new
+// flyer goes out so it gets its own tab in the admin QR results view;
+// nothing else needs to change for a new source to start showing up.
+const QR_SOURCES = [
+  { key: "flyer-keywest", label: "Key West" },
+  { key: "flyer-rockledge", label: "Rockledge" },
+  { key: "flyer-orlando", label: "Orlando" },
+  { key: "flyer-melbourne", label: "Melbourne" },
+  { key: "flyer-cocoabeach", label: "Cocoa Beach" },
+];
+
 // Make list is curated (the common ones people actually sell). Models are
 // fetched live from NHTSA's free public vPIC API for whichever make is
 // picked — real data, no maintenance on our end. "Other" always available
@@ -501,7 +513,7 @@ function TopBar({ onPost }) {
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             <NavLink label="Browse" to="/" active={pathname === "/" || pathname.startsWith("/listing") || pathname.startsWith("/category")} />
             <NavLink label="Value my car" to="/value" active={pathname === "/value"} />
-            <NavLink label="Find my car" to="/quiz" active={pathname.startsWith("/quiz")} />
+            <NavLink label="My Car Quiz" to="/quiz" active={pathname.startsWith("/quiz")} />
           </div>
         </div>
         <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 16px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
@@ -2172,6 +2184,7 @@ function AdminPage() {
   const [trendPeriod, setTrendPeriod] = useState("weekly");
   const [attributionEvents, setAttributionEvents] = useState([]);
   const [sessionPage, setSessionPage] = useState(0);
+  const [qrSubTab, setQrSubTab] = useState("all");
 
   useEffect(() => {
     (async () => {
@@ -2394,8 +2407,16 @@ function AdminPage() {
 
   // ----- QR/flyer attribution breakdown — aggregate counts only, grouped by
   // source tag and by what action (if any) followed the landing. -----
+  // qrSubTab narrows every computation below to one campaign at a time
+  // ("all" keeps the original combined view) — this is what powers the
+  // per-source tabs (Key West, Rockledge, etc.) on the QR results page.
+  const qrFilteredAttributionEvents = qrSubTab === "all" ? attributionEvents : attributionEvents.filter((e) => e.payload?.src === qrSubTab);
+  const qrFilteredValuations = qrSubTab === "all" ? valuations : valuations.filter((v) => v.source === qrSubTab);
+  const qrFilteredQuizResponses = qrSubTab === "all" ? quizResponses : quizResponses.filter((r) => r.source === qrSubTab);
+  const qrFilteredListings = qrSubTab === "all" ? listings : listings.filter((l) => l.source === qrSubTab);
+
   const attributionBySource = {};
-  attributionEvents.forEach((e) => {
+  qrFilteredAttributionEvents.forEach((e) => {
     const src = e.payload?.src;
     if (!src) return;
     if (!attributionBySource[src]) attributionBySource[src] = { landings: 0, valuations: 0, quizzes: 0, listingViews: 0, other: 0 };
@@ -2406,6 +2427,18 @@ function AdminPage() {
     else attributionBySource[src].other++;
   });
   const attributionEntries = Object.entries(attributionBySource).sort((a, b) => b[1].landings - a[1].landings);
+  // Known campaigns with zero traffic yet still get a real tab (see QR_SOURCES
+  // above) — this just makes sure "0 landings" shows instead of the tab
+  // disappearing entirely for a flyer that's up but hasn't been scanned yet.
+  // Always computed from the full (unfiltered) event set, purely so each
+  // sub-tab button can show its own landing count regardless of which
+  // sub-tab is currently selected.
+  const attributionBySourceAll = {};
+  attributionEvents.forEach((e) => {
+    const src = e.payload?.src;
+    if (!src || e.type !== "qr_landing") return;
+    attributionBySourceAll[src] = (attributionBySourceAll[src] || 0) + 1;
+  });
 
   // Chart data — three angles on the same QR traffic, aggregate only.
   const qrTotals = Object.values(attributionBySource).reduce((acc, c) => ({
@@ -2419,7 +2452,7 @@ function AdminPage() {
     { label: "Other", value: qrTotals.other },
   ];
   const qrArchetypeCounts = {};
-  quizResponses.forEach((r) => { if (r.source) qrArchetypeCounts[r.archetype] = (qrArchetypeCounts[r.archetype] || 0) + 1; });
+  qrFilteredQuizResponses.forEach((r) => { if (r.source) qrArchetypeCounts[r.archetype] = (qrArchetypeCounts[r.archetype] || 0) + 1; });
   const qrArchetypeChart = Object.entries(qrArchetypeCounts).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
 
   // Per-session breakdown — the actual "individual visitor" view. Grouped
@@ -2433,10 +2466,10 @@ function AdminPage() {
     if (!sessionMap[sessionId]) sessionMap[sessionId] = { sessionId, src, valuations: [], quizzes: [], listings: [], listingViews: [], firstSeen: null };
     return sessionMap[sessionId];
   };
-  valuations.forEach((v) => { const s = ensureSession(v.session_id, v.source); if (s) { s.valuations.push(v); if (!s.firstSeen || v.created_at < s.firstSeen) s.firstSeen = v.created_at; } });
-  quizResponses.forEach((r) => { const s = ensureSession(r.session_id, r.source); if (s) { s.quizzes.push(r); if (!s.firstSeen || r.created_at < s.firstSeen) s.firstSeen = r.created_at; } });
-  listings.forEach((l) => { const s = ensureSession(l.session_id, l.source); if (s) { s.listings.push(l); if (!s.firstSeen || l.created_at < s.firstSeen) s.firstSeen = l.created_at; } });
-  attributionEvents.forEach((e) => {
+  qrFilteredValuations.forEach((v) => { const s = ensureSession(v.session_id, v.source); if (s) { s.valuations.push(v); if (!s.firstSeen || v.created_at < s.firstSeen) s.firstSeen = v.created_at; } });
+  qrFilteredQuizResponses.forEach((r) => { const s = ensureSession(r.session_id, r.source); if (s) { s.quizzes.push(r); if (!s.firstSeen || r.created_at < s.firstSeen) s.firstSeen = r.created_at; } });
+  qrFilteredListings.forEach((l) => { const s = ensureSession(l.session_id, l.source); if (s) { s.listings.push(l); if (!s.firstSeen || l.created_at < s.firstSeen) s.firstSeen = l.created_at; } });
+  qrFilteredAttributionEvents.forEach((e) => {
     const sid = e.payload?.session_id;
     if (!sid || e.type !== "listing_view") return;
     const s = ensureSession(sid, e.payload?.src);
@@ -2565,9 +2598,23 @@ function AdminPage() {
 
       {tab === "qr" && (
         <div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+            <button onClick={() => { setQrSubTab("all"); setSessionPage(0); }} style={{
+              fontSize: 12, padding: "6px 12px", borderRadius: 20, cursor: "pointer",
+              border: qrSubTab === "all" ? "none" : `1px solid ${C.line}`,
+              background: qrSubTab === "all" ? C.ink : "#fff", color: qrSubTab === "all" ? "#fff" : C.ink, fontWeight: qrSubTab === "all" ? 600 : 400,
+            }}>All sources</button>
+            {QR_SOURCES.map((s) => (
+              <button key={s.key} onClick={() => { setQrSubTab(s.key); setSessionPage(0); }} style={{
+                fontSize: 12, padding: "6px 12px", borderRadius: 20, cursor: "pointer",
+                border: qrSubTab === s.key ? "none" : `1px solid ${C.line}`,
+                background: qrSubTab === s.key ? C.yellow : "#fff", color: C.ink, fontWeight: qrSubTab === s.key ? 600 : 400,
+              }}>{s.label} {attributionBySourceAll[s.key] ? `(${attributionBySourceAll[s.key]})` : ""}</button>
+            ))}
+          </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: 16, marginBottom: 16 }}>
             {/* LEFT — aggregated data pool, consolidated */}
-            <AdminSection title="QR / flyer attribution — overview">
+            <AdminSection title={`QR / flyer attribution — ${qrSubTab === "all" ? "overview" : QR_SOURCES.find((s) => s.key === qrSubTab)?.label || qrSubTab}`}>
               <div style={{ fontSize: 11.5, color: C.steel, marginBottom: 14, lineHeight: 1.6 }}>
                 A tagged link (<code>?src=name</code>) gets tracked from the moment someone lands, for the rest of that visit.
               </div>
