@@ -272,6 +272,31 @@ const QR_SOURCES = [
   { key: "flyer-cocoabeach", label: "Cocoa Beach" },
 ];
 
+// Best-effort body-style guess from a model name, so picking a model can
+// autofill body style instead of making the user pick it twice. Keyword-based
+// on purpose — covers the shapes people actually sell most, in an order that
+// resolves the couple of real overlaps (e.g. "Civic Hatchback" vs. plain
+// "Civic"). Anything it doesn't recognize just leaves body style on its
+// existing default for the user to change manually, same as before — this
+// can only save a click, never lock in a wrong answer silently.
+const BODY_GUESS_RULES = [
+  { body: "Truck", keywords: ["f-150", "f150", "f-250", "f250", "f-350", "f350", "silverado", "sierra", "1500", "2500", "3500", "tacoma", "tundra", "frontier", "titan", "ridgeline", "colorado", "canyon", "ranger", "maverick", "gladiator"] },
+  { body: "Van/Minivan", keywords: ["odyssey", "sienna", "town and country", "grand caravan", "transit", "sprinter", "carnival", "pacifica"] },
+  { body: "Coupe", keywords: ["mustang", "camaro", "challenger", "corvette", "brz", " 86", "supra", "370z", "miata", "mx-5"] },
+  { body: "Convertible", keywords: ["convertible", "roadster", "spider", "cabriolet", "boxster"] },
+  { body: "Hatchback", keywords: ["hatchback", "golf", "impreza", "veloster", " fit", "yaris"] },
+  { body: "SUV", keywords: ["wrangler", "tahoe", "suburban", "yukon", "explorer", "expedition", "4runner", "highlander", "pilot", "cr-v", "crv", "rav4", "rogue", "murano", "pathfinder", "traverse", "equinox", "blazer", "grand cherokee", "cherokee", "durango", "telluride", "palisade", "santa fe", "tucson", "outback", "forester", "ascent", "atlas", "model x", "model y", "bronco", "escalade", "xt5", "xt6"] },
+  { body: "Sedan", keywords: ["camry", "accord", "civic", "altima", "sentra", "corolla", "elantra", "sonata", "malibu", "impala", "fusion", "jetta", "passat", "3 series", "model 3", "model s", "a4", "a6", " es", " is"] },
+];
+function guessBodyStyle(model) {
+  if (!model) return null;
+  const m = ` ${model.toLowerCase()} `;
+  for (const rule of BODY_GUESS_RULES) {
+    if (rule.keywords.some((k) => m.includes(k))) return rule.body;
+  }
+  return null;
+}
+
 // Make list is curated (the common ones people actually sell). Models are
 // fetched live from NHTSA's free public vPIC API for whichever make is
 // picked — real data, no maintenance on our end. "Other" always available
@@ -1023,7 +1048,7 @@ function PostAd({ onSubmit, existingListings, log }) {
         <Field label="Year" required error={errors.year}>
           <select value={form.year} onChange={set("year")} style={inputStyle}><option value="">Select year</option>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
         </Field>
-        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => ({ ...prev, model: v }))} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
+        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
         <Field label="Trim"><input value={form.trim} onChange={set("trim")} placeholder="XLT" style={inputStyle} /></Field>
         <Field label="Price (USD)" required error={errors.price}><input value={form.price} onChange={setNumeric("price")} inputMode="numeric" placeholder="24999" style={inputStyle} /></Field>
         <Field label="Mileage" required error={errors.mileage}><input value={form.mileage} onChange={setNumeric("mileage")} inputMode="numeric" placeholder="42000" style={inputStyle} /></Field>
@@ -1694,7 +1719,7 @@ function ValueMyCar({ allListings, log }) {
         <Field label="Year" required error={errors.year}>
           <select value={form.year} onChange={set("year")} style={inputStyle}><option value="">Select year</option>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
         </Field>
-        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => ({ ...prev, model: v }))} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
+        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
         <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={setNumeric("mileage")} inputMode="numeric" placeholder="52000" style={inputStyle} /></Field>
         <Field label="Original price paid" required error={errors.originalPrice}><input value={form.originalPrice} onChange={setNumeric("originalPrice")} inputMode="numeric" placeholder="28000" style={inputStyle} /></Field>
         <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
