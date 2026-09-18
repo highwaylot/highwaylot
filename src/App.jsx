@@ -1629,13 +1629,48 @@ function IssuesGate({ issues, onChange, context = "listing" }) {
 // the car's age, then blended with real comps from HIGHWAYLOT's own listings
 // once there are enough of them. Confidence is shown honestly rather than
 // presenting an early, comp-starved guess as certain.
+//
+// v20.2 recalibration — the old single flat curve (20% year one, 12%/year
+// after, same for every car) was checked against real listings for a 2019
+// Camry and a 2018 Wrangler Rubicon and landed ~44-45% under real asking
+// prices on BOTH, in the same direction. That's not noise, it's a flat curve
+// being wrong for an entire class of vehicle (trucks/SUVs/Jeeps hold value
+// well above a sedan's rate). Fixed with three real changes below, not a
+// tuning nudge:
+//   1. Retention curve is now per body style, not one-size-fits-all.
+//   2. Comps get weighted in faster (used to need 8 for max pull, now 4).
+//   3. A missing "original price paid" no longer blocks an estimate — it
+//      falls back to a typical-new-price-by-body-style anchor instead.
+// These retention/typical-price figures are still a reasoned model, not a
+// live-scraped one — worth periodically re-checking against real sales the
+// same way this recalibration was found, not treated as exact forever.
+const BODY_DEPRECIATION_CURVES = {
+  // { year1: retained after year 1, after: retained per year after that, floor: minimum retained }
+  Truck: { year1: 0.88, after: 0.94, floor: 0.30 },
+  SUV: { year1: 0.86, after: 0.93, floor: 0.28 },
+  "Van/Minivan": { year1: 0.80, after: 0.88, floor: 0.18 },
+  Coupe: { year1: 0.80, after: 0.87, floor: 0.15 },
+  Convertible: { year1: 0.80, after: 0.87, floor: 0.15 },
+  Hatchback: { year1: 0.79, after: 0.87, floor: 0.15 },
+  Sedan: { year1: 0.80, after: 0.88, floor: 0.15 },
+};
+// Used only as a fallback anchor when the seller doesn't know/won't give what
+// they paid — a rough "typical new price for this body style" starting point,
+// not a stand-in for real MSRP data. Comps (once there are any) still pull
+// harder than this the moment they exist.
+const TYPICAL_NEW_PRICE_BY_BODY = {
+  Sedan: 28000, Coupe: 32000, Hatchback: 24000, SUV: 38000, Truck: 45000, "Van/Minivan": 36000, Convertible: 40000,
+};
 function estimateValue(input, allListings, issues = {}) {
   const age = Math.max(new Date().getFullYear() - input.year, 0);
-  // Rough depreciation curve: ~20% year one, ~12%/year after, floored at 15% of original.
+  const curve = BODY_DEPRECIATION_CURVES[input.body] || BODY_DEPRECIATION_CURVES.Sedan;
   let retained = 1;
-  for (let y = 0; y < age; y++) retained *= y === 0 ? 0.80 : 0.88;
-  retained = Math.max(retained, 0.15);
-  const basePrice = input.originalPrice * retained;
+  for (let y = 0; y < age; y++) retained *= y === 0 ? curve.year1 : curve.after;
+  retained = Math.max(retained, curve.floor);
+
+  const usedOriginalPrice = Boolean(input.originalPrice) && input.originalPrice > 0;
+  const anchorPrice = usedOriginalPrice ? input.originalPrice : (TYPICAL_NEW_PRICE_BY_BODY[input.body] || TYPICAL_NEW_PRICE_BY_BODY.Sedan);
+  const basePrice = anchorPrice * retained;
 
   const expectedMileage = age * 12000;
   const mileageDelta = input.mileage - expectedMileage;
@@ -1646,13 +1681,15 @@ function estimateValue(input, allListings, issues = {}) {
   let estimate = (basePrice + mileageAdjustment) * conditionMultiplier;
 
   // Comp-based blend: pull real same make/model listings within +/- 3 years.
+  // Ramps to max pull at 4 comps now instead of 8 — a real comp is a better
+  // signal than the formula, so it shouldn't take that many to matter most.
   const comps = allListings.filter((c) => c.make.toLowerCase() === input.make.toLowerCase() && c.model.toLowerCase() === input.model.toLowerCase() && Math.abs(c.year - input.year) <= 3);
   let confidence = "Low";
   if (comps.length > 0) {
     const compAvg = comps.reduce((s, c) => s + c.price, 0) / comps.length;
-    const weight = Math.min(comps.length / 8, 0.6); // comps can pull up to 60% of the estimate once there are enough
+    const weight = Math.min(comps.length / 4, 0.75); // comps can pull up to 75% of the estimate once there are enough
     estimate = estimate * (1 - weight) + compAvg * weight;
-    confidence = comps.length >= 5 ? "High" : comps.length >= 2 ? "Medium" : "Low";
+    confidence = comps.length >= 4 ? "High" : comps.length >= 2 ? "Medium" : "Low";
   }
 
   const { total: mechanicalDeduction, breakdown, brandMult, hasBrandData } = computeMechanicalDeduction(issues, input.make, input.regionalMultiplier ?? 1.0);
@@ -1661,7 +1698,7 @@ function estimateValue(input, allListings, issues = {}) {
   const floor = Math.max(estimate * 0.1, 400);
   estimate = Math.max(estimate - mechanicalDeduction, floor);
 
-  return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown, brandMult, hasBrandData };
+  return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown, brandMult, hasBrandData, usedOriginalPrice };
 }
 
 function ValueMyCar({ allListings, log }) {
@@ -1691,12 +1728,12 @@ function ValueMyCar({ allListings, log }) {
   const regionalMultiplier = hasStateData ? stateRates[form.state] : 1.0;
 
   const submit = async () => {
-    const req = ["year", "make", "model", "mileage", "originalPrice"];
+    const req = ["year", "make", "model", "mileage"]; // originalPrice is optional now — estimateValue() falls back to a typical-price-by-body-style anchor when it's blank
     const errs = {}; req.forEach((k) => { if (!String(form[k]).trim()) errs[k] = true; });
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice), regionalMultiplier };
+    const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice), body: form.body, regionalMultiplier };
     const res = estimateValue(input, allListings, issues);
     setResult({ ...res, stateUsed: form.state, hasStateData });
     const loanBalance = form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null;
@@ -1721,7 +1758,7 @@ function ValueMyCar({ allListings, log }) {
         </Field>
         <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
         <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={setNumeric("mileage")} inputMode="numeric" placeholder="52000" style={inputStyle} /></Field>
-        <Field label="Original price paid" required error={errors.originalPrice}><input value={form.originalPrice} onChange={setNumeric("originalPrice")} inputMode="numeric" placeholder="28000" style={inputStyle} /></Field>
+        <Field label="Original price paid (optional — sharpens the estimate)"><input value={form.originalPrice} onChange={setNumeric("originalPrice")} inputMode="numeric" placeholder="28000" style={inputStyle} /></Field>
         <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
         <Field label="Body style"><select value={form.body} onChange={set("body")} style={inputStyle}><option>Sedan</option><option>Coupe</option><option>Hatchback</option><option>SUV</option><option>Truck</option><option>Van/Minivan</option><option>Convertible</option></select></Field>
         <Field label="State"><select value={form.state} onChange={set("state")} style={inputStyle}><option value="">Select state</option>{US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}</select></Field>
@@ -1753,6 +1790,7 @@ function ValueMyCar({ allListings, log }) {
             {result.compCount > 0
               ? `Based on depreciation modeling plus ${result.compCount} similar ${result.compCount === 1 ? "listing" : "listings"} currently on HIGHWAYLOT.`
               : "Based on depreciation modeling only — no similar listings on HIGHWAYLOT yet to compare against. Estimates get sharper as more real cars get listed."}
+            {!result.usedOriginalPrice && " You didn't enter what you paid, so this starts from a typical price for this body style rather than your car's actual purchase price — add it above for a tighter number."}
           </div>
 
           {form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance && (
