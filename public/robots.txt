@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /manage/
+Disallow: /admin/
+Disallow: /post/success
+Disallow: /quiz/results
+
+Sitemap: https://www.highwaylot.com/sitemap.xml

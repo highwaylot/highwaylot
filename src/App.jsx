@@ -5,6 +5,7 @@ import {
   TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign, Info
 } from "lucide-react";
 import { Routes, Route, useNavigate, useParams, useLocation, useSearchParams, Link } from "react-router-dom";
+import { Helmet } from "react-helmet-async";
 import { supabase } from "./lib/supabaseClient";
 
 // Category URL slugs — explicit map for body types (not naive lowercasing,
@@ -319,6 +320,28 @@ function CarThumb({ make, body, size = "normal" }) {
     </div>
   );
 }
+const SITE_URL = "https://www.highwaylot.com";
+
+// Per-page <title>/description/canonical/OG tags — without this every route
+// in this SPA inherits the same static tags from index.html, which means
+// Google sees duplicate titles across listings/categories and shared links
+// show the generic homepage preview instead of the actual car.
+function SEOHead({ title, description, path, image, noindex }) {
+  const canonicalUrl = path ? `${SITE_URL}${path}` : undefined;
+  return (
+    <Helmet>
+      {title && <title>{title}</title>}
+      {title && <meta property="og:title" content={title} />}
+      {description && <meta name="description" content={description} />}
+      {description && <meta property="og:description" content={description} />}
+      {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+      {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
+      {image && <meta property="og:image" content={image} />}
+      {noindex && <meta name="robots" content="noindex, nofollow" />}
+    </Helmet>
+  );
+}
+
 function Badge({ children, tone = "neutral" }) {
   const tones = { neutral: { bg: "#EFEDE4", color: C.steel }, verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "#FFF3D6", color: C.yellowDark }, danger: { bg: "#FBE4E3", color: "#A32D2D" } };
   const t = tones[tone];
@@ -577,6 +600,12 @@ function CategoryPage({ listings, openListing }) {
 
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 20px 60px" }}>
+      <SEOHead
+        title={`${title} | HIGHWAYLOT`}
+        description={`${matches.length} ${noun.toLowerCase()}${matches.length === 1 ? "" : "s"} for sale in ${stateName}, averaging ${fmtPrice(avgPrice)}. Browse real listings from private sellers, no dealer markups.`}
+        path={`/category/${kind}/${value}/${stateSlug}`}
+        noindex={matches.length === 0}
+      />
       <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 16, textDecoration: "none" }}><ChevronLeft size={15} /> Back to all listings</Link>
       <h1 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: "0 0 8px" }}>{title}</h1>
       <p style={{ color: C.steel, fontSize: 14.5, maxWidth: 640, marginBottom: 24 }}>
@@ -738,6 +767,7 @@ function Home({ allListings, recentlySold, log, openListing }) {
 
   return (
     <div>
+      <SEOHead path="/" />
       <Hero filters={filters} setFilters={setFilters} log={log} />
       <FeaturedStrip listings={allListings} onOpen={openListing} />
       <RecentlySold listings={recentlySold} onOpen={openListing} />
@@ -860,8 +890,43 @@ function ListingDetail({ allListings, log }) {
     );
   }
   const photos = listing.photos && listing.photos.length ? listing.photos : null;
+  const isListable = listing.status === "active" && !getExpiryInfo(listing).expired;
+  const seoTitle = `${listing.year} ${listing.make} ${listing.model}${listing.trim ? ` ${listing.trim}` : ""} — ${fmtPrice(listing.price)} | HIGHWAYLOT`;
+  const seoDescription = `${listing.year} ${listing.make} ${listing.model} for sale in ${listing.city}, ${listing.state}. ${fmtMiles(listing.mileage)} miles, ${listing.trans}, ${listing.fuel}. ${fmtPrice(listing.price)}.`;
+  // Vehicle structured data — lets Google show price/mileage/location directly
+  // in search results instead of just a link. https://schema.org/Vehicle
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Vehicle",
+    name: seoTitle,
+    vehicleModelDate: String(listing.year),
+    brand: listing.make,
+    model: listing.model,
+    mileageFromOdometer: { "@type": "QuantitativeValue", value: listing.mileage, unitCode: "SMI" },
+    fuelType: listing.fuel,
+    vehicleTransmission: listing.trans,
+    color: listing.color,
+    ...(photos ? { image: photos } : {}),
+    offers: {
+      "@type": "Offer",
+      price: listing.price,
+      priceCurrency: "USD",
+      availability: isListable ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+      areaServed: `${listing.city}, ${listing.state}`,
+    },
+  };
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px 60px" }}>
+      <SEOHead
+        title={seoTitle}
+        description={seoDescription}
+        path={`/listing/${listing.id}`}
+        image={photos ? photos[0] : undefined}
+        noindex={!isListable}
+      />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>
+      </Helmet>
       <span onClick={() => navigate(-1)} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 16 }}><ChevronLeft size={15} /> Back</span>
       {listing.status === "sold" && (
         <div style={{ background: "#EFEDE4", border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", marginBottom: 16, fontSize: 13.5, color: C.steel }}>This car has been marked sold — no longer available.</div>
@@ -3258,6 +3323,7 @@ function AdminPage() {
 function Terms() {
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
+      <SEOHead title="Terms of Service | HIGHWAYLOT" description="HIGHWAYLOT's terms of service — how the listing platform works, what we don't verify, and your responsibilities as a buyer or seller." path="/terms" />
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <FileText size={20} color={C.ink} /><h2 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: 0 }}>Terms of Service</h2>
       </div>
@@ -3288,6 +3354,7 @@ function Terms() {
 function PrivacyPolicy() {
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
+      <SEOHead title="Privacy Policy | HIGHWAYLOT" description="How HIGHWAYLOT collects, uses, and shares information — no account required, no ID needed to browse or list." path="/privacy" />
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <FileText size={20} color={C.ink} /><h2 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: 0 }}>Privacy Policy</h2>
       </div>
