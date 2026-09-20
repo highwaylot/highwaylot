@@ -1,72 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { ChevronLeft, X, Camera } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
-import { C, FONT_HEAD, YEARS, US_STATES, POPULAR_MAKES, inputStyle } from "../data/constants";
+import { C, FONT_HEAD, YEARS, US_STATES, inputStyle } from "../data/constants";
 import { fmtMiles, guessBodyStyle } from "../lib/format";
 import { compressImage } from "../lib/image";
 import { Field } from "../components/shared";
-import { IssuesGate } from "./ValueMyCar";
-
-export function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors, clearError }) {
-  const [customMake, setCustomMake] = useState(Boolean(make) && !POPULAR_MAKES.includes(make));
-  const [customModel, setCustomModel] = useState(false);
-  const [models, setModels] = useState([]);
-  const [loadingModels, setLoadingModels] = useState(false);
-
-  useEffect(() => {
-    if (customMake || !make) { setModels([]); return; }
-    setLoadingModels(true);
-    fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`)
-      .then((r) => r.json())
-      .then((data) => {
-        const names = Array.from(new Set((data.Results || []).map((m) => m.Model_Name))).sort();
-        setModels(names);
-      })
-      .catch(() => setModels([]))
-      .finally(() => setLoadingModels(false));
-  }, [make, customMake]);
-
-  const smallBtn = { fontSize: 11.5, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "0 10px", cursor: "pointer", color: C.steel, whiteSpace: "nowrap" };
-
-  return (
-    <>
-      <Field label="Make" required error={errors.make}>
-        {!customMake ? (
-          <select value={make} onChange={(e) => { if (e.target.value === "__other__") { setCustomMake(true); onMakeChange(""); } else { onMakeChange(e.target.value); setCustomModel(false); onModelChange(""); clearError && clearError("make"); } }} style={inputStyle}>
-            <option value="">Select make</option>
-            {POPULAR_MAKES.map((m) => <option key={m} value={m}>{m}</option>)}
-            <option value="__other__">Other (type it in)</option>
-          </select>
-        ) : (
-          <div style={{ display: "flex", gap: 6 }}>
-            <input value={make} onChange={(e) => { onMakeChange(e.target.value); clearError && clearError("make"); }} placeholder="Type the make" style={inputStyle} />
-            <button type="button" onClick={() => { setCustomMake(false); onMakeChange(""); }} style={smallBtn}>Use list</button>
-          </div>
-        )}
-      </Field>
-      <Field label="Model" required error={errors.model}>
-        {!customMake && !customModel ? (
-          <select
-            value={model}
-            onChange={(e) => { if (e.target.value === "__other__") { setCustomModel(true); onModelChange(""); } else { onModelChange(e.target.value); clearError && clearError("model"); } }}
-            style={inputStyle}
-            disabled={!make || loadingModels}
-          >
-            <option value="">{loadingModels ? "Loading models…" : make ? "Select model" : "Pick a make first"}</option>
-            {models.map((m) => <option key={m} value={m}>{m}</option>)}
-            <option value="__other__">Other (type it in)</option>
-          </select>
-        ) : (
-          <div style={{ display: "flex", gap: 6 }}>
-            <input value={model} onChange={(e) => { onModelChange(e.target.value); clearError && clearError("model"); }} placeholder="Type the model" style={inputStyle} />
-            {!customMake && <button type="button" onClick={() => { setCustomModel(false); onModelChange(""); }} style={smallBtn}>Use list</button>}
-          </div>
-        )}
-      </Field>
-    </>
-  );
-}
+import { MakeModelPicker, IssuesGate } from "../components/forms";
 
 export function PostAd({ onSubmit, existingListings, log }) {
   const navigate = useNavigate();
