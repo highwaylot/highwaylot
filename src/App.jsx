@@ -221,6 +221,79 @@ function getAttribution() {
   } catch { return { source: null, session_id: null }; }
 }
 
+// ---------- Turnstile (CAPTCHA on write forms) ----------
+// Site key is public by design (Cloudflare docs) — safe to ship in the
+// bundle. Set VITE_TURNSTILE_SITE_KEY in Vercel's env vars once you have a
+// Turnstile site. The matching secret key stays server-side only, read by
+// api/verify-turnstile.js — never put it here.
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
+
+let turnstileScriptPromise = null;
+function loadTurnstileScript() {
+  if (turnstileScriptPromise) return turnstileScriptPromise;
+  turnstileScriptPromise = new Promise((resolve, reject) => {
+    if (window.turnstile) { resolve(window.turnstile); return; }
+    const script = document.createElement("script");
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve(window.turnstile);
+    script.onerror = () => reject(new Error("Turnstile script failed to load"));
+    document.head.appendChild(script);
+  });
+  return turnstileScriptPromise;
+}
+
+// Renders a Turnstile challenge and hands the solved token to the caller via
+// onVerify. If VITE_TURNSTILE_SITE_KEY isn't set yet (e.g. local dev before
+// the Cloudflare site exists), it shows a note instead of a broken widget —
+// forms treat "not configured" as "can't submit" rather than silently
+// skipping the check.
+function TurnstileWidget({ onVerify, onExpire }) {
+  const containerRef = useRef(null);
+  const widgetId = useRef(null);
+
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return;
+    let cancelled = false;
+    loadTurnstileScript().then((turnstile) => {
+      if (cancelled || !containerRef.current || !turnstile) return;
+      widgetId.current = turnstile.render(containerRef.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        callback: onVerify,
+        "expired-callback": () => onExpire && onExpire(),
+        "error-callback": () => onExpire && onExpire(),
+      });
+    }).catch(() => onExpire && onExpire());
+    return () => {
+      cancelled = true;
+      if (widgetId.current != null && window.turnstile) window.turnstile.remove(widgetId.current);
+    };
+  }, []);
+
+  if (!TURNSTILE_SITE_KEY) {
+    return <div style={{ fontSize: 12, color: C.steel, padding: "8px 0" }}>CAPTCHA isn't configured yet (missing VITE_TURNSTILE_SITE_KEY) — this form is disabled until it is.</div>;
+  }
+  return <div ref={containerRef} />;
+}
+
+// Re-checks the token server-side (api/verify-turnstile.js calls Cloudflare's
+// siteverify with the secret key) — the client-side "solved" callback alone
+// can't be trusted since it's just JS running in the requester's browser.
+async function verifyTurnstileToken(token) {
+  if (!token) return false;
+  try {
+    const res = await fetch("/api/verify-turnstile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    return !!data.success;
+  } catch { return false; }
+}
+
 function useAnalytics() {
   const log = (type, payload = {}) => {
     let src = null, sessionId = null;
@@ -942,6 +1015,7 @@ function PostAd({ onSubmit, existingListings, log }) {
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
   const set = (k) => (e) => { const val = e.target.value; setForm((prev) => ({ ...prev, [k]: val })); setErrors((prev) => (prev[k] ? { ...prev, [k]: false } : prev)); };
   // For number-only fields (price, mileage, loan balance) — strips anything
   // that isn't a digit as it's typed, so a letter or stray comma literally
@@ -984,6 +1058,10 @@ function PostAd({ onSubmit, existingListings, log }) {
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
     if (possibleDuplicate) log("listing_duplicate_confirmed", { matchedId: possibleDuplicate.id });
+    if (TURNSTILE_SITE_KEY && !(await verifyTurnstileToken(captchaToken))) {
+      setSubmitError("CAPTCHA verification failed — please complete the challenge and try again.");
+      return;
+    }
     setSubmitting(true);
 
     // Real upload, not a throwaway blob URL — this is what actually fixes
@@ -1095,7 +1173,8 @@ function PostAd({ onSubmit, existingListings, log }) {
           Couldn't publish your listing: {submitError}. Nothing was lost — fix this and try again.
         </div>
       )}
-      <button onClick={submit} disabled={submitting} style={{ marginTop: 18, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: submitting ? "default" : "pointer", opacity: submitting ? 0.7 : 1 }}>{submitting ? "Publishing…" : "Publish listing"}</button>
+      <div style={{ marginTop: 18 }}><TurnstileWidget onVerify={setCaptchaToken} onExpire={() => setCaptchaToken(null)} /></div>
+      <button onClick={submit} disabled={submitting || (!!TURNSTILE_SITE_KEY && !captchaToken)} style={{ marginTop: 12, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: (submitting || (!!TURNSTILE_SITE_KEY && !captchaToken)) ? "default" : "pointer", opacity: (submitting || (!!TURNSTILE_SITE_KEY && !captchaToken)) ? 0.7 : 1 }}>{submitting ? "Publishing…" : "Publish listing"}</button>
     </div>
   );
 }
@@ -1230,6 +1309,7 @@ function scoreQuiz(answers) {
 function Quiz({ log, onComplete }) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [captchaToken, setCaptchaToken] = useState(null);
   const s = QUIZ_STATEMENTS[step];
   const progress = Math.round((step / QUIZ_STATEMENTS.length) * 100);
 
@@ -1238,8 +1318,23 @@ function Quiz({ log, onComplete }) {
     setAnswers(next);
     log("quiz_answer", { question: s.key, answer: val });
     if (step + 1 < QUIZ_STATEMENTS.length) setStep(step + 1);
-    else { log("quiz_complete", next); onComplete(next); }
+    else { log("quiz_complete", next); onComplete(next, captchaToken); }
   };
+
+  // Gated up front rather than per-answer — one challenge for the whole
+  // quiz, not five, and it keeps the response insert (on the last answer)
+  // covered without interrupting the flow mid-quiz.
+  if (TURNSTILE_SITE_KEY && !captchaToken) {
+    return (
+      <div style={{ maxWidth: 520, margin: "0 auto", padding: "48px 20px", textAlign: "center" }}>
+        <h2 style={{ fontFamily: FONT_HEAD, fontSize: 25, color: C.ink, margin: "0 0 12px" }}>Quick check before we start</h2>
+        <p style={{ color: C.steel, fontSize: 14, marginBottom: 20 }}>Confirm you're not a robot, then the quiz will start.</p>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <TurnstileWidget onVerify={setCaptchaToken} onExpire={() => setCaptchaToken(null)} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: 520, margin: "0 auto", padding: "48px 20px" }}>
@@ -1708,6 +1803,7 @@ function ValueMyCar({ allListings, log }) {
   const [result, setResult] = useState(null);
   const [saveError, setSaveError] = useState(null);
   const [errors, setErrors] = useState({});
+  const [captchaToken, setCaptchaToken] = useState(null);
   const [stateRates, setStateRates] = useState({}); // { "Florida": { multiplier: 0.95 }, ... } — only states we have real data for
   const set = (k) => (e) => { const val = e.target.value; setForm((prev) => ({ ...prev, [k]: val })); setErrors((prev) => (prev[k] ? { ...prev, [k]: false } : prev)); };
   const setNumeric = (k) => (e) => { const val = e.target.value.replace(/[^0-9]/g, ""); setForm((prev) => ({ ...prev, [k]: val })); setErrors((prev) => (prev[k] ? { ...prev, [k]: false } : prev)); };
@@ -1732,6 +1828,11 @@ function ValueMyCar({ allListings, log }) {
     const errs = {}; req.forEach((k) => { if (!String(form[k]).trim()) errs[k] = true; });
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
+    setSaveError(null);
+    if (TURNSTILE_SITE_KEY && !(await verifyTurnstileToken(captchaToken))) {
+      setSaveError("CAPTCHA verification failed — please complete the challenge and try again.");
+      return;
+    }
 
     const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice), body: form.body, regionalMultiplier };
     const res = estimateValue(input, allListings, issues);
@@ -1772,7 +1873,11 @@ function ValueMyCar({ allListings, log }) {
         <IssuesGate issues={issues} onChange={setIssues} context="valuation" />
       </div>
 
-      <button onClick={submit} style={{ marginTop: 20, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: "pointer" }}>Get my estimate</button>
+      <div style={{ marginTop: 20 }}><TurnstileWidget onVerify={setCaptchaToken} onExpire={() => setCaptchaToken(null)} /></div>
+      <button onClick={submit} disabled={!!TURNSTILE_SITE_KEY && !captchaToken} style={{ marginTop: 12, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: (!!TURNSTILE_SITE_KEY && !captchaToken) ? "default" : "pointer", opacity: (!!TURNSTILE_SITE_KEY && !captchaToken) ? 0.7 : 1 }}>Get my estimate</button>
+      {saveError && !result && (
+        <div style={{ marginTop: 12, background: "#FBE4E3", color: "#A32D2D", fontSize: 12.5, padding: "8px 12px", borderRadius: 6 }}>{saveError}</div>
+      )}
 
       {result && (
         <div style={{ marginTop: 28, border: `1px solid ${C.line}`, borderRadius: 8, padding: 24, textAlign: "center" }}>
@@ -3334,11 +3439,15 @@ export default function App() {
 
   // handleBoost removed in v15, shelved — see shelved-boost-feature.jsx
 
-  const handleQuizComplete = async (answers) => {
+  const handleQuizComplete = async (answers, captchaToken) => {
     const archetype = scoreQuiz(answers).name;
-    supabase.from("quiz_responses").insert({ answers, archetype, ...getAttribution() }).then(({ error }) => {
-      if (error) console.error("quiz save failed:", error.message);
-    });
+    if (!TURNSTILE_SITE_KEY || (await verifyTurnstileToken(captchaToken))) {
+      supabase.from("quiz_responses").insert({ answers, archetype, ...getAttribution() }).then(({ error }) => {
+        if (error) console.error("quiz save failed:", error.message);
+      });
+    } else {
+      console.error("quiz save skipped: CAPTCHA verification failed");
+    }
     log("quiz_complete", answers);
     navigate("/quiz/results", { state: { answers } });
   };
