@@ -3154,21 +3154,57 @@ function Terms() {
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <FileText size={20} color={C.ink} /><h2 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: 0 }}>Terms summary</h2>
+        <FileText size={20} color={C.ink} /><h2 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: 0 }}>Terms of Service</h2>
       </div>
-      <p style={{ color: C.steel, fontSize: 13, marginBottom: 20 }}>Plain-language summary — the full legal terms would live here before launch.</p>
+      <p style={{ color: C.steel, fontSize: 13, marginBottom: 20 }}>By using HIGHWAYLOT, you agree to the following terms.</p>
       {[
         ["We're a listing platform, not a party to any sale.", "HIGHWAYLOT connects buyers and sellers. We are not involved in, and do not facilitate, the actual exchange of money or the vehicle."],
         ["We don't verify listings.", "We don't inspect vehicles, confirm seller identity, or check vehicle history unless explicitly noted on a listing. Buyers are responsible for their own due diligence."],
         ["No ID required to list or browse.", "You don't need to submit identification to use HIGHWAYLOT. Contact info is only shared when you choose to reveal it."],
         ["Transactions are at your own risk.", "Meet in public, verify the vehicle in person, and use secure payment methods. HIGHWAYLOT does not mediate disputes between buyers and sellers."],
+        ["Data collection and use.", "Using HIGHWAYLOT means you consent to the data collection and use described in our Privacy Policy, including analytics, research, and the potential licensing or sharing of aggregated or anonymized usage data."],
+        ["Prohibited use.", "You may not post fraudulent listings, scrape the site, or spam or harass other users. HIGHWAYLOT may remove listings or restrict access at its discretion."],
+        ["No warranty; limitation of liability.", "HIGHWAYLOT is provided on an \"as is\" basis, without warranties of any kind. To the fullest extent permitted by law, HIGHWAYLOT is not liable for any damages arising from your use of the site."],
+        ["Changes to these terms.", "These terms may be updated from time to time. Continued use of HIGHWAYLOT after changes are posted constitutes acceptance of the revised terms."],
       ].map(([title, body], i) => (
         <div key={i} style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 4 }}>{title}</div>
           <div style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6 }}>{body}</div>
         </div>
       ))}
-      <Link to="/" style={{ marginTop: 8, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none", display: "inline-block", color: C.ink }}>Back</Link>
+      <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+        <Link to="/" style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none", display: "inline-block", color: C.ink }}>Back</Link>
+        <Link to="/privacy" style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none", display: "inline-block", color: C.ink }}>Privacy Policy</Link>
+      </div>
+    </div>
+  );
+}
+
+function PrivacyPolicy() {
+  return (
+    <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+        <FileText size={20} color={C.ink} /><h2 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: 0 }}>Privacy Policy</h2>
+      </div>
+      <p style={{ color: C.steel, fontSize: 13, marginBottom: 20 }}>How HIGHWAYLOT collects, uses, and shares information.</p>
+      {[
+        ["No account required.", "You don't need to create an account to browse or post on HIGHWAYLOT. Contact info is only shared when you choose to reveal it."],
+        ["What we collect.", "We collect usage data — searches, filters, pages viewed, quiz responses, and valuation requests — as well as standard technical data like IP address, browser, and device. This is tracked via a browser session identifier, not a login."],
+        ["How we use it.", "We use this data to operate and improve the site and to understand search and valuation behavior, including analytics and research. Aggregated or anonymized data may be analyzed, licensed, or shared with third parties such as advertisers or market-research partners. We do not sell or share personally identifying information without your consent."],
+        ["Listing information is public.", "Details you include in a listing — year, make, model, price, description, photos, and phone number if given — are publicly visible. Don't post anything you don't want public."],
+        ["California residents (CCPA).", "California residents have rights under the CCPA regarding the sale or sharing of personal information, including the right to opt out. Contact hugo@highwaylot.com to make a request."],
+        ["Cookies and local storage.", "We use session storage to hold basic session info — like referral source and recent searches — for the duration of your visit only. This is not tied to your real identity."],
+        ["Changes to this policy.", "This policy may be updated from time to time. Continued use of HIGHWAYLOT after changes are posted constitutes acceptance of the revised policy."],
+      ].map(([title, body], i) => (
+        <div key={i} style={{ marginBottom: 18 }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 4 }}>{title}</div>
+          <div style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6 }}>{body}</div>
+        </div>
+      ))}
+      <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+        <Link to="/" style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none", display: "inline-block", color: C.ink }}>Back</Link>
+        <Link to="/terms" style={{ background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none", display: "inline-block", color: C.ink }}>Terms of Service</Link>
+      </div>
     </div>
   );
 }
@@ -3181,6 +3217,7 @@ function Footer() {
         <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12.5 }}>HIGHWAYLOT — buy and sell cars nationwide.</div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <Link to="/terms" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Terms</Link>
+          <Link to="/privacy" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Privacy</Link>
           <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>United States only, for now.</div>
         </div>
       </div>
@@ -3346,6 +3383,7 @@ export default function App() {
         <Route path="/quiz/results" element={<QuizResults allListings={visibleListings} openListing={openListing} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/admin/:secret" element={<AdminPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
