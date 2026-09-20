@@ -19,6 +19,7 @@ import { QuizResults } from "./pages/QuizResults";
 import { ManagePage } from "./pages/ManagePage";
 import { Terms } from "./pages/Terms";
 import { NotFound } from "./pages/NotFound";
+import { ChunkErrorBoundary } from "./components/ChunkErrorBoundary";
 
 // AdminPage is lazy-loaded — it's the least-visited/heaviest page (dashboard,
 // charts, tables), so there's no reason to ship it in the main bundle.
@@ -144,7 +145,7 @@ export default function App() {
         <Route path="/quiz/results" element={<QuizResults allListings={visibleListings} openListing={openListing} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
         <Route path="/terms" element={<Terms />} />
-        <Route path="/admin/:secret" element={<Suspense fallback={<div style={{ textAlign: "center", padding: "80px 20px", color: C.steel }}>Loading admin…</div>}><AdminPage /></Suspense>} />
+        <Route path="/admin/:secret" element={<ChunkErrorBoundary><Suspense fallback={<div style={{ textAlign: "center", padding: "80px 20px", color: C.steel }}>Loading admin…</div>}><AdminPage /></Suspense></ChunkErrorBoundary>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Footer />
