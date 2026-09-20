@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, lazy, Suspense } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "./lib/supabaseClient";
 import { LISTING_COLUMNS, FONT_BODY, FONT_HEAD, C } from "./data/constants";
@@ -19,11 +19,7 @@ import { QuizResults } from "./pages/QuizResults";
 import { ManagePage } from "./pages/ManagePage";
 import { Terms } from "./pages/Terms";
 import { NotFound } from "./pages/NotFound";
-import { ChunkErrorBoundary } from "./components/ChunkErrorBoundary";
-
-// AdminPage is lazy-loaded — it's the least-visited/heaviest page (dashboard,
-// charts, tables), so there's no reason to ship it in the main bundle.
-const AdminPage = lazy(() => import("./pages/AdminPage").then((m) => ({ default: m.AdminPage })));
+import { AdminPage } from "./pages/AdminPage";
 
 // 90-day expiry, computed on read rather than stored — a listing "expires"
 // the moment 90 days pass since its last real price change (price_updated_at),
@@ -145,7 +141,7 @@ export default function App() {
         <Route path="/quiz/results" element={<QuizResults allListings={visibleListings} openListing={openListing} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
         <Route path="/terms" element={<Terms />} />
-        <Route path="/admin/:secret" element={<ChunkErrorBoundary><Suspense fallback={<div style={{ textAlign: "center", padding: "80px 20px", color: C.steel }}>Loading admin…</div>}><AdminPage /></Suspense></ChunkErrorBoundary>} />
+        <Route path="/admin/:secret" element={<AdminPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Footer />
