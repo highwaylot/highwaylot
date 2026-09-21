@@ -765,14 +765,23 @@ function Home({ allListings, recentlySold, log, openListing }) {
     if (sort === "miles") list = [...list].sort((a, b) => a.mileage - b.mileage);
     return list;
   }, [allListings, filters, sort]);
+  // Once someone's actively searching/filtering, featured/recently-sold/
+  // popular-searches are noise between them and their actual results — real
+  // reported behavior: searching "honda" still showed an unrelated featured
+  // Kia before any real matches. Hide all three while a search is active.
+  const hasActiveFilters = Boolean(filters.query || filters.state || filters.make || filters.price || filters.mileage || filters.seller || filters.age);
 
   return (
     <div>
       <SEOHead path="/" />
       <Hero filters={filters} setFilters={setFilters} log={log} />
-      <FeaturedStrip listings={allListings} onOpen={openListing} />
-      <RecentlySold listings={recentlySold} onOpen={openListing} />
-      <PopularSearches listings={allListings} onOpenCategory={(cat) => { log("category_view", cat); navigate(categoryToPath(cat)); }} />
+      {!hasActiveFilters && (
+        <>
+          <FeaturedStrip listings={allListings} onOpen={openListing} />
+          <RecentlySold listings={recentlySold} onOpen={openListing} />
+          <PopularSearches listings={allListings} onOpenCategory={(cat) => { log("category_view", cat); navigate(categoryToPath(cat)); }} />
+        </>
+      )}
       <FilterBar filters={filters} setFilters={setFilters} count={filtered.length} sort={sort} setSort={setSort} log={log} />
       <SavedSearchPrompt filters={filters} log={log} />
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px 60px" }}>
