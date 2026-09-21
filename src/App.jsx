@@ -464,9 +464,9 @@ const inputStyle = { width: "100%", border: `1.5px solid ${C.line}`, borderRadiu
 function ListingCard({ listing, onOpen }) {
   const photo = listing.photos && listing.photos.length ? listing.photos[0] : null;
   return (
-    <div onClick={() => onOpen(listing.id)} style={{ background: C.card, border: listing.featured ? `2px solid ${C.yellow}` : `1.5px solid ${C.line}`, borderRadius: 6, cursor: "pointer", overflow: "hidden" }}>
+    <div className="hl-listing-card" onClick={() => onOpen(listing.id)} style={{ background: C.card, border: listing.featured ? `2px solid ${C.yellow}` : `1.5px solid ${C.line}`, borderRadius: 6, cursor: "pointer", overflow: "hidden" }}>
       {photo ? (
-        <img src={photo} alt={`${listing.year} ${listing.make} ${listing.model}`} style={{ width: "100%", height: 160, objectFit: "cover", display: "block" }} />
+        <img src={photo} alt={`${listing.year} ${listing.make} ${listing.model}`} style={{ width: "100%", height: 200, objectFit: "cover", display: "block" }} />
       ) : (
         <CarThumb make={listing.make} body={listing.body} />
       )}
@@ -3663,6 +3663,15 @@ export default function App() {
         .hl-spec-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 18px; }
         @media (max-width: 720px) { .hl-detail-grid { grid-template-columns: 1fr; gap: 24px; } }
         @media (max-width: 480px) { .hl-form-grid { grid-template-columns: 1fr; } .hl-spec-grid { grid-template-columns: 1fr 1fr; } }
+        /* jev-tested (round: "listing cards" pass) — hover motion tested as
+           higher-leverage than bigger photos alone for the "feels alive"
+           goal, sequenced after a photo-size bump so it has something more
+           dominant to actually move. Kept to transform/shadow only — no
+           animation library, cheap and broadly supported. */
+        .hl-listing-card { transition: transform 160ms ease, box-shadow 160ms ease; }
+        .hl-listing-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(27,36,49,0.12); }
+        .hl-listing-card img { transition: transform 220ms ease; }
+        .hl-listing-card:hover img { transform: scale(1.04); }
       `}</style>
       <ScrollToTop />
       <TopBar onPost={() => navigate("/post")} />
