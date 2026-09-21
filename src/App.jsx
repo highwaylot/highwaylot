@@ -1814,13 +1814,63 @@ const BODY_DEPRECIATION_CURVES = {
   Hatchback: { year1: 0.79, after: 0.87, floor: 0.15 },
   Sedan: { year1: 0.80, after: 0.88, floor: 0.15 },
 };
-// Used only as a fallback anchor when the seller doesn't know/won't give what
-// they paid — a rough "typical new price for this body style" starting point,
-// not a stand-in for real MSRP data. Comps (once there are any) still pull
-// harder than this the moment they exist.
+// Used only as a last-resort fallback anchor — a car whose make isn't in
+// MAKE_BASE_PRICE below (an obscure/custom-typed make) still needs some
+// starting point. Comps (once there are any) still pull harder than any of
+// these tiers the moment they exist.
 const TYPICAL_NEW_PRICE_BY_BODY = {
   Sedan: 28000, Coupe: 32000, Hatchback: 24000, SUV: 38000, Truck: 45000, "Van/Minivan": 36000, Convertible: 40000,
 };
+
+// Reasoned typical-new-price-by-make figures, checked September 2026 —
+// hand-compiled from general market knowledge, not a live-scraped or
+// licensed data feed (no budget for that pre-launk). Same honesty pattern as
+// BRAND_REPAIR_COST above: worth periodically re-checking against real
+// prices, not treated as exact forever. Covers the same makes as
+// POPULAR_MAKES; anything typed in as a custom make falls through to the
+// body-style number below instead.
+const MAKE_BASE_PRICE = {
+  Ford: 42000, Toyota: 32000, Honda: 29000, Chevrolet: 40000, Jeep: 38000, Ram: 48000, GMC: 46000,
+  Nissan: 30000, Hyundai: 27000, Kia: 27000, Subaru: 30000, Volkswagen: 30000, BMW: 55000,
+  "Mercedes-Benz": 58000, Audi: 52000, Lexus: 48000, Mazda: 28000, Dodge: 36000, Chrysler: 33000,
+  Buick: 32000, Cadillac: 56000, Tesla: 45000, Mitsubishi: 26000, Volvo: 44000, Acura: 38000,
+};
+
+// Model-specific figures for the highest-volume models only — deliberately
+// narrow. jev-tested: broader coverage (50+ models) adds hand-maintenance
+// burden without proportional accuracy benefit (score 0.45/3), so this stays
+// scoped to the models that actually move the needle for most valuations.
+// Keys are lowercased for matching against whatever casing the model field
+// (NHTSA-sourced or custom-typed) happens to have.
+const MODEL_BASE_PRICE = {
+  Toyota: { camry: 28000, corolla: 23000, rav4: 30000, highlander: 40000, tacoma: 34000, tundra: 44000 },
+  Honda: { civic: 25000, accord: 28000, "cr-v": 31000, crv: 31000, pilot: 40000, odyssey: 38000 },
+  Ford: { "f-150": 45000, f150: 45000, explorer: 40000, escape: 30000, mustang: 32000, "bronco sport": 30000 },
+  Chevrolet: { silverado: 46000, equinox: 30000, malibu: 27000, tahoe: 56000, traverse: 37000 },
+  Ram: { "1500": 48000, 1500: 48000 },
+  Jeep: { "grand cherokee": 42000, wrangler: 38000, cherokee: 30000, compass: 28000 },
+  Nissan: { altima: 27000, rogue: 30000, sentra: 22000 },
+  Hyundai: { elantra: 22000, tucson: 29000, "santa fe": 33000 },
+  Kia: { forte: 22000, sportage: 29000, telluride: 40000 },
+  Subaru: { outback: 31000, forester: 29000, crosstrek: 26000 },
+  Tesla: { "model 3": 42000, "model y": 47000 },
+};
+// Resolves the anchor price for a valuation in tiers: model-specific first
+// (most accurate, narrow coverage), then make-level (broad, less precise),
+// then body-style (last resort for makes we don't have figures for at all).
+// Returns which tier was actually used so the UI can be honest about it,
+// same pattern as hasBrandData/hasStateData elsewhere in this tool.
+function getPricingAnchor(make, model, body) {
+  const modelTable = MODEL_BASE_PRICE[make];
+  if (modelTable && model) {
+    const modelKey = model.toLowerCase().trim();
+    const hit = modelTable[modelKey] ?? Object.entries(modelTable).find(([k]) => modelKey.includes(k))?.[1];
+    if (hit) return { price: hit, tier: "model" };
+  }
+  if (MAKE_BASE_PRICE[make]) return { price: MAKE_BASE_PRICE[make], tier: "make" };
+  return { price: TYPICAL_NEW_PRICE_BY_BODY[body] || TYPICAL_NEW_PRICE_BY_BODY.Sedan, tier: "body" };
+}
+
 function estimateValue(input, allListings, issues = {}) {
   const age = Math.max(new Date().getFullYear() - input.year, 0);
   const curve = BODY_DEPRECIATION_CURVES[input.body] || BODY_DEPRECIATION_CURVES.Sedan;
@@ -1829,7 +1879,8 @@ function estimateValue(input, allListings, issues = {}) {
   retained = Math.max(retained, curve.floor);
 
   const usedOriginalPrice = Boolean(input.originalPrice) && input.originalPrice > 0;
-  const anchorPrice = usedOriginalPrice ? input.originalPrice : (TYPICAL_NEW_PRICE_BY_BODY[input.body] || TYPICAL_NEW_PRICE_BY_BODY.Sedan);
+  const pricingAnchor = getPricingAnchor(input.make, input.model, input.body);
+  const anchorPrice = usedOriginalPrice ? input.originalPrice : pricingAnchor.price;
   const basePrice = anchorPrice * retained;
 
   const expectedMileage = age * 12000;
@@ -1858,7 +1909,7 @@ function estimateValue(input, allListings, issues = {}) {
   const floor = Math.max(estimate * 0.1, 400);
   estimate = Math.max(estimate - mechanicalDeduction, floor);
 
-  return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown, brandMult, hasBrandData, usedOriginalPrice };
+  return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown, brandMult, hasBrandData, usedOriginalPrice, anchorTier: pricingAnchor.tier };
 }
 
 function ValueMyCar({ allListings, log }) {
@@ -1960,7 +2011,10 @@ function ValueMyCar({ allListings, log }) {
             {result.compCount > 0
               ? `Based on depreciation modeling plus ${result.compCount} similar ${result.compCount === 1 ? "listing" : "listings"} currently on HIGHWAYLOT.`
               : "Based on depreciation modeling only — no similar listings on HIGHWAYLOT yet to compare against. Estimates get sharper as more real cars get listed."}
-            {!result.usedOriginalPrice && " You didn't enter what you paid, so this starts from a typical price for this body style rather than your car's actual purchase price — add it above for a tighter number."}
+            {!result.usedOriginalPrice && (() => {
+              const anchorDesc = result.anchorTier === "model" ? `a typical price for the ${form.make} ${form.model}` : result.anchorTier === "make" ? `a typical price for ${form.make} vehicles` : "a typical price for this body style";
+              return ` You didn't enter what you paid, so this starts from ${anchorDesc} rather than your car's actual purchase price — add it above for a tighter number.`;
+            })()}
           </div>
 
           {form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance && (
