@@ -3557,6 +3557,37 @@ function getExpiryInfo(listing) {
   const daysLeft = Math.ceil((expiresAt - Date.now()) / 86400000);
   return { expired: daysLeft <= 0, daysLeft };
 }
+// jev-tested (0.69): a shimmer skeleton reads as "alive/responsive" in a way
+// abrupt content-just-appearing doesn't. Mimics the homepage's actual shape
+// (hero bar + card grid) rather than a generic spinner, so the transition to
+// real content doesn't jump around once it loads.
+function LoadingSkeleton() {
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      {/* Self-contained style tag — this renders before App's own shared
+          <style> block mounts (it's an early return, ahead of that JSX). */}
+      <style>{`
+        .hl-skeleton { background: linear-gradient(90deg, #EFEDE4 25%, #E4E1D5 37%, #EFEDE4 63%); background-size: 400% 100%; animation: hl-shimmer 1.4s ease infinite; }
+        @keyframes hl-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+      `}</style>
+      <div style={{ height: 220, background: C.ink }} />
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} style={{ border: `1.5px solid ${C.line}`, borderRadius: 6, overflow: "hidden" }}>
+              <div className="hl-skeleton" style={{ height: 200 }} />
+              <div style={{ padding: 14 }}>
+                <div className="hl-skeleton" style={{ height: 16, width: "70%", borderRadius: 3, marginBottom: 8 }} />
+                <div className="hl-skeleton" style={{ height: 22, width: "45%", borderRadius: 3 }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function isVisibleOnBrowse(listing) {
   if (listing.status === "sold") return false;
   return !getExpiryInfo(listing).expired;
@@ -3640,7 +3671,7 @@ export default function App() {
   const isManageRoute = location.pathname.startsWith("/manage/") || location.pathname.startsWith("/admin/");
 
   if (!isManageRoute && loading) {
-    return <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_BODY, color: C.steel }}>Loading listings…</div>;
+    return <LoadingSkeleton />;
   }
   if (!isManageRoute && fetchError) {
     return (
