@@ -250,7 +250,7 @@ function loadTurnstileScript() {
 // the Cloudflare site exists), it shows a note instead of a broken widget —
 // forms treat "not configured" as "can't submit" rather than silently
 // skipping the check.
-function TurnstileWidget({ onVerify, onExpire }) {
+function TurnstileWidget({ onVerify, onExpire, size = "normal" }) {
   const containerRef = useRef(null);
   const widgetId = useRef(null);
 
@@ -261,6 +261,7 @@ function TurnstileWidget({ onVerify, onExpire }) {
       if (cancelled || !containerRef.current || !turnstile) return;
       widgetId.current = turnstile.render(containerRef.current, {
         sitekey: TURNSTILE_SITE_KEY,
+        size,
         callback: onVerify,
         "expired-callback": () => onExpire && onExpire(),
         "error-callback": () => onExpire && onExpire(),
@@ -1745,17 +1746,24 @@ const NO_ISSUES_STATE = { engine: "Fixed", transmission: "Fixed", body: "Fixed",
 function IssuesGate({ issues, onChange, context = "listing" }) {
   const [mode, setMode] = useState(null); // null | "none" | "some"
   const introText = context === "valuation"
-    ? "Optional — but honest detail here gets you a more accurate estimate."
+    ? "Optional, takes about 10 seconds — but honest detail here gets you a more accurate estimate."
     : "Optional — but honest detail here builds more buyer trust than leaving it blank.";
+  // Valuation gets a visually lighter entry card than the listing flow —
+  // jev-tested: even opt-in, this section risked reading as invasive enough
+  // to scare off a casual, uncommitted visitor before they'd gotten a
+  // number (0.71 noul). Same content and buttons, just less weight up front.
+  const lightweight = context === "valuation";
 
   if (mode === null) {
     return (
-      <div style={{ background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 8, padding: 20 }}>
+      <div style={lightweight
+        ? { borderTop: `1px solid ${C.line}`, paddingTop: 14 }
+        : { background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 8, padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-          <div style={{ width: 4, height: 20, background: C.yellow, borderRadius: 2 }} />
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink }}>Any known issues?</div>
+          {!lightweight && <div style={{ width: 4, height: 20, background: C.yellow, borderRadius: 2 }} />}
+          <div style={{ fontFamily: FONT_HEAD, fontSize: lightweight ? 14 : 16, color: C.ink }}>Any known issues?</div>
         </div>
-        <p style={{ fontSize: 13, color: C.steel, marginBottom: 14 }}>{introText}</p>
+        <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 12 }}>{introText}</p>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           <button onClick={() => { onChange(NO_ISSUES_STATE); setMode("none"); }} style={{ flex: "1 1 160px", background: C.greenBg, color: C.green, border: "none", borderRadius: 6, padding: "12px 8px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer" }}>No, it's in good shape</button>
           <button onClick={() => setMode("some")} style={{ flex: "1 1 160px", background: "#fff", color: C.ink, border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 8px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer" }}>Yes, let me note a few things</button>
@@ -1912,6 +1920,25 @@ function estimateValue(input, allListings, issues = {}) {
   return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown, brandMult, hasBrandData, usedOriginalPrice, anchorTier: pricingAnchor.tier };
 }
 
+// The "dopamine bar" — jev-tested UX spec: a filling meter with a live
+// dollar figure, not a plain ticking number (0.81 noul), that only appears
+// once all required fields are done rather than teasing a number too early.
+function LiveValueBar({ estimate, percent }) {
+  if (!estimate) return null;
+  return (
+    <div style={{ marginTop: 20, background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 8, padding: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+        <span style={{ fontSize: 12, color: C.steel, textTransform: "uppercase", letterSpacing: 0.4 }}>Live estimate</span>
+        <span style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 22, color: C.ink }}>{fmtPrice(estimate)}</span>
+      </div>
+      <div style={{ height: 10, background: "#EFEDE4", borderRadius: 6, overflow: "hidden" }}>
+        <div style={{ height: "100%", width: `${percent}%`, background: C.yellow, transition: "width 300ms ease" }} />
+      </div>
+      <div style={{ fontSize: 11.5, color: C.steel, marginTop: 6 }}>Fill in more details below to sharpen this number.</div>
+    </div>
+  );
+}
+
 function ValueMyCar({ allListings, log }) {
   const navigate = useNavigate();
   const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "" });
@@ -1938,6 +1965,20 @@ function ValueMyCar({ allListings, log }) {
 
   const hasStateData = form.state && stateRates[form.state] !== undefined;
   const regionalMultiplier = hasStateData ? stateRates[form.state] : 1.0;
+
+  // Live dollar-bar preview — jev-tested spec: stays dormant through the
+  // required fields (showing a number after just 1-2 fields tested as
+  // gimmicky, 0.80 noul), activates the moment all 4 required fields are
+  // filled, then sharpens further as optional fields fill in. This is a
+  // local-only preview, never logged/saved — only the real submit() does that.
+  const requiredFilled = form.year && form.make && form.model && form.mileage && Number(form.mileage) > 0;
+  const liveEstimate = useMemo(() => {
+    if (!requiredFilled) return null;
+    const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice), body: form.body, regionalMultiplier };
+    return estimateValue(input, allListings, issues);
+  }, [requiredFilled, form.year, form.make, form.model, form.mileage, form.condition, form.originalPrice, form.body, regionalMultiplier, allListings, issues]);
+  const optionalSignals = [Boolean(form.originalPrice), Boolean(form.state), Object.keys(issues).length > 0].filter(Boolean).length;
+  const fillPercent = !requiredFilled ? 0 : 60 + (optionalSignals / 3) * 40;
 
   const submit = async () => {
     const req = ["year", "make", "model", "mileage"]; // originalPrice is optional now — estimateValue() falls back to a typical-price-by-body-style anchor when it's blank
@@ -1985,11 +2026,20 @@ function ValueMyCar({ allListings, log }) {
         )}
       </div>
 
+      <LiveValueBar estimate={liveEstimate?.estimate} percent={fillPercent} />
+
       <div style={{ marginTop: 22 }}>
         <IssuesGate issues={issues} onChange={setIssues} context="valuation" />
       </div>
 
-      <div style={{ marginTop: 20 }}><TurnstileWidget onVerify={setCaptchaToken} onExpire={() => setCaptchaToken(null)} /></div>
+      {/* Lighter/smaller than the post-ad CAPTCHA — jev-tested: this exact
+          spot risked feeling like a fresh obstacle right after the dollar-bar
+          momentum (score 2.36/3), so it stays put but reads as a quick,
+          low-weight check rather than a wall before submit. */}
+      <div style={{ marginTop: 20 }}>
+        <div style={{ fontSize: 11.5, color: C.steel, marginBottom: 6 }}>Quick check before we save this</div>
+        <TurnstileWidget onVerify={setCaptchaToken} onExpire={() => setCaptchaToken(null)} size="compact" />
+      </div>
       <button onClick={submit} disabled={!!TURNSTILE_SITE_KEY && !captchaToken} style={{ marginTop: 12, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: (!!TURNSTILE_SITE_KEY && !captchaToken) ? "default" : "pointer", opacity: (!!TURNSTILE_SITE_KEY && !captchaToken) ? 0.7 : 1 }}>Get my estimate</button>
       {saveError && !result && (
         <div style={{ marginTop: 12, background: "#FBE4E3", color: "#A32D2D", fontSize: 12.5, padding: "8px 12px", borderRadius: 6 }}>{saveError}</div>
@@ -2005,7 +2055,12 @@ function ValueMyCar({ allListings, log }) {
           <div style={{ fontSize: 12.5, color: C.steel, textTransform: "uppercase", letterSpacing: 0.4 }}>Estimated value</div>
           <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(28px, 9vw, 40px)", color: C.ink, margin: "8px 0" }}>{fmtPrice(result.estimate)}</div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <Badge tone={result.confidence === "High" ? "verified" : result.confidence === "Medium" ? "yellow" : "neutral"}>{result.confidence} confidence</Badge>
+            {result.compCount > 0
+              ? <Badge tone={result.confidence === "High" ? "verified" : result.confidence === "Medium" ? "yellow" : "neutral"}>{result.confidence} confidence</Badge>
+              /* No real comps yet — this is a formula estimate, full stop. A colored
+                 "confidence" badge here would read as more data-backed than it
+                 actually is (jev-tested, 0.82 noul), so this stays plain text. */
+              : <span style={{ fontSize: 12, color: C.steel }}>Formula-based estimate — no comparable listings yet to confirm it against</span>}
           </div>
           <div style={{ fontSize: 12.5, color: C.steel, marginTop: 12, lineHeight: 1.5 }}>
             {result.compCount > 0
