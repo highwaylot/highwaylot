@@ -229,6 +229,16 @@ function getAttribution() {
 // api/verify-turnstile.js — never put it here.
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 
+// Shipping-referral leads: built and ready, deliberately shipped OFF.
+// jev-tested spec — shipping-only (financing/insurance excluded), opt-in,
+// buyer-initiated, flat cost-per-lead, neutral pass-through language, never
+// touches money — but still tested as real, if reduced, liability exposure
+// (0.51 noul on eroding the passive-host model). Do not flip this to true
+// until that's actually been reviewed by a lawyer. Flipping it on alone
+// doesn't "activate" a real partner either — there's no partner integration
+// wired up, this only starts capturing opt-in leads into our own DB.
+const SHIPPING_REFERRAL_ENABLED = false;
+
 let turnstileScriptPromise = null;
 function loadTurnstileScript() {
   if (turnstileScriptPromise) return turnstileScriptPromise;
@@ -1043,6 +1053,7 @@ function ListingDetail({ allListings, log }) {
                   <div style={{ color: C.ink, fontWeight: 600 }}>(555) 019-{String(1000 + listing.id).slice(-4)}</div>
                 </div>
               )}
+              {SHIPPING_REFERRAL_ENABLED && revealed && <ShippingReferralPrompt listing={listing} log={log} />}
               <div style={{ fontSize: 11, color: C.steel, marginTop: 8, lineHeight: 1.5 }}>
                 Meet in a public place. HIGHWAYLOT doesn't handle payments or verify vehicles between buyers and sellers — see our <Link to="/terms" style={{ textDecoration: "underline", color: "inherit" }}>terms</Link>.
               </div>
@@ -1055,6 +1066,58 @@ function ListingDetail({ allListings, log }) {
     </div>
   );
 }
+// Opt-in only — never auto-shown, never pre-filled, buyer has to actively
+// click in. Captures straight into our own shipping_leads table; there's no
+// partner API call here, since no partner integration exists yet. That's
+// intentional — this is the capture plumbing, not a live referral.
+function ShippingReferralPrompt({ listing, log }) {
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", destination_zip: "" });
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState(null);
+  const set = (k) => (e) => setForm((prev) => ({ ...prev, [k]: e.target.value }));
+
+  const submit = () => {
+    if (!form.email.trim() || !form.destination_zip.trim()) { setError("Email and destination ZIP are required."); return; }
+    setError(null);
+    supabase.from("shipping_leads").insert({ listing_id: listing.id, name: form.name.trim() || null, email: form.email.trim(), destination_zip: form.destination_zip.trim(), ...getAttribution() }).then(({ error: err }) => {
+      if (err) { console.error("shipping lead save failed:", err.message); setError("Couldn't submit right now — try again in a bit."); return; }
+      log("shipping_lead_submitted", { listingId: listing.id });
+      setSent(true);
+    });
+  };
+
+  if (sent) {
+    return (
+      <div style={{ marginTop: 10, background: C.greenBg, borderRadius: 4, padding: "10px 12px", fontSize: 12.5, color: C.green }}>
+        Got it — a shipping partner will reach out with a quote.
+      </div>
+    );
+  }
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} style={{ width: "100%", marginTop: 8, background: "transparent", color: C.steel, border: `1px dashed ${C.line}`, borderRadius: 4, padding: "9px 0", fontSize: 12.5, cursor: "pointer" }}>
+        Want a shipping quote for this car?
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 8, background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 6, padding: 14 }}>
+      <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>We'll pass your email and destination ZIP to a shipping partner for a quote — nothing else, and only if you submit this.</div>
+      <input placeholder="Name (optional)" value={form.name} onChange={set("name")} style={{ ...inputStyle, marginBottom: 8 }} />
+      <input placeholder="Email" value={form.email} onChange={set("email")} style={{ ...inputStyle, marginBottom: 8 }} />
+      <input placeholder="Destination ZIP" value={form.destination_zip} onChange={set("destination_zip")} style={{ ...inputStyle, marginBottom: 8 }} />
+      {error && <div style={{ fontSize: 12, color: "#A32D2D", marginBottom: 8 }}>{error}</div>}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={submit} style={{ flex: 1, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 0", fontFamily: FONT_HEAD, fontSize: 13, cursor: "pointer" }}>Request quote</button>
+        <button onClick={() => setOpen(false)} style={{ background: "transparent", color: C.steel, border: `1px solid ${C.line}`, borderRadius: 4, padding: "9px 14px", fontSize: 13, cursor: "pointer" }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 function ReportModal({ listing, log, onClose }) {
   const [reason, setReason] = useState("");
   const [sent, setSent] = useState(false);
