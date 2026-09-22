@@ -35,7 +35,7 @@ function ScrollToTop() {
 // privilege is revoked for the public role in the database itself (see
 // schema.sql). Using '*' would actually error for that reason, which is
 // the point: even a bypass of this app's own code can't read the token.
-const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,loan_balance,damage_points,issues,description,phone,photos,created_at,status,price_updated_at,sold_at,source";
+const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,loan_balance,damage_points,issues,description,phone,photos,created_at,status,price_updated_at,sold_at,source,vin";
 
 function generateToken() {
   if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
@@ -404,11 +404,71 @@ function guessBodyStyle(model) {
   return null;
 }
 
+// NHTSA's BodyClass field is freeform manufacturer text ("Pickup", "Sport
+// Utility Vehicle", "Sedan/Saloon", etc.), not our canonical list — maps it
+// down to the same 7 body styles used everywhere else. Unrecognized text
+// returns null rather than guessing, same fallback philosophy as
+// guessBodyStyle above.
+const NHTSA_BODY_CLASS_MAP = [
+  { body: "Truck", keywords: ["pickup"] },
+  { body: "Van/Minivan", keywords: ["van", "minivan"] },
+  { body: "Convertible", keywords: ["convertible", "cabriolet", "roadster"] },
+  { body: "Coupe", keywords: ["coupe"] },
+  { body: "Hatchback", keywords: ["hatchback"] },
+  { body: "SUV", keywords: ["suv", "sport utility", "crossover"] },
+  { body: "Sedan", keywords: ["sedan", "saloon"] },
+];
+function mapNhtsaBodyClass(bodyClass) {
+  if (!bodyClass) return null;
+  const b = bodyClass.toLowerCase();
+  const hit = NHTSA_BODY_CLASS_MAP.find((rule) => rule.keywords.some((k) => b.includes(k)));
+  return hit ? hit.body : null;
+}
+
+// Free NHTSA vPIC decode (same API already used for the model dropdown) —
+// entirely optional, sits alongside the manual picker rather than replacing
+// it (jev-tested, 98% confidence). A bad/incomplete VIN just shows an error
+// and leaves the manual fields untouched; nothing here is ever required.
+// Controlled by the parent (vin/onVinChange) so the typed VIN itself
+// persists in the parent's form state regardless of whether decode ever
+// runs or succeeds — PostAd needs to actually save it with the listing,
+// not just use it as a one-shot autofill trigger.
+function VinDecoder({ vin, onVinChange, onDecode }) {
+  const [status, setStatus] = useState("idle"); // idle | loading | error
+
+  const decode = async () => {
+    const clean = (vin || "").trim().toUpperCase();
+    if (clean.length !== 17) { setStatus("error"); return; }
+    setStatus("loading");
+    try {
+      const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${encodeURIComponent(clean)}?format=json`);
+      const data = await res.json();
+      const r = data.Results && data.Results[0];
+      if (!r || !r.Make || !r.ModelYear) { setStatus("error"); return; }
+      onDecode({ year: r.ModelYear, make: r.Make, model: r.Model, body: mapNhtsaBodyClass(r.BodyClass) });
+      setStatus("idle");
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div style={{ marginBottom: 18, background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 6, padding: 12 }}>
+      <div style={{ fontSize: 12, color: C.steel, marginBottom: 6 }}>Have your VIN handy? Auto-fill year, make, and model below.</div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input value={vin || ""} onChange={(e) => { onVinChange(e.target.value.toUpperCase()); setStatus("idle"); }} placeholder="17-character VIN (optional)" maxLength={17} style={{ ...inputStyle, flex: 1 }} />
+        <button onClick={decode} disabled={status === "loading"} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, fontSize: 13, cursor: status === "loading" ? "default" : "pointer" }}>{status === "loading" ? "…" : "Auto-fill"}</button>
+      </div>
+      {status === "error" && <div style={{ fontSize: 11.5, color: "#A32D2D", marginTop: 6 }}>Couldn't decode that VIN — double-check it, or just fill in the fields below manually.</div>}
+    </div>
+  );
+}
+
 // Make list is curated (the common ones people actually sell). Models are
 // fetched live from NHTSA's free public vPIC API for whichever make is
 // picked — real data, no maintenance on our end. "Other" always available
 // as an escape hatch on both fields so nobody's ever blocked from listing.
-function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors, clearError }) {
+function MakeModelPicker({ make, model, year, onMakeChange, onModelChange, errors, clearError }) {
   const [customMake, setCustomMake] = useState(Boolean(make) && !POPULAR_MAKES.includes(make));
   const [customModel, setCustomModel] = useState(false);
   const [models, setModels] = useState([]);
@@ -417,7 +477,16 @@ function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors, cle
   useEffect(() => {
     if (customMake || !make) { setModels([]); return; }
     setLoadingModels(true);
-    fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`)
+    // Year-specific endpoint when a year's picked — getmodelsformake alone
+    // returns every model a make has EVER produced across all years, which
+    // means a "2025 Chevrolet" search was showing decades-old and
+    // commercial/medium-duty codes (e.g. "6500XD") nobody's actually
+    // listing here. Falls back to the all-years endpoint only if year
+    // hasn't been picked yet (year is required, so this is brief).
+    const url = year
+      ? `https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformakeyear/make/${encodeURIComponent(make)}/modelyear/${encodeURIComponent(year)}?format=json`
+      : `https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`;
+    fetch(url)
       .then((r) => r.json())
       .then((data) => {
         const names = Array.from(new Set((data.Results || []).map((m) => m.Model_Name))).sort();
@@ -425,7 +494,7 @@ function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors, cle
       })
       .catch(() => setModels([]))
       .finally(() => setLoadingModels(false));
-  }, [make, customMake]);
+  }, [make, customMake, year]);
 
   const smallBtn = { fontSize: 11.5, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "0 10px", cursor: "pointer", color: C.steel, whiteSpace: "nowrap" };
 
@@ -999,6 +1068,7 @@ function ListingDetail({ allListings, log }) {
               {listing.loan_status === "Still financed (loan payoff needed)" && listing.loan_balance && (
                 <Spec label="Loan balance" value={fmtPrice(listing.loan_balance)} />
               )}
+              {listing.vin && <Spec label="VIN" value={listing.vin} />}
             </div>
           </div>
           <div style={{ marginTop: 26, borderTop: `1px solid ${C.line}`, paddingTop: 20 }}>
@@ -1165,7 +1235,7 @@ function PostAd({ onSubmit, existingListings, log }) {
   const navigate = useNavigate();
   const location = useLocation();
   const prefill = location.state?.prefill;
-  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", loan_status:"Paid off", loan_balance:"", desc:"", phone:"", ...prefill });
+  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", loan_status:"Paid off", loan_balance:"", desc:"", phone:"", vin:"", ...prefill });
   const [photos, setPhotos] = useState([]);
   const [issues, setIssues] = useState({});
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
@@ -1239,7 +1309,7 @@ function PostAd({ onSubmit, existingListings, log }) {
       photoUrls.push(urlData.publicUrl);
     }
 
-    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), loan_balance: form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null, verified: false, featured: false, photos: photoUrls, issues, desc: form.desc || "No additional description provided." });
+    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), loan_balance: form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null, verified: false, featured: false, photos: photoUrls, issues, desc: form.desc || "No additional description provided.", vin: form.vin.trim() ? form.vin.trim().toUpperCase() : null });
     setSubmitting(false);
     if (errMsg) setSubmitError(errMsg);
   };
@@ -1280,11 +1350,26 @@ function PostAd({ onSubmit, existingListings, log }) {
         <div style={{ fontSize: 12, color: C.steel }}>{photos.length} of 3 minimum added.</div>
       </Field>
 
+      <VinDecoder
+        vin={form.vin}
+        onVinChange={(v) => setForm((prev) => ({ ...prev, vin: v }))}
+        onDecode={(d) => {
+          setForm((prev) => ({
+            ...prev,
+            ...(d.year ? { year: String(d.year) } : {}),
+            ...(d.make ? { make: d.make } : {}),
+            ...(d.model ? { model: d.model } : {}),
+            ...(d.body ? { body: d.body } : {}),
+          }));
+          setErrors((prev) => ({ ...prev, year: false, make: false, model: false }));
+        }}
+      />
+
       <div className="hl-form-grid" style={{ marginTop: 18 }}>
         <Field label="Year" required error={errors.year}>
           <select value={form.year} onChange={set("year")} style={inputStyle}><option value="">Select year</option>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
         </Field>
-        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
+        <MakeModelPicker make={form.make} model={form.model} year={form.year} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
         <Field label="Trim"><input value={form.trim} onChange={set("trim")} placeholder="XLT" style={inputStyle} /></Field>
         <Field label="Price (USD)" required error={errors.price}><input value={form.price} onChange={setNumeric("price")} inputMode="numeric" placeholder="24999" style={inputStyle} /></Field>
         <Field label="Mileage" required error={errors.mileage}><input value={form.mileage} onChange={setNumeric("mileage")} inputMode="numeric" placeholder="42000" style={inputStyle} /></Field>
@@ -2097,7 +2182,7 @@ function LiveValueBar({ result, percent }) {
 
 function ValueMyCar({ allListings, log }) {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "" });
+  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "", vin: "" });
   const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
   const [saveError, setSaveError] = useState(null);
@@ -2166,11 +2251,26 @@ function ValueMyCar({ allListings, log }) {
       </div>
       <p style={{ color: C.steel, fontSize: 14, marginBottom: 24, textAlign: "center" }}>Fill in your car's details to get an estimate.</p>
 
+      <VinDecoder
+        vin={form.vin}
+        onVinChange={(v) => setForm((prev) => ({ ...prev, vin: v }))}
+        onDecode={(d) => {
+          setForm((prev) => ({
+            ...prev,
+            ...(d.year ? { year: String(d.year) } : {}),
+            ...(d.make ? { make: d.make } : {}),
+            ...(d.model ? { model: d.model } : {}),
+            ...(d.body ? { body: d.body } : {}),
+          }));
+          setErrors((prev) => ({ ...prev, year: false, make: false, model: false }));
+        }}
+      />
+
       <div className="hl-form-grid">
         <Field label="Year" required error={errors.year}>
           <select value={form.year} onChange={set("year")} style={inputStyle}><option value="">Select year</option>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
         </Field>
-        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
+        <MakeModelPicker make={form.make} model={form.model} year={form.year} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
         <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={setNumeric("mileage")} inputMode="numeric" placeholder="52000" style={inputStyle} /></Field>
         <Field label="Original price paid (optional — sharpens the estimate)"><input value={form.originalPrice} onChange={setNumeric("originalPrice")} inputMode="numeric" placeholder="28000" style={inputStyle} /></Field>
         <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
