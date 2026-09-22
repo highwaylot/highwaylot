@@ -457,7 +457,7 @@ function VinDecoder({ vin, onVinChange, onDecode }) {
       <div style={{ fontSize: 12, color: C.steel, marginBottom: 6 }}>Have your VIN handy? Auto-fill year, make, and model below.</div>
       <div style={{ display: "flex", gap: 8 }}>
         <input value={vin || ""} onChange={(e) => { onVinChange(e.target.value.toUpperCase()); setStatus("idle"); }} placeholder="17-character VIN (optional)" maxLength={17} style={{ ...inputStyle, flex: 1 }} />
-        <button onClick={decode} disabled={status === "loading"} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, fontSize: 13, cursor: status === "loading" ? "default" : "pointer" }}>{status === "loading" ? "…" : "Decode"}</button>
+        <button onClick={decode} disabled={status === "loading"} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, fontSize: 13, cursor: status === "loading" ? "default" : "pointer" }}>{status === "loading" ? "…" : "Auto-fill"}</button>
       </div>
       {status === "error" && <div style={{ fontSize: 11.5, color: "#A32D2D", marginTop: 6 }}>Couldn't decode that VIN — double-check it, or just fill in the fields below manually.</div>}
     </div>
