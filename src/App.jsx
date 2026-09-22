@@ -2036,7 +2036,14 @@ function estimateValue(input, allListings, issues = {}) {
   const floor = Math.max(estimate * 0.1, 400);
   estimate = Math.max(estimate - mechanicalDeduction, floor);
 
-  return { estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown, brandMult, hasBrandData, usedOriginalPrice, anchorTier: pricingAnchor.tier };
+  return {
+    estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown, brandMult, hasBrandData, usedOriginalPrice, anchorTier: pricingAnchor.tier,
+    // Exposed so the results view can show how the number was actually
+    // built (anchor -> mileage -> condition -> comps), not just repeat the
+    // final figure the live preview already showed — this stays true even
+    // when there are zero mechanical deductions to break down.
+    calcBreakdown: { anchorPrice: Math.round(anchorPrice), retainedPct: retained, mileageAdjustment: Math.round(mileageAdjustment), conditionMultiplier, ageYears: age },
+  };
 }
 
 // The "dopamine bar" — jev-tested UX spec: a filling meter with a live
@@ -2211,6 +2218,34 @@ function ValueMyCar({ allListings, log }) {
               </div>
             </div>
           )}
+
+          {/* Always shown, regardless of issues marked — this is the actual
+              "unlock" the submit button promises. The live preview bar only
+              ever shows the final number; this is the first place the
+              anchor/mileage/condition/comp breakdown appears at all. */}
+          <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}`, textAlign: "left" }}>
+            <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 8, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.4 }}>How we got this number</div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
+              <span>Starting point ({result.usedOriginalPrice ? "what you paid" : result.anchorTier === "model" ? `typical ${form.make} ${form.model}` : result.anchorTier === "make" ? `typical ${form.make}` : "typical for this body style"})</span>
+              <span>{fmtPrice(result.calcBreakdown.anchorPrice)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
+              <span>Age ({result.calcBreakdown.ageYears} {result.calcBreakdown.ageYears === 1 ? "year" : "years"}) — retains {Math.round(result.calcBreakdown.retainedPct * 100)}% of that</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
+              <span>Mileage adjustment ({fmtMiles(Number(form.mileage))} vs. typical for the age)</span>
+              <span style={{ color: result.calcBreakdown.mileageAdjustment < 0 ? "#A32D2D" : C.green }}>{result.calcBreakdown.mileageAdjustment >= 0 ? "+" : ""}{fmtPrice(result.calcBreakdown.mileageAdjustment)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
+              <span>Condition ({form.condition})</span>
+              <span>{result.calcBreakdown.conditionMultiplier === 1 ? "no change" : `${result.calcBreakdown.conditionMultiplier > 1 ? "+" : ""}${Math.round((result.calcBreakdown.conditionMultiplier - 1) * 100)}%`}</span>
+            </div>
+            {result.compCount > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
+                <span>Blended with {result.compCount} real {result.compCount === 1 ? "comp" : "comps"} on HIGHWAYLOT</span>
+              </div>
+            )}
+          </div>
 
           {result.mechanicalDeduction > 0 && (
             <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}`, textAlign: "left" }}>
