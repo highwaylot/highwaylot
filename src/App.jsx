@@ -3724,6 +3724,24 @@ function AdminPage() {
   );
 }
 
+// Bracketed fields that need a real answer (entity name, state, retention
+// period, etc.) before these pages are final — visually flagged rather than
+// silently guessed at, per the legal-readiness review's own rule: describing
+// something as settled when it isn't is worse than leaving it visibly open.
+function LegalPlaceholder({ children }) {
+  return <span style={{ background: "#FFF3D6", color: "#8A6600", padding: "1px 5px", borderRadius: 3, fontWeight: 600 }}>{children}</span>;
+}
+
+// Shown on both pages until a lawyer has actually reviewed this — removing
+// this banner is the signal that's happened, not a date on the calendar.
+function DraftReviewBanner() {
+  return (
+    <div style={{ background: "#FBE4E3", border: "1px solid #E24B4A", borderRadius: 6, padding: "10px 14px", fontSize: 12.5, color: "#A32D2D", marginBottom: 20 }}>
+      <strong>Draft — pending attorney review.</strong> This describes HIGHWAYLOT's actual current features as accurately as we can, but hasn't been reviewed by a lawyer yet.
+    </div>
+  );
+}
+
 function Terms() {
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
@@ -3731,15 +3749,20 @@ function Terms() {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <FileText size={20} color={C.ink} /><h2 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: 0 }}>Terms of Service</h2>
       </div>
-      <p style={{ color: C.steel, fontSize: 13, marginBottom: 20 }}>By using HIGHWAYLOT, you agree to the following terms.</p>
+      <p style={{ color: C.steel, fontSize: 13, marginBottom: 12 }}>By using HIGHWAYLOT, you agree to the following terms.</p>
+      <DraftReviewBanner />
       {[
-        ["We're a listing platform, not a party to any sale.", "HIGHWAYLOT connects buyers and sellers. We are not involved in, and do not facilitate, the actual exchange of money or the vehicle."],
+        ["We're a listing platform, not a party to any sale.", "HIGHWAYLOT connects buyers and sellers. We are not involved in, and do not facilitate, the actual exchange of money or the vehicle. We don't currently process any payments on this site."],
         ["We don't verify listings.", "We don't inspect vehicles, confirm seller identity, or check vehicle history unless explicitly noted on a listing. Buyers are responsible for their own due diligence."],
-        ["No ID required to list or browse.", "You don't need to submit identification to use HIGHWAYLOT. Contact info is only shared when you choose to reveal it."],
-        ["Transactions are at your own risk.", "Meet in public, verify the vehicle in person, and use secure payment methods. HIGHWAYLOT does not mediate disputes between buyers and sellers."],
-        ["Data collection and use.", "Using HIGHWAYLOT means you consent to the data collection and use described in our Privacy Policy, including analytics, research, and the potential licensing or sharing of aggregated or anonymized usage data."],
-        ["Prohibited use.", "You may not post fraudulent listings, scrape the site, or spam or harass other users. HIGHWAYLOT may remove listings or restrict access at its discretion."],
+        ["Content you post, and content we generate.", "Listings, photos, and descriptions are submitted by users — we host them, we don't write them, and we're not responsible for their accuracy. Separately, HIGHWAYLOT generates its own labels on some listings (like \"Verified,\" \"Featured,\" credibility indicators, and fairness-vs-market indicators) and its own valuation estimates. These are our own assessments based on the criteria described where they appear, not guarantees, and not user content."],
+        ["Contact information.", "If you post a listing, the phone number you provide is shown to buyers who choose to reveal it. We don't verify that number, and we don't currently mask or relay it — only include a number you're comfortable sharing publicly."],
+        ["Copyright.", "Only upload photos you took yourself or have permission to use. If you believe content on HIGHWAYLOT infringes your copyright, contact us at hugo@highwaylot.com with the listing URL, a description of the work, and a statement that you own the rights — we'll review and remove infringing content."],
+        ["Not a licensed dealer or broker.", "HIGHWAYLOT is a listing platform, not a car dealer, broker, or party to any sale. We don't handle title transfer, odometer disclosure statements, or other required sale paperwork — that's between the buyer and seller directly. Vehicles are sold \"as is\" by their sellers unless a listing states otherwise. Any vehicle history, recall, or valuation data shown reflects its stated source and isn't guaranteed accurate."],
+        ["Transactions are at your own risk.", "Meet in public, verify the vehicle in person, and use secure payment methods. Be alert to common scams — an offer to pay more than the asking price, pressure to move off-platform immediately, or a buyer/seller who won't meet in person are red flags. HIGHWAYLOT does not mediate disputes between buyers and sellers."],
+        ["Prohibited use.", "You may not post fraudulent listings, scrape the site, or spam or harass other users. HIGHWAYLOT may remove listings or restrict access at its discretion, including content that violates these terms — this doesn't extend to removing honest, non-violating content just because we'd rather it weren't there."],
+        ["Data collection and use.", "Using HIGHWAYLOT means you consent to the data collection and use described in our Privacy Policy. We do not sell your personal information."],
         ["No warranty; limitation of liability.", "HIGHWAYLOT is provided on an \"as is\" basis, without warranties of any kind. To the fullest extent permitted by law, HIGHWAYLOT is not liable for any damages arising from your use of the site."],
+        ["Governing law and who you're dealing with.", <>HIGHWAYLOT is operated by <LegalPlaceholder>[Entity name]</LegalPlaceholder>, <LegalPlaceholder>[business address]</LegalPlaceholder>. These terms are governed by the laws of <LegalPlaceholder>[state of formation]</LegalPlaceholder>, without regard to conflict-of-law principles.</>],
         ["Changes to these terms.", "These terms may be updated from time to time. Continued use of HIGHWAYLOT after changes are posted constitutes acceptance of the revised terms."],
       ].map(([title, body], i) => (
         <div key={i} style={{ marginBottom: 18 }}>
@@ -3762,14 +3785,19 @@ function PrivacyPolicy() {
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
         <FileText size={20} color={C.ink} /><h2 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: 0 }}>Privacy Policy</h2>
       </div>
-      <p style={{ color: C.steel, fontSize: 13, marginBottom: 20 }}>How HIGHWAYLOT collects, uses, and shares information.</p>
+      <p style={{ color: C.steel, fontSize: 13, marginBottom: 12 }}>How HIGHWAYLOT collects, uses, and shares information.</p>
+      <DraftReviewBanner />
       {[
         ["No account required.", "You don't need to create an account to browse or post on HIGHWAYLOT. Contact info is only shared when you choose to reveal it."],
-        ["What we collect.", "We collect usage data — searches, filters, pages viewed, quiz responses, and valuation requests — as well as standard technical data like IP address, browser, and device. This is tracked via a browser session identifier, not a login."],
-        ["How we use it.", "We use this data to operate and improve the site and to understand search and valuation behavior, including analytics and research. Aggregated or anonymized data may be analyzed, licensed, or shared with third parties such as advertisers or market-research partners. We do not sell or share personally identifying information without your consent."],
-        ["Listing information is public.", "Details you include in a listing — year, make, model, price, description, photos, and phone number if given — are publicly visible. Don't post anything you don't want public."],
-        ["California residents (CCPA).", "California residents have rights under the CCPA regarding the sale or sharing of personal information, including the right to opt out. Contact hugo@highwaylot.com to make a request."],
+        ["What we collect.", "Usage data — searches, filters, pages viewed, quiz responses, and valuation requests — plus standard technical data like IP address, browser, and device, tracked via a browser session identifier, not a login. If you post a listing, we collect what you enter: vehicle details, photos, description, and phone number. If you use the VIN auto-fill feature, the VIN you enter is sent to the U.S. government's public NHTSA vehicle-data service to look up the vehicle."],
+        ["Who we share data with.", "We don't sell your personal information. Data is shared only with the services that make the site work: Supabase (our database), Vercel (hosting), Cloudflare (bot/spam verification on forms), and — only if you use VIN auto-fill — NHTSA's public vehicle-data API. Google Fonts is loaded on every page, which means Google receives your IP address as part of loading the page's typefaces. None of these receive your data in order to sell it."],
+        ["How we use it.", "We use this data to operate and improve the site and to understand search and valuation behavior, including analytics and research. Aggregated or anonymized usage data may be analyzed or shared, but never in a way that identifies you personally, and we don't sell it."],
+        ["Listing information is public.", "Details you include in a listing — year, make, model, price, description, photos, phone number, and VIN if given — are publicly visible. Don't post anything you don't want public."],
+        ["Data retention.", <>We retain listing, valuation, and quiz data for <LegalPlaceholder>[retention period]</LegalPlaceholder> unless you request deletion sooner.</>],
+        ["Your rights, and California residents (CCPA).", <>You can request access to, correction of, or deletion of your data by contacting hugo@highwaylot.com — we'll respond within <LegalPlaceholder>[X business days]</LegalPlaceholder>. California residents have rights under the CCPA regarding the sale or sharing of personal information; sharing your info with a seller or buyer at your own direction (for example, revealing a phone number) isn't a "sale" under the CCPA.</>],
+        ["Not for children.", "HIGHWAYLOT isn't intended for anyone under 18, and we don't knowingly collect data from children."],
         ["Cookies and local storage.", "We use session storage to hold basic session info — like referral source and recent searches — for the duration of your visit only. This is not tied to your real identity."],
+        ["Security.", "We use reasonable technical safeguards — rate limiting, bot verification, and database access controls — to protect data, but no system is perfectly secure."],
         ["Changes to this policy.", "This policy may be updated from time to time. Continued use of HIGHWAYLOT after changes are posted constitutes acceptance of the revised policy."],
       ].map(([title, body], i) => (
         <div key={i} style={{ marginBottom: 18 }}>
