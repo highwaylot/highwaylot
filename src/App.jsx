@@ -404,63 +404,6 @@ function guessBodyStyle(model) {
   return null;
 }
 
-// NHTSA's BodyClass field is freeform manufacturer text ("Pickup", "Sport
-// Utility Vehicle", "Sedan/Saloon", etc.), not our canonical list — maps it
-// down to the same 7 body styles used everywhere else. Unrecognized text
-// returns null rather than guessing, same fallback philosophy as
-// guessBodyStyle above.
-const NHTSA_BODY_CLASS_MAP = [
-  { body: "Truck", keywords: ["pickup"] },
-  { body: "Van/Minivan", keywords: ["van", "minivan"] },
-  { body: "Convertible", keywords: ["convertible", "cabriolet", "roadster"] },
-  { body: "Coupe", keywords: ["coupe"] },
-  { body: "Hatchback", keywords: ["hatchback"] },
-  { body: "SUV", keywords: ["suv", "sport utility", "crossover"] },
-  { body: "Sedan", keywords: ["sedan", "saloon"] },
-];
-function mapNhtsaBodyClass(bodyClass) {
-  if (!bodyClass) return null;
-  const b = bodyClass.toLowerCase();
-  const hit = NHTSA_BODY_CLASS_MAP.find((rule) => rule.keywords.some((k) => b.includes(k)));
-  return hit ? hit.body : null;
-}
-
-// Free NHTSA vPIC decode (same API already used for the model dropdown) —
-// entirely optional, sits alongside the manual picker rather than replacing
-// it (jev-tested, 98% confidence). A bad/incomplete VIN just shows an error
-// and leaves the manual fields untouched; nothing here is ever required.
-function VinDecoder({ onDecode }) {
-  const [vin, setVin] = useState("");
-  const [status, setStatus] = useState("idle"); // idle | loading | error
-
-  const decode = async () => {
-    const clean = vin.trim().toUpperCase();
-    if (clean.length !== 17) { setStatus("error"); return; }
-    setStatus("loading");
-    try {
-      const res = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/${encodeURIComponent(clean)}?format=json`);
-      const data = await res.json();
-      const r = data.Results && data.Results[0];
-      if (!r || !r.Make || !r.ModelYear) { setStatus("error"); return; }
-      onDecode({ year: r.ModelYear, make: r.Make, model: r.Model, body: mapNhtsaBodyClass(r.BodyClass) });
-      setStatus("idle");
-    } catch {
-      setStatus("error");
-    }
-  };
-
-  return (
-    <div style={{ marginBottom: 18, background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 6, padding: 12 }}>
-      <div style={{ fontSize: 12, color: C.steel, marginBottom: 6 }}>Have your VIN handy? Auto-fill year, make, and model below.</div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <input value={vin} onChange={(e) => { setVin(e.target.value); setStatus("idle"); }} placeholder="17-character VIN (optional)" maxLength={17} style={{ ...inputStyle, flex: 1 }} />
-        <button onClick={decode} disabled={status === "loading"} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, fontSize: 13, cursor: status === "loading" ? "default" : "pointer" }}>{status === "loading" ? "…" : "Decode"}</button>
-      </div>
-      {status === "error" && <div style={{ fontSize: 11.5, color: "#A32D2D", marginTop: 6 }}>Couldn't decode that VIN — double-check it, or just fill in the fields below manually.</div>}
-    </div>
-  );
-}
-
 // Make list is curated (the common ones people actually sell). Models are
 // fetched live from NHTSA's free public vPIC API for whichever make is
 // picked — real data, no maintenance on our end. "Other" always available
@@ -1336,17 +1279,6 @@ function PostAd({ onSubmit, existingListings, log }) {
         {photoError && <div style={{ fontSize: 12, color: "#A32D2D", marginBottom: 6 }}>{photoError}</div>}
         <div style={{ fontSize: 12, color: C.steel }}>{photos.length} of 3 minimum added.</div>
       </Field>
-
-      <VinDecoder onDecode={(d) => {
-        setForm((prev) => ({
-          ...prev,
-          ...(d.year ? { year: String(d.year) } : {}),
-          ...(d.make ? { make: d.make } : {}),
-          ...(d.model ? { model: d.model } : {}),
-          ...(d.body ? { body: d.body } : {}),
-        }));
-        setErrors((prev) => ({ ...prev, year: false, make: false, model: false }));
-      }} />
 
       <div className="hl-form-grid" style={{ marginTop: 18 }}>
         <Field label="Year" required error={errors.year}>
