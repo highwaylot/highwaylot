@@ -2047,13 +2047,18 @@ function LiveValueBar({ estimate, percent }) {
   return (
     <div style={{ marginTop: 20, background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 8, padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
-        <span style={{ fontSize: 12, color: C.steel, textTransform: "uppercase", letterSpacing: 0.4 }}>Live estimate</span>
+        <span style={{ fontSize: 12, color: C.steel, textTransform: "uppercase", letterSpacing: 0.4 }}>Rough preview</span>
         <span style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 22, color: C.ink }}>{fmtPrice(estimate)}</span>
       </div>
       <div style={{ height: 10, background: "#EFEDE4", borderRadius: 6, overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${percent}%`, background: C.yellow, transition: "width 300ms ease" }} />
       </div>
-      <div style={{ fontSize: 11.5, color: C.steel, marginTop: 6 }}>Fill in more details below to sharpen this number.</div>
+      {/* Makes the case for clicking submit, not just repeating the number —
+          without this, the live bar accidentally made "Get my estimate"
+          feel redundant even though it unlocks real analysis the bar
+          never shows (issue-by-issue deductions, loan equity, a saved
+          result). */}
+      <div style={{ fontSize: 11.5, color: C.steel, marginTop: 6 }}>Just a rough peek — your full breakdown (repair deductions, equity, confidence) unlocks below.</div>
     </div>
   );
 }
@@ -2159,7 +2164,9 @@ function ValueMyCar({ allListings, log }) {
         <div style={{ fontSize: 11.5, color: C.steel, marginBottom: 6 }}>Quick check before we save this</div>
         <TurnstileWidget onVerify={setCaptchaToken} onExpire={() => setCaptchaToken(null)} size="compact" />
       </div>
-      <button onClick={submit} disabled={!!TURNSTILE_SITE_KEY && !captchaToken} style={{ marginTop: 12, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: (!!TURNSTILE_SITE_KEY && !captchaToken) ? "default" : "pointer", opacity: (!!TURNSTILE_SITE_KEY && !captchaToken) ? 0.7 : 1 }}>Get my estimate</button>
+      <button onClick={submit} disabled={!!TURNSTILE_SITE_KEY && !captchaToken} style={{ marginTop: 12, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: (!!TURNSTILE_SITE_KEY && !captchaToken) ? "default" : "pointer", opacity: (!!TURNSTILE_SITE_KEY && !captchaToken) ? 0.7 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%" }}>
+        {liveEstimate ? <><Lock size={14} /> Unlock my full breakdown</> : "Get my estimate"}
+      </button>
       {saveError && !result && (
         <div style={{ marginTop: 12, background: "#FBE4E3", color: "#A32D2D", fontSize: 12.5, padding: "8px 12px", borderRadius: 6 }}>{saveError}</div>
       )}
