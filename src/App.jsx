@@ -465,7 +465,7 @@ function VinDecoder({ onDecode }) {
 // fetched live from NHTSA's free public vPIC API for whichever make is
 // picked — real data, no maintenance on our end. "Other" always available
 // as an escape hatch on both fields so nobody's ever blocked from listing.
-function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors, clearError }) {
+function MakeModelPicker({ make, model, year, onMakeChange, onModelChange, errors, clearError }) {
   const [customMake, setCustomMake] = useState(Boolean(make) && !POPULAR_MAKES.includes(make));
   const [customModel, setCustomModel] = useState(false);
   const [models, setModels] = useState([]);
@@ -474,7 +474,16 @@ function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors, cle
   useEffect(() => {
     if (customMake || !make) { setModels([]); return; }
     setLoadingModels(true);
-    fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`)
+    // Year-specific endpoint when a year's picked — getmodelsformake alone
+    // returns every model a make has EVER produced across all years, which
+    // means a "2025 Chevrolet" search was showing decades-old and
+    // commercial/medium-duty codes (e.g. "6500XD") nobody's actually
+    // listing here. Falls back to the all-years endpoint only if year
+    // hasn't been picked yet (year is required, so this is brief).
+    const url = year
+      ? `https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformakeyear/make/${encodeURIComponent(make)}/modelyear/${encodeURIComponent(year)}?format=json`
+      : `https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`;
+    fetch(url)
       .then((r) => r.json())
       .then((data) => {
         const names = Array.from(new Set((data.Results || []).map((m) => m.Model_Name))).sort();
@@ -482,7 +491,7 @@ function MakeModelPicker({ make, model, onMakeChange, onModelChange, errors, cle
       })
       .catch(() => setModels([]))
       .finally(() => setLoadingModels(false));
-  }, [make, customMake]);
+  }, [make, customMake, year]);
 
   const smallBtn = { fontSize: 11.5, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "0 10px", cursor: "pointer", color: C.steel, whiteSpace: "nowrap" };
 
@@ -1352,7 +1361,7 @@ function PostAd({ onSubmit, existingListings, log }) {
         <Field label="Year" required error={errors.year}>
           <select value={form.year} onChange={set("year")} style={inputStyle}><option value="">Select year</option>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
         </Field>
-        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
+        <MakeModelPicker make={form.make} model={form.model} year={form.year} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
         <Field label="Trim"><input value={form.trim} onChange={set("trim")} placeholder="XLT" style={inputStyle} /></Field>
         <Field label="Price (USD)" required error={errors.price}><input value={form.price} onChange={setNumeric("price")} inputMode="numeric" placeholder="24999" style={inputStyle} /></Field>
         <Field label="Mileage" required error={errors.mileage}><input value={form.mileage} onChange={setNumeric("mileage")} inputMode="numeric" placeholder="42000" style={inputStyle} /></Field>
@@ -2238,7 +2247,7 @@ function ValueMyCar({ allListings, log }) {
         <Field label="Year" required error={errors.year}>
           <select value={form.year} onChange={set("year")} style={inputStyle}><option value="">Select year</option>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
         </Field>
-        <MakeModelPicker make={form.make} model={form.model} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
+        <MakeModelPicker make={form.make} model={form.model} year={form.year} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
         <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={setNumeric("mileage")} inputMode="numeric" placeholder="52000" style={inputStyle} /></Field>
         <Field label="Original price paid (optional — sharpens the estimate)"><input value={form.originalPrice} onChange={setNumeric("originalPrice")} inputMode="numeric" placeholder="28000" style={inputStyle} /></Field>
         <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
