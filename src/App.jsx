@@ -2036,26 +2036,51 @@ function estimateValue(input, allListings, issues = {}) {
   const floor = Math.max(estimate * 0.1, 400);
   estimate = Math.max(estimate - mechanicalDeduction, floor);
 
+  const roundedEstimate = Math.round(estimate / 100) * 100;
+  // A range instead of one exposed number — jev-tested (0.79): this kills
+  // both the formula-reverse-engineering risk and the "pick whichever
+  // condition option gives the biggest number" gaming risk that showing
+  // exact dollar/percentage breakdowns created. Width scales with
+  // confidence (tighter once there are real comps backing it up, wider on
+  // a formula-only guess) rather than a flat band, so the range itself is
+  // honest about how sure this actually is. Rounded to $50 rather than a
+  // round bracket, so it reads as computed, not bucketed.
+  const rangePct = { High: 0.04, Medium: 0.07, Low: 0.12 }[confidence] ?? 0.12;
+  const rangeLow = Math.round((roundedEstimate * (1 - rangePct)) / 50) * 50;
+  const rangeHigh = Math.round((roundedEstimate * (1 + rangePct)) / 50) * 50;
+
   return {
-    estimate: Math.round(estimate / 100) * 100, confidence, compCount: comps.length, mechanicalDeduction, breakdown, brandMult, hasBrandData, usedOriginalPrice, anchorTier: pricingAnchor.tier,
-    // Exposed so the results view can show how the number was actually
-    // built (anchor -> mileage -> condition -> comps), not just repeat the
-    // final figure the live preview already showed — this stays true even
-    // when there are zero mechanical deductions to break down.
-    calcBreakdown: { anchorPrice: Math.round(anchorPrice), retainedPct: retained, mileageAdjustment: Math.round(mileageAdjustment), conditionMultiplier, ageYears: age },
+    estimate: roundedEstimate, confidence, compCount: comps.length, mechanicalDeduction, breakdown, brandMult, hasBrandData, usedOriginalPrice, anchorTier: pricingAnchor.tier,
+    rangeLow, rangeHigh, rangePct,
+    // Qualitative only, on purpose — jev-tested (0.75): keep naming the
+    // factors involved, but not the exact dollar/percentage coefficients
+    // behind them, for the same reason the range replaced a flat number.
+    calcBreakdown: {
+      mileageDirection: mileageAdjustment > 200 ? "below" : mileageAdjustment < -200 ? "above" : "about",
+      conditionEffect: conditionMultiplier > 1 ? "boosts" : conditionMultiplier < 1 ? "reduces" : "no real effect on",
+      ageYears: age,
+    },
   };
 }
 
 // The "dopamine bar" — jev-tested UX spec: a filling meter with a live
 // dollar figure, not a plain ticking number (0.81 noul), that only appears
 // once all required fields are done rather than teasing a number too early.
-function LiveValueBar({ estimate, percent }) {
-  if (!estimate) return null;
+function LiveValueBar({ result, percent }) {
+  if (!result) return null;
+  // Rougher/wider than the final unlocked range on purpose (jev-tested
+  // Option B: same-range-everywhere lost to a moderate lean for widening
+  // the preview and narrowing on submit) — an extra 5 points of width on
+  // top of the confidence-based range, so submitting visibly earns a
+  // sharper number, not just a restatement.
+  const previewPct = result.rangePct + 0.05;
+  const previewLow = Math.round((result.estimate * (1 - previewPct)) / 50) * 50;
+  const previewHigh = Math.round((result.estimate * (1 + previewPct)) / 50) * 50;
   return (
     <div style={{ marginTop: 20, background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 8, padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
         <span style={{ fontSize: 12, color: C.steel, textTransform: "uppercase", letterSpacing: 0.4 }}>Rough preview</span>
-        <span style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 22, color: C.ink }}>{fmtPrice(estimate)}</span>
+        <span style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 20, color: C.ink }}>{fmtPrice(previewLow)}–{fmtPrice(previewHigh)}</span>
       </div>
       <div style={{ height: 10, background: "#EFEDE4", borderRadius: 6, overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${percent}%`, background: C.yellow, transition: "width 300ms ease" }} />
@@ -2157,7 +2182,7 @@ function ValueMyCar({ allListings, log }) {
         )}
       </div>
 
-      <LiveValueBar estimate={liveEstimate?.estimate} percent={fillPercent} />
+      <LiveValueBar result={liveEstimate} percent={fillPercent} />
 
       <div style={{ marginTop: 22 }}>
         <IssuesGate issues={issues} onChange={setIssues} context="valuation" />
@@ -2186,7 +2211,10 @@ function ValueMyCar({ allListings, log }) {
             </div>
           )}
           <div style={{ fontSize: 12.5, color: C.steel, textTransform: "uppercase", letterSpacing: 0.4 }}>Estimated value</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(28px, 9vw, 40px)", color: C.ink, margin: "8px 0" }}>{fmtPrice(result.estimate)}</div>
+          {/* Range, not a flat number — jev-tested (0.79): avoids exposing
+              exact formula output while still reading as sharper/more
+              confident than the live preview's wider range. */}
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(22px, 7vw, 34px)", color: C.ink, margin: "8px 0" }}>{fmtPrice(result.rangeLow)}–{fmtPrice(result.rangeHigh)}</div>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
             {result.compCount > 0
               ? <Badge tone={result.confidence === "High" ? "verified" : result.confidence === "Medium" ? "yellow" : "neutral"}>{result.confidence} confidence</Badge>
@@ -2219,30 +2247,30 @@ function ValueMyCar({ allListings, log }) {
             </div>
           )}
 
-          {/* Always shown, regardless of issues marked — this is the actual
-              "unlock" the submit button promises. The live preview bar only
-              ever shows the final number; this is the first place the
-              anchor/mileage/condition/comp breakdown appears at all. */}
+          {/* Always shown, regardless of issues marked — the actual "unlock"
+              the submit button promises. Qualitative on purpose (jev-tested,
+              0.75/0.79): names the factors without exact dollar/percentage
+              coefficients, so this can't be reverse-engineered into the
+              formula or gamed by picking whichever answer shows the
+              biggest number — that's also why the headline above is a
+              range, not one flat exposed figure. */}
           <div style={{ marginTop: 18, paddingTop: 16, borderTop: `1px solid ${C.line}`, textAlign: "left" }}>
-            <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 8, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.4 }}>How we got this number</div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
-              <span>Starting point ({result.usedOriginalPrice ? "what you paid" : result.anchorTier === "model" ? `typical ${form.make} ${form.model}` : result.anchorTier === "make" ? `typical ${form.make}` : "typical for this body style"})</span>
-              <span>{fmtPrice(result.calcBreakdown.anchorPrice)}</span>
+            <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 8, textAlign: "center", textTransform: "uppercase", letterSpacing: 0.4 }}>How we got this range</div>
+            <div style={{ fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
+              Starting point: {result.usedOriginalPrice ? "what you paid" : result.anchorTier === "model" ? `typical pricing for the ${form.make} ${form.model}` : result.anchorTier === "make" ? `typical pricing for ${form.make}` : "typical pricing for this body style"}.
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
-              <span>Age ({result.calcBreakdown.ageYears} {result.calcBreakdown.ageYears === 1 ? "year" : "years"}) — retains {Math.round(result.calcBreakdown.retainedPct * 100)}% of that</span>
+            <div style={{ fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
+              Age: {result.calcBreakdown.ageYears} {result.calcBreakdown.ageYears === 1 ? "year" : "years"} old — factored into expected depreciation.
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
-              <span>Mileage adjustment ({fmtMiles(Number(form.mileage))} vs. typical for the age)</span>
-              <span style={{ color: result.calcBreakdown.mileageAdjustment < 0 ? "#A32D2D" : C.green }}>{result.calcBreakdown.mileageAdjustment >= 0 ? "+" : ""}{fmtPrice(result.calcBreakdown.mileageAdjustment)}</span>
+            <div style={{ fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
+              Mileage: {result.calcBreakdown.mileageDirection} average for the car's age{result.calcBreakdown.mileageDirection !== "about" ? ` — pushes the range ${result.calcBreakdown.mileageDirection === "below" ? "up" : "down"}` : ""}.
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
-              <span>Condition ({form.condition})</span>
-              <span>{result.calcBreakdown.conditionMultiplier === 1 ? "no change" : `${result.calcBreakdown.conditionMultiplier > 1 ? "+" : ""}${Math.round((result.calcBreakdown.conditionMultiplier - 1) * 100)}%`}</span>
+            <div style={{ fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
+              Condition ({form.condition}): {result.calcBreakdown.conditionEffect} the range.
             </div>
             {result.compCount > 0 && (
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
-                <span>Blended with {result.compCount} real {result.compCount === 1 ? "comp" : "comps"} on HIGHWAYLOT</span>
+              <div style={{ fontSize: 12.5, color: "#3B4250", padding: "3px 0" }}>
+                Blended with {result.compCount} real {result.compCount === 1 ? "comp" : "comps"} on HIGHWAYLOT — narrows the range.
               </div>
             )}
           </div>
