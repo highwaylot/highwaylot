@@ -1119,8 +1119,14 @@ function ListingDetail({ allListings, log }) {
                 <button onClick={() => { setRevealed(true); log("contact_reveal", { listingId: listing.id }); }} style={{ width: "100%", background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "12px 0", fontFamily: FONT_HEAD, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Phone size={15} /> Contact seller</button>
               ) : (
                 <div style={{ background: "#F4F2EA", borderRadius: 4, padding: "12px 14px", fontSize: 14 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 5, color: C.steel, fontSize: 11.5, marginBottom: 4 }}><Lock size={11} /> Relayed number — real number stays private</div>
-                  <div style={{ color: C.ink, fontWeight: 600 }}>(555) 019-{String(1000 + listing.id).slice(-4)}</div>
+                  {/* Fixed a real bug: this used to show a fake number computed
+                      from the listing ID, labeled "relayed — real number stays
+                      private" — a masking/relay claim that wasn't actually true,
+                      since no relay system exists. Shows the seller's real
+                      number now, honestly labeled, until an actual masked-relay
+                      system is built (a real infra project, not a copy fix). */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, color: C.steel, fontSize: 11.5, marginBottom: 4 }}><Phone size={11} /> Seller's phone number</div>
+                  <div style={{ color: C.ink, fontWeight: 600 }}>{listing.phone || "Not provided"}</div>
                 </div>
               )}
               {SHIPPING_REFERRAL_ENABLED && revealed && <ShippingReferralPrompt listing={listing} log={log} />}
