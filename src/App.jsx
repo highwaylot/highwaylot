@@ -1931,10 +1931,16 @@ function estimateValue(input, allListings, issues = {}) {
   // Comp-based blend: pull real same make/model listings within +/- 3 years.
   // Ramps to max pull at 4 comps now instead of 8 — a real comp is a better
   // signal than the formula, so it shouldn't take that many to matter most.
+  // A sold comp's real sold_price is what it actually changed hands for —
+  // a stronger signal than an active listing's asking price, which is just
+  // what a seller hopes to get. Use it when available; a sold listing
+  // without a recorded sold_price (seller skipped that field) still falls
+  // back to its asking price rather than being dropped from the pool.
   const comps = allListings.filter((c) => c.make.toLowerCase() === input.make.toLowerCase() && c.model.toLowerCase() === input.model.toLowerCase() && Math.abs(c.year - input.year) <= 3);
+  const compPrice = (c) => (c.status === "sold" && c.sold_price ? c.sold_price : c.price);
   let confidence = "Low";
   if (comps.length > 0) {
-    const compAvg = comps.reduce((s, c) => s + c.price, 0) / comps.length;
+    const compAvg = comps.reduce((s, c) => s + compPrice(c), 0) / comps.length;
     const weight = Math.min(comps.length / 4, 0.75); // comps can pull up to 75% of the estimate once there are enough
     estimate = estimate * (1 - weight) + compAvg * weight;
     confidence = comps.length >= 4 ? "High" : comps.length >= 2 ? "Medium" : "Low";
