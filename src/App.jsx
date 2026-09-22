@@ -656,18 +656,38 @@ function NavLink({ label, to, active }) {
 }
 
 // ---------- Hero + filters ----------
+// jev-tested: hero deserved a real follow-up pass once cards were done
+// (77% "meaningful first-impression impact"). Scoped to: an entrance
+// animation so the page feels alive on load, real focus/hover feedback on
+// the search bar (it had none before), and an actually-functional Search
+// button — it previously had no onClick at all; filtering already happens
+// live as you type, but clicking a button that visibly does nothing reads
+// as broken, so it now scrolls to the results.
 function Hero({ filters, setFilters, log }) {
+  const scrollToResults = () => {
+    if (filters.query) log("search", { query: filters.query });
+    document.getElementById("hl-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
   return (
     <div style={{ background: C.ink }}>
-      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "44px 20px 24px" }}>
+      <style>{`
+        .hl-hero-fade { animation: hl-hero-fade-in 480ms ease both; }
+        @keyframes hl-hero-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hl-search-bar { transition: box-shadow 160ms ease; }
+        .hl-search-bar:focus-within { box-shadow: 0 0 0 3px rgba(245,183,0,0.45); }
+        .hl-search-btn { transition: transform 120ms ease, background 120ms ease; }
+        .hl-search-btn:hover { transform: translateY(-1px); background: #ffc61a; }
+      `}</style>
+      <div className="hl-hero-fade" style={{ maxWidth: 1120, margin: "0 auto", padding: "44px 20px 24px" }}>
         <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
           <h1 style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 6vw, 38px)", color: "#fff", margin: "0 auto", lineHeight: 1.1 }}>Buy and sell cars, coast to coast.</h1>
           <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 15, marginTop: 10 }}>{seed.length.toLocaleString()}+ listings from private sellers and dealers across the United States.</p>
-          <div style={{ background: "#fff", borderRadius: 6, marginTop: 22, padding: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", textAlign: "left" }}>
+          <div className="hl-search-bar" style={{ background: "#fff", borderRadius: 6, marginTop: 22, padding: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", textAlign: "left" }}>
             <div style={{ flex: "2 1 220px", display: "flex", alignItems: "center", gap: 8, borderRight: `1px solid ${C.line}`, paddingRight: 10 }}>
               <Search size={16} color={C.steel} />
               <input placeholder="Search make or model" value={filters.query}
                 onChange={(e) => { setFilters({ ...filters, query: e.target.value }); }}
+                onKeyDown={(e) => { if (e.key === "Enter") scrollToResults(); }}
                 onBlur={(e) => e.target.value && log("search", { query: e.target.value })}
                 style={{ border: "none", outline: "none", fontSize: 14, width: "100%", color: C.ink, fontFamily: FONT_BODY }} />
             </div>
@@ -675,7 +695,7 @@ function Hero({ filters, setFilters, log }) {
               <option value="">All states</option>
               {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            <button style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "10px 22px", fontFamily: FONT_HEAD, fontSize: 14.5, cursor: "pointer" }}>Search</button>
+            <button className="hl-search-btn" onClick={scrollToResults} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "10px 22px", fontFamily: FONT_HEAD, fontSize: 14.5, cursor: "pointer" }}>Search</button>
           </div>
           <div style={{ marginTop: 10, fontSize: 12.5, color: "rgba(255,255,255,0.5)" }}>Available in the United States only.</div>
         </div>
@@ -704,7 +724,7 @@ function PriceSlider({ value, onChange, log }) {
 function FilterBar({ filters, setFilters, count, sort, setSort, log }) {
   const makes = Array.from(new Set(seed.map((c) => c.make))).sort();
   return (
-    <div style={{ borderBottom: `1px solid ${C.line}`, background: C.paper, position: "sticky", top: 0, zIndex: 5 }}>
+    <div id="hl-results" style={{ borderBottom: `1px solid ${C.line}`, background: C.paper, position: "sticky", top: 0, zIndex: 5 }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "14px 20px", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, color: C.steel, fontSize: 13 }}><SlidersHorizontal size={14} /> Filters</div>
         <select value={filters.make} onChange={(e) => { setFilters({ ...filters, make: e.target.value }); log("filter_make", { make: e.target.value }); }} style={selectStyle}>
