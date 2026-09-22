@@ -35,7 +35,7 @@ function ScrollToTop() {
 // privilege is revoked for the public role in the database itself (see
 // schema.sql). Using '*' would actually error for that reason, which is
 // the point: even a bypass of this app's own code can't read the token.
-const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,loan_balance,damage_points,issues,description,phone,photos,created_at,status,price_updated_at,sold_at,source";
+const LISTING_COLUMNS = "id,year,make,model,trim,price,mileage,city,state,fuel,trans,color,seller,verified,featured,body,condition,loan_status,loan_balance,damage_points,issues,description,phone,photos,created_at,status,price_updated_at,sold_at,source,vin";
 
 function generateToken() {
   if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
@@ -429,12 +429,15 @@ function mapNhtsaBodyClass(bodyClass) {
 // entirely optional, sits alongside the manual picker rather than replacing
 // it (jev-tested, 98% confidence). A bad/incomplete VIN just shows an error
 // and leaves the manual fields untouched; nothing here is ever required.
-function VinDecoder({ onDecode }) {
-  const [vin, setVin] = useState("");
+// Controlled by the parent (vin/onVinChange) so the typed VIN itself
+// persists in the parent's form state regardless of whether decode ever
+// runs or succeeds — PostAd needs to actually save it with the listing,
+// not just use it as a one-shot autofill trigger.
+function VinDecoder({ vin, onVinChange, onDecode }) {
   const [status, setStatus] = useState("idle"); // idle | loading | error
 
   const decode = async () => {
-    const clean = vin.trim().toUpperCase();
+    const clean = (vin || "").trim().toUpperCase();
     if (clean.length !== 17) { setStatus("error"); return; }
     setStatus("loading");
     try {
@@ -453,7 +456,7 @@ function VinDecoder({ onDecode }) {
     <div style={{ marginBottom: 18, background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 6, padding: 12 }}>
       <div style={{ fontSize: 12, color: C.steel, marginBottom: 6 }}>Have your VIN handy? Auto-fill year, make, and model below.</div>
       <div style={{ display: "flex", gap: 8 }}>
-        <input value={vin} onChange={(e) => { setVin(e.target.value); setStatus("idle"); }} placeholder="17-character VIN (optional)" maxLength={17} style={{ ...inputStyle, flex: 1 }} />
+        <input value={vin || ""} onChange={(e) => { onVinChange(e.target.value); setStatus("idle"); }} placeholder="17-character VIN (optional)" maxLength={17} style={{ ...inputStyle, flex: 1, textTransform: "uppercase" }} />
         <button onClick={decode} disabled={status === "loading"} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, fontSize: 13, cursor: status === "loading" ? "default" : "pointer" }}>{status === "loading" ? "…" : "Decode"}</button>
       </div>
       {status === "error" && <div style={{ fontSize: 11.5, color: "#A32D2D", marginTop: 6 }}>Couldn't decode that VIN — double-check it, or just fill in the fields below manually.</div>}
@@ -1065,6 +1068,7 @@ function ListingDetail({ allListings, log }) {
               {listing.loan_status === "Still financed (loan payoff needed)" && listing.loan_balance && (
                 <Spec label="Loan balance" value={fmtPrice(listing.loan_balance)} />
               )}
+              {listing.vin && <Spec label="VIN" value={listing.vin} />}
             </div>
           </div>
           <div style={{ marginTop: 26, borderTop: `1px solid ${C.line}`, paddingTop: 20 }}>
@@ -1231,7 +1235,7 @@ function PostAd({ onSubmit, existingListings, log }) {
   const navigate = useNavigate();
   const location = useLocation();
   const prefill = location.state?.prefill;
-  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", loan_status:"Paid off", loan_balance:"", desc:"", phone:"", ...prefill });
+  const [form, setForm] = useState({ year:"", make:"", model:"", trim:"", price:"", mileage:"", city:"", state:"", fuel:"Gas", trans:"Automatic", color:"", seller:"Private", body:"", condition:"Good", loan_status:"Paid off", loan_balance:"", desc:"", phone:"", vin:"", ...prefill });
   const [photos, setPhotos] = useState([]);
   const [issues, setIssues] = useState({});
   const [confirmDuplicate, setConfirmDuplicate] = useState(false);
@@ -1305,7 +1309,7 @@ function PostAd({ onSubmit, existingListings, log }) {
       photoUrls.push(urlData.publicUrl);
     }
 
-    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), loan_balance: form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null, verified: false, featured: false, photos: photoUrls, issues, desc: form.desc || "No additional description provided." });
+    const errMsg = await onSubmit({ ...form, year: Number(form.year), price: Number(form.price), mileage: Number(form.mileage), loan_balance: form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null, verified: false, featured: false, photos: photoUrls, issues, desc: form.desc || "No additional description provided.", vin: form.vin.trim() ? form.vin.trim().toUpperCase() : null });
     setSubmitting(false);
     if (errMsg) setSubmitError(errMsg);
   };
@@ -1346,16 +1350,20 @@ function PostAd({ onSubmit, existingListings, log }) {
         <div style={{ fontSize: 12, color: C.steel }}>{photos.length} of 3 minimum added.</div>
       </Field>
 
-      <VinDecoder onDecode={(d) => {
-        setForm((prev) => ({
-          ...prev,
-          ...(d.year ? { year: String(d.year) } : {}),
-          ...(d.make ? { make: d.make } : {}),
-          ...(d.model ? { model: d.model } : {}),
-          ...(d.body ? { body: d.body } : {}),
-        }));
-        setErrors((prev) => ({ ...prev, year: false, make: false, model: false }));
-      }} />
+      <VinDecoder
+        vin={form.vin}
+        onVinChange={(v) => setForm((prev) => ({ ...prev, vin: v }))}
+        onDecode={(d) => {
+          setForm((prev) => ({
+            ...prev,
+            ...(d.year ? { year: String(d.year) } : {}),
+            ...(d.make ? { make: d.make } : {}),
+            ...(d.model ? { model: d.model } : {}),
+            ...(d.body ? { body: d.body } : {}),
+          }));
+          setErrors((prev) => ({ ...prev, year: false, make: false, model: false }));
+        }}
+      />
 
       <div className="hl-form-grid" style={{ marginTop: 18 }}>
         <Field label="Year" required error={errors.year}>
@@ -2174,7 +2182,7 @@ function LiveValueBar({ result, percent }) {
 
 function ValueMyCar({ allListings, log }) {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "" });
+  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "", vin: "" });
   const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
   const [saveError, setSaveError] = useState(null);
@@ -2242,6 +2250,21 @@ function ValueMyCar({ allListings, log }) {
         <h2 style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 6vw, 34px)", color: C.ink, margin: 0, textTransform: "uppercase", letterSpacing: 0.5 }}>What's Your Car Worth?</h2>
       </div>
       <p style={{ color: C.steel, fontSize: 14, marginBottom: 24, textAlign: "center" }}>Fill in your car's details to get an estimate.</p>
+
+      <VinDecoder
+        vin={form.vin}
+        onVinChange={(v) => setForm((prev) => ({ ...prev, vin: v }))}
+        onDecode={(d) => {
+          setForm((prev) => ({
+            ...prev,
+            ...(d.year ? { year: String(d.year) } : {}),
+            ...(d.make ? { make: d.make } : {}),
+            ...(d.model ? { model: d.model } : {}),
+            ...(d.body ? { body: d.body } : {}),
+          }));
+          setErrors((prev) => ({ ...prev, year: false, make: false, model: false }));
+        }}
+      />
 
       <div className="hl-form-grid">
         <Field label="Year" required error={errors.year}>
