@@ -1922,6 +1922,21 @@ const TYPICAL_NEW_PRICE_BY_BODY = {
   Sedan: 28000, Coupe: 32000, Hatchback: 24000, SUV: 38000, Truck: 45000, "Van/Minivan": 36000, Convertible: 40000,
 };
 
+// Reasoned brand resale-strength multiplier, checked September 2026 —
+// applied to the depreciation curve above, which was body-style-only and
+// treated a Camry and a 3 Series as retaining value identically. Same
+// honesty pattern as BRAND_REPAIR_COST/MAKE_BASE_PRICE: hand-reasoned from
+// general reliability/resale reputation, not live-scraped, worth periodically
+// re-checking. Brands not listed get a neutral 1.0 rather than a guess.
+// jev-tested: sequenced as a deliberate later pass, not bundled into the
+// original make/model pricing-anchor fix.
+const BRAND_RESALE_MULTIPLIER = {
+  Toyota: 1.10, Honda: 1.08, Lexus: 1.06, Subaru: 1.05, Acura: 1.02, GMC: 1.03, Ram: 1.02, Mazda: 1.02,
+  Chevrolet: 1.00, Tesla: 0.98, Hyundai: 0.98, Ford: 0.97, Kia: 0.97, Jeep: 0.96, Nissan: 0.95,
+  Mitsubishi: 0.92, Volkswagen: 0.90, Buick: 0.92, Volvo: 0.90, Cadillac: 0.90, BMW: 0.88, Audi: 0.87,
+  "Mercedes-Benz": 0.86, Dodge: 0.88, Chrysler: 0.85,
+};
+
 // Reasoned typical-new-price-by-make figures, checked September 2026 —
 // hand-compiled from general market knowledge, not a live-scraped or
 // licensed data feed (no budget for that pre-launk). Same honesty pattern as
@@ -1977,6 +1992,12 @@ function estimateValue(input, allListings, issues = {}) {
   let retained = 1;
   for (let y = 0; y < age; y++) retained *= y === 0 ? curve.year1 : curve.after;
   retained = Math.max(retained, curve.floor);
+  // Brand resale strength nudges retention up/down from the body-style
+  // baseline — clamped to [floor, 1] so a strong multiplier can't push a
+  // brand-new car above 100% retained, and a weak one can't undercut the
+  // body-style floor that already represents a real minimum.
+  const brandResaleMult = BRAND_RESALE_MULTIPLIER[input.make] ?? 1.0;
+  retained = Math.min(Math.max(retained * brandResaleMult, curve.floor), 1);
 
   const usedOriginalPrice = Boolean(input.originalPrice) && input.originalPrice > 0;
   const pricingAnchor = getPricingAnchor(input.make, input.model, input.body);
