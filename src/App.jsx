@@ -1776,24 +1776,65 @@ const ALL_BRAND_AVG_REPAIR_COST = 652;
 // this pricing data. Only covers brands with a genuinely common reputation
 // point; brands without a clear one are left out rather than padded with a
 // generic line.
+// Only genuinely brand-wide claims — nothing here names a specific model,
+// so it's honest to show on every model page for that brand (including
+// uncurated ones). Anything that only applies to particular nameplates
+// belongs in MODEL_SPECIFIC_NOTES below instead, scoped to just those
+// models — a Ford Transit page showing an F-150 transmission complaint
+// would be spillover, not information.
 const BRAND_COMMON_NOTES = {
   Toyota: "Widely reported for going well past 150-200k miles with routine maintenance; strong resale is largely built on this reputation.",
-  Honda: "Similar reliability reputation to Toyota; older V6 models are commonly noted for timing-belt service being due around 100k miles.",
-  Ford: "F-150s and Explorers are commonly discussed for transmission and electrical issues in certain model years — check service history on those specifically.",
-  Chevrolet: "Older GM trucks and SUVs have a reputation for simple, cheap-to-fix mechanicals, though electronics can be a weak point on newer models.",
+  Honda: "Similar reliability reputation to Toyota; older V6 models across the lineup are commonly noted for timing-belt service being due around 100k miles.",
   BMW: "Commonly reported for higher-than-average maintenance costs once out of warranty, especially cooling-system and electronic components.",
   "Mercedes-Benz": "Similar pattern to BMW — strong when new, maintenance costs climb noticeably after the factory warranty period.",
   Audi: "Similar reputation to other German luxury brands for higher out-of-warranty maintenance costs, particularly electronics.",
-  Subaru: "Head gasket issues are commonly reported on older (pre-2011) models; newer generations are widely considered to have resolved this.",
-  Jeep: "Wranglers and Grand Cherokees are commonly discussed for electrical gremlins; off-road-focused models can also show more wear if used hard.",
-  Nissan: "CVT transmissions on 2013-2018 models (Altima, Rogue, Sentra) are commonly reported as a weak point — a service history check is worth it.",
-  Hyundai: "Some 2011-2019 models were subject to engine-related recalls/extended warranties (Theta II engine) — worth checking VIN-specific recall status.",
-  Kia: "Shares some of the same engine concerns as Hyundai on overlapping model years, given the shared parent company.",
-  Volkswagen: "Electrical and infotainment issues are commonly reported, along with turbocharged-engine maintenance costs on some models.",
-  Dodge: "Pacifica/Chrysler minivans and Dodge cars have a mixed reliability reputation — transmission service history is worth checking specifically.",
-  Chrysler: "Similar to Dodge — mixed reputation, transmission-related concerns are the most commonly discussed issue on minivans.",
-  Mazda: "Generally strong reliability reputation; some 2016-2018 models report suspension and clutch wear complaints.",
+  Subaru: "Head gasket issues are commonly reported on older (pre-2011) models across the lineup; newer generations are widely considered to have resolved this.",
+  Volkswagen: "Electrical and infotainment issues are commonly reported across the lineup, along with turbocharged-engine maintenance costs on some models.",
+  Mazda: "Generally strong reliability reputation; some 2016-2018 models across the lineup report suspension wear complaints.",
   Tesla: "Panel gaps and paint/build-quality issues are the most commonly discussed concern rather than drivetrain reliability.",
+};
+
+// Claims that only apply to specific nameplates — keyed [make][modelKey],
+// only rendered on that exact model's guide page (curated or NHTSA-body-
+// classified). A model with nothing here and nothing in BRAND_COMMON_NOTES
+// gets no "what to check" section at all, rather than borrowing another
+// model's issue.
+const MODEL_SPECIFIC_NOTES = {
+  Ford: {
+    "f-150": "F-150s are commonly discussed for transmission and electrical issues in certain model years — check service history specifically.",
+    explorer: "Explorers are commonly discussed for transmission and electrical issues in certain model years — check service history specifically.",
+  },
+  Chevrolet: {
+    silverado: "Older Silverados have a reputation for simple, cheap-to-fix mechanicals, though electronics can be a weak point on newer model years.",
+    tahoe: "Older Tahoes have a reputation for simple, cheap-to-fix mechanicals, though electronics can be a weak point on newer model years.",
+    traverse: "Traverses have drawn more electronics/infotainment complaints than Chevy's truck-based models — a pre-purchase check is worth it.",
+    blazer: "Blazers have drawn more electronics/infotainment complaints than Chevy's truck-based models — a pre-purchase check is worth it.",
+    colorado: "Older Colorados have a reputation for simple, cheap-to-fix mechanicals, though electronics can be a weak point on newer model years.",
+  },
+  Jeep: {
+    wrangler: "Wranglers are commonly discussed for electrical gremlins; heavy off-road use can also mean more wear than the mileage alone suggests.",
+    "grand cherokee": "Grand Cherokees are commonly discussed for electrical gremlins in certain model years — a pre-purchase check is worth it.",
+  },
+  Nissan: {
+    altima: "2013-2018 Altimas are commonly reported to have CVT transmission weak points — a service history check on the transmission is worth it.",
+    rogue: "2013-2018 Rogues are commonly reported to have CVT transmission weak points — a service history check on the transmission is worth it.",
+    sentra: "2013-2018 Sentras are commonly reported to have CVT transmission weak points — a service history check on the transmission is worth it.",
+  },
+  Hyundai: {
+    sonata: "Certain Sonata model years (2011-2019) were subject to engine-related recalls/extended warranties (Theta II engine) — worth checking VIN-specific recall status.",
+    "santa fe": "Certain Santa Fe model years (2011-2019) were subject to engine-related recalls/extended warranties (Theta II engine) — worth checking VIN-specific recall status.",
+  },
+  Kia: {
+    k5: "Certain K5/Optima model years share Hyundai's Theta II engine recall history (2011-2019) — worth checking VIN-specific recall status.",
+    sportage: "Certain turbocharged Sportage model years share some of the same engine concerns as Hyundai's Theta II recalls — worth checking VIN-specific recall status.",
+  },
+  Dodge: {
+    charger: "Certain Charger model years (roughly 2012-2014) are commonly discussed for TIPM (power module) electrical issues and 8-speed automatic shudder complaints.",
+    durango: "Certain Durango model years (roughly 2012-2014) are commonly discussed for TIPM (power module) electrical issues and 8-speed automatic shudder complaints.",
+  },
+  Chrysler: {
+    pacifica: "Pacifica minivans have a mixed reliability reputation — transmission-related concerns are the most commonly discussed issue; check service history.",
+  },
 };
 function getBrandMultiplier(make) {
   const cost = BRAND_REPAIR_COST[make];
@@ -4168,6 +4209,10 @@ function GuidePage({ allListings }) {
   const activeComps = comps.filter((c) => c.status !== "sold").slice(0, 6);
   const currentYear = new Date().getFullYear();
   const maxPrice = prices[0].price;
+  // Model-specific claim takes priority over the brand-wide one — a model
+  // with neither gets no section at all rather than showing another
+  // model's issue.
+  const buyingNote = MODEL_SPECIFIC_NOTES[make]?.[modelKey] || BRAND_COMMON_NOTES[make];
   return (
     <div>
       <SEOHead
@@ -4211,10 +4256,10 @@ function GuidePage({ allListings }) {
           </div>
         </div>
 
-        {BRAND_COMMON_NOTES[make] && (
+        {buyingNote && (
           <div style={{ marginBottom: 28, background: "#FAFAF7", border: `1px solid ${C.line}`, borderRadius: 6, padding: "14px 18px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}><ShieldCheck size={15} /> What to check before buying</div>
-            <p style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>{BRAND_COMMON_NOTES[make]} This reflects general owner-reported reputation, not a defect claim about this specific {label} — always verify with a pre-purchase inspection and the vehicle's actual service history.</p>
+            <p style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>{buyingNote} This reflects general owner-reported reputation, not a confirmed defect in this specific {label} — always verify with a pre-purchase inspection and the vehicle's actual service history.</p>
           </div>
         )}
 
