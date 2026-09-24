@@ -13,7 +13,7 @@ const SITE_URL = "https://www.highwaylot.com";
 const BODY_SLUGS = { Sedan: "sedan", Coupe: "coupe", Hatchback: "hatchback", SUV: "suv", Truck: "truck", "Van/Minivan": "van-minivan", Convertible: "convertible" };
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-const STATIC_ROUTES = ["/", "/post", "/value", "/quiz", "/terms", "/privacy", "/guide"];
+const STATIC_ROUTES = ["/", "/post", "/value", "/terms", "/privacy", "/guide"];
 
 // Mirrors MAKE_BASE_PRICE / GUIDE_CATALOG in src/App.jsx (GuideMake/GuidePage
 // routes) — kept in sync by hand since this file can't import from the SPA
