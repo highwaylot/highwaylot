@@ -2077,6 +2077,43 @@ function getPricingAnchor(make, model, body) {
   return { price: TYPICAL_NEW_PRICE_BY_BODY[body] || TYPICAL_NEW_PRICE_BY_BODY.Sedan, tier: "body" };
 }
 
+// Body style per model, for the guide pages' depreciation curve — not used
+// by estimateValue (which takes body directly from the listing/form). Only
+// needs to cover the same models as MODEL_BASE_PRICE.
+const GUIDE_MODEL_BODY = {
+  Toyota: { camry: "Sedan", corolla: "Sedan", rav4: "SUV", highlander: "SUV", tacoma: "Truck", tundra: "Truck" },
+  Honda: { civic: "Sedan", accord: "Sedan", "cr-v": "SUV", pilot: "SUV", odyssey: "Van/Minivan" },
+  Ford: { "f-150": "Truck", explorer: "SUV", escape: "SUV", mustang: "Coupe", "bronco sport": "SUV" },
+  Chevrolet: { silverado: "Truck", equinox: "SUV", malibu: "Sedan", tahoe: "SUV", traverse: "SUV" },
+  Ram: { "1500": "Truck" },
+  Jeep: { "grand cherokee": "SUV", wrangler: "SUV", cherokee: "SUV", compass: "SUV" },
+  Nissan: { altima: "Sedan", rogue: "SUV", sentra: "Sedan" },
+  Hyundai: { elantra: "Sedan", tucson: "SUV", "santa fe": "SUV" },
+  Kia: { forte: "Sedan", sportage: "SUV", telluride: "SUV" },
+  Subaru: { outback: "SUV", forester: "SUV", crosstrek: "SUV" },
+  Tesla: { "model 3": "Sedan", "model y": "SUV" },
+};
+// De-duplicated (make, modelKey) pairs for the guide — MODEL_BASE_PRICE has
+// a couple of aliases (f150/f-150, crv/cr-v, 1500 keyed twice) pointing at
+// the same car, which would otherwise produce duplicate guide pages.
+const GUIDE_CATALOG = Object.entries(MODEL_BASE_PRICE).flatMap(([make, models]) =>
+  Object.keys(GUIDE_MODEL_BODY[make] || {}).map((modelKey) => ({ make, modelKey, label: modelKey.replace(/(^|\s|-)\w/g, (c) => c.toUpperCase()) }))
+);
+// Same depreciation math as estimateValue's retained-value curve, but without
+// mileage/condition/comps — this is a general reference table, not a
+// personalized estimate (the real valuation tool at /value is for that).
+function guidePriceAtAge(make, modelKey, age) {
+  const anchor = MODEL_BASE_PRICE[make]?.[modelKey] ?? MAKE_BASE_PRICE[make];
+  const body = GUIDE_MODEL_BODY[make]?.[modelKey] || "Sedan";
+  const curve = BODY_DEPRECIATION_CURVES[body] || BODY_DEPRECIATION_CURVES.Sedan;
+  let retained = 1;
+  for (let y = 0; y < age; y++) retained *= y === 0 ? curve.year1 : curve.after;
+  retained = Math.max(retained, curve.floor);
+  const brandMult = BRAND_RESALE_MULTIPLIER[make] ?? 1.0;
+  retained = Math.min(Math.max(retained * brandMult, curve.floor), 1);
+  return Math.round((anchor * retained) / 50) * 50;
+}
+
 function estimateValue(input, allListings, issues = {}) {
   const age = Math.max(new Date().getFullYear() - input.year, 0);
   const curve = BODY_DEPRECIATION_CURVES[input.body] || BODY_DEPRECIATION_CURVES.Sedan;
@@ -3742,6 +3779,141 @@ function DraftReviewBanner() {
   );
 }
 
+// Long-tail SEO content hub ("what should this car cost / what to check
+// before buying"). Every number on these pages comes from the same pricing
+// data ValueMyCar uses — no separate content source to keep honest or in
+// sync. GuidePage covers the highest-volume models (GUIDE_CATALOG); GuideMake
+// covers every make we have any price data for, even without model detail;
+// GuideIndex links both so Google (and internal links from listings) can
+// crawl the whole set.
+function guideAges() { return [0, 3, 5, 8, 10]; }
+
+function GuideIndex() {
+  const byMake = {};
+  for (const { make, modelKey, label } of GUIDE_CATALOG) {
+    (byMake[make] ||= []).push({ modelKey, label });
+  }
+  const allMakes = Object.keys(MAKE_BASE_PRICE).sort();
+  return (
+    <div style={{ maxWidth: 780, margin: "0 auto", padding: "48px 20px 70px" }}>
+      <SEOHead
+        title="Car Price Guide — What Should You Actually Pay? | HIGHWAYLOT"
+        description="Real depreciation-based price guides by make and model — what a car should cost at 3, 5, 8, and 10 years old, so you know if an asking price is fair."
+        path="/guide"
+      />
+      <h1 style={{ fontFamily: FONT_HEAD, fontSize: 26, color: C.ink, marginBottom: 6 }}>Car Price Guide</h1>
+      <p style={{ color: C.steel, fontSize: 14, lineHeight: 1.6, marginBottom: 24, maxWidth: 620 }}>
+        What a car should actually cost at different ages and mileages — not a sticker price, a reasoned range based on depreciation, brand resale strength, and (where we have them) real recent listings. Pick a make below, or jump straight to a model.
+      </p>
+      {allMakes.map((make) => (
+        <div key={make} style={{ marginBottom: 20 }}>
+          <Link to={`/guide/${slugify(make)}`} style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, textDecoration: "none" }}>{make}</Link>
+          {byMake[make] && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", marginTop: 6 }}>
+              {byMake[make].map(({ modelKey, label }) => (
+                <Link key={modelKey} to={`/guide/${slugify(make)}/${slugify(modelKey)}`} style={{ fontSize: 13, color: C.steel, textDecoration: "none" }}>{label}</Link>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GuideMake({ allListings }) {
+  const { make: makeSlug } = useParams();
+  const make = Object.keys(MAKE_BASE_PRICE).find((m) => slugify(m) === makeSlug);
+  if (!make) return <NotFound />;
+  const models = GUIDE_CATALOG.filter((g) => g.make === make);
+  const anchor = MAKE_BASE_PRICE[make];
+  const brandMult = BRAND_RESALE_MULTIPLIER[make] ?? 1.0;
+  return (
+    <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
+      <SEOHead
+        title={`${make} Price Guide — What ${make}s Actually Cost | HIGHWAYLOT`}
+        description={`What a ${make} should cost by age and mileage, plus resale strength vs. other brands — a reasoned reference, not a sticker price.`}
+        path={`/guide/${makeSlug}`}
+      />
+      <div style={{ fontSize: 12, color: C.steel, marginBottom: 6 }}><Link to="/guide" style={{ color: C.steel }}>Price Guide</Link> / {make}</div>
+      <h1 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, marginBottom: 10 }}>{make} Price Guide</h1>
+      <p style={{ color: "#3B4250", fontSize: 13.5, lineHeight: 1.6, marginBottom: 16 }}>
+        {make} holds value {brandMult > 1.02 ? "better than most brands" : brandMult < 0.92 ? "below average" : "about average"} at resale, based on typical depreciation curves for its body styles. A new {make} starting around ${anchor.toLocaleString()} depreciates from there — see specific models below for age-by-age numbers.
+      </p>
+      {models.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, marginBottom: 8 }}>Models with detailed guides</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {models.map(({ modelKey, label }) => (
+              <Link key={modelKey} to={`/guide/${makeSlug}/${slugify(modelKey)}`} style={{ fontSize: 14, color: C.ink, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 4, padding: "8px 12px" }}>{make} {label} →</Link>
+            ))}
+          </div>
+        </div>
+      )}
+      <Link to="/value" style={{ display: "inline-block", background: C.ink, color: "#fff", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Get a real estimate for your {make} →</Link>
+    </div>
+  );
+}
+
+function GuidePage({ allListings }) {
+  const { make: makeSlug, model: modelSlug } = useParams();
+  const entry = GUIDE_CATALOG.find((g) => slugify(g.make) === makeSlug && slugify(g.modelKey) === modelSlug);
+  if (!entry) return <NotFound />;
+  const { make, modelKey, label } = entry;
+  const body = GUIDE_MODEL_BODY[make]?.[modelKey] || "Sedan";
+  const ages = guideAges();
+  const prices = ages.map((age) => ({ age, price: guidePriceAtAge(make, modelKey, age) }));
+  const comps = (allListings || []).filter((c) => c.make?.toLowerCase() === make.toLowerCase() && (c.model?.toLowerCase().includes(modelKey.replace(/-/g, "")) || c.model?.toLowerCase().includes(modelKey)));
+  const activeComps = comps.filter((c) => c.status !== "sold").slice(0, 6);
+  const currentYear = new Date().getFullYear();
+  return (
+    <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
+      <SEOHead
+        title={`${make} ${label} Price Guide — What Should It Cost? | HIGHWAYLOT`}
+        description={`What a used ${make} ${label} should cost at 3, 5, 8, and 10 years old — a depreciation-based reference so you know if an asking price is fair.`}
+        path={`/guide/${makeSlug}/${modelSlug}`}
+      />
+      <div style={{ fontSize: 12, color: C.steel, marginBottom: 6 }}>
+        <Link to="/guide" style={{ color: C.steel }}>Price Guide</Link> / <Link to={`/guide/${makeSlug}`} style={{ color: C.steel }}>{make}</Link> / {label}
+      </div>
+      <h1 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, marginBottom: 4 }}>{make} {label} Price Guide</h1>
+      <p style={{ color: C.steel, fontSize: 13, marginBottom: 20 }}>What a {make} {label} should actually cost, by age — a reference range, not a personalized estimate.</p>
+
+      <div style={{ border: `1px solid ${C.line}`, borderRadius: 6, overflow: "hidden", marginBottom: 24 }}>
+        {prices.map(({ age, price }, i) => (
+          <div key={age} style={{ display: "flex", justifyContent: "space-between", padding: "10px 16px", borderTop: i === 0 ? "none" : `1px solid ${C.line}`, background: i % 2 === 0 ? "#fff" : "#FAFAF7" }}>
+            <span style={{ fontSize: 13.5, color: C.ink }}>{age === 0 ? "New" : `${age} years old (~${currentYear - age})`}</span>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>${price.toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}>Is your asking price fair?</div>
+        <p style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6 }}>
+          These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and — where available — recent local sales, use the <Link to="/value" style={{ color: C.ink }}>full valuation tool</Link> instead of this reference table.
+        </p>
+      </div>
+
+      {activeComps.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 8 }}>Currently listed on HIGHWAYLOT</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {activeComps.map((c) => (
+              <Link key={c.id} to={`/listing/${c.id}`} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, color: C.ink, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 4, padding: "8px 12px" }}>
+                <span>{c.year} {c.make} {c.model}{c.mileage ? ` · ${c.mileage.toLocaleString()} mi` : ""}</span>
+                <span style={{ fontWeight: 600 }}>${(c.price || 0).toLocaleString()}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Link to="/value" style={{ display: "inline-block", background: C.ink, color: "#fff", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Get my {make} {label}'s real value →</Link>
+    </div>
+  );
+}
+
 function Terms() {
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
@@ -3820,6 +3992,7 @@ function Footer() {
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "26px 20px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12.5 }}>HIGHWAYLOT — buy and sell cars nationwide.</div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+          <Link to="/guide" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Price Guide</Link>
           <Link to="/terms" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Terms</Link>
           <Link to="/privacy" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Privacy</Link>
           <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>United States only, for now.</div>
@@ -4029,6 +4202,9 @@ export default function App() {
         <Route path="/value" element={<ValueMyCar allListings={listings} log={log} />} />
         <Route path="/quiz" element={<Quiz log={log} onComplete={handleQuizComplete} />} />
         <Route path="/quiz/results" element={<QuizResults allListings={visibleListings} openListing={openListing} />} />
+        <Route path="/guide" element={<GuideIndex />} />
+        <Route path="/guide/:make" element={<GuideMake allListings={visibleListings} />} />
+        <Route path="/guide/:make/:model" element={<GuidePage allListings={visibleListings} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
