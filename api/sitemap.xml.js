@@ -13,7 +13,25 @@ const SITE_URL = "https://www.highwaylot.com";
 const BODY_SLUGS = { Sedan: "sedan", Coupe: "coupe", Hatchback: "hatchback", SUV: "suv", Truck: "truck", "Van/Minivan": "van-minivan", Convertible: "convertible" };
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-const STATIC_ROUTES = ["/", "/post", "/value", "/quiz", "/terms", "/privacy"];
+const STATIC_ROUTES = ["/", "/post", "/value", "/quiz", "/terms", "/privacy", "/guide"];
+
+// Mirrors MAKE_BASE_PRICE / GUIDE_CATALOG in src/App.jsx (GuideMake/GuidePage
+// routes) — kept in sync by hand since this file can't import from the SPA
+// bundle. Update both places if a make/model is added or removed there.
+const GUIDE_MAKES = ["Ford", "Toyota", "Honda", "Chevrolet", "Jeep", "Ram", "GMC", "Nissan", "Hyundai", "Kia", "Subaru", "Volkswagen", "BMW", "Mercedes-Benz", "Audi", "Lexus", "Mazda", "Dodge", "Chrysler", "Buick", "Cadillac", "Tesla", "Mitsubishi", "Volvo", "Acura"];
+const GUIDE_MODELS = {
+  Toyota: ["camry", "corolla", "rav4", "highlander", "tacoma", "tundra"],
+  Honda: ["civic", "accord", "cr-v", "pilot", "odyssey"],
+  Ford: ["f-150", "explorer", "escape", "mustang", "bronco sport"],
+  Chevrolet: ["silverado", "equinox", "malibu", "tahoe", "traverse"],
+  Ram: ["1500"],
+  Jeep: ["grand cherokee", "wrangler", "cherokee", "compass"],
+  Nissan: ["altima", "rogue", "sentra"],
+  Hyundai: ["elantra", "tucson", "santa fe"],
+  Kia: ["forte", "sportage", "telluride"],
+  Subaru: ["outback", "forester", "crosstrek"],
+  Tesla: ["model 3", "model y"],
+};
 
 function xmlEscape(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -30,6 +48,11 @@ export default async function handler(req, res) {
     const urls = new Map(); // path -> lastmod, dedupes category combos automatically
 
     for (const route of STATIC_ROUTES) urls.set(route, null);
+
+    for (const make of GUIDE_MAKES) {
+      urls.set(`/guide/${slugify(make)}`, null);
+      for (const model of GUIDE_MODELS[make] || []) urls.set(`/guide/${slugify(make)}/${slugify(model)}`, null);
+    }
 
     for (const l of listings) {
       const lastmod = l.updated_at || l.created_at || null;
