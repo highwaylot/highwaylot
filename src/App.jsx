@@ -2168,12 +2168,41 @@ const GUIDE_MODEL_BODY = {
 const GUIDE_CATALOG = Object.entries(MODEL_BASE_PRICE).flatMap(([make, models]) =>
   Object.keys(GUIDE_MODEL_BODY[make] || {}).map((modelKey) => ({ make, modelKey, label: modelKey.replace(/(^|\s|-)\w/g, (c) => c.toUpperCase()) }))
 );
+// NHTSA's GetModelsForMakeYear endpoint accepts a vehicletype filter
+// ("car", "truck", "mpv" for SUVs, "van"/"bus" for minivans) — the "car"
+// example is straight from vPIC's own API docs; the others are best-effort
+// and just fail closed (empty result) if vPIC uses different wording, same
+// as every other NHTSA fetch in this app. Used to give uncurated long-tail
+// models a real depreciation curve instead of always defaulting to Sedan.
+const NHTSA_VEHICLE_TYPE_TO_BODY = { car: "Sedan", truck: "Truck", mpv: "SUV", van: "Van/Minivan", bus: "Van/Minivan" };
+async function classifyGuideBodyTypes(make) {
+  const year = new Date().getFullYear() - 1; // last full model year — more complete than the current year, which is often still filling in
+  const results = await Promise.all(
+    Object.keys(NHTSA_VEHICLE_TYPE_TO_BODY).map(async (type) => {
+      try {
+        const r = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeYear/make/${encodeURIComponent(make)}/modelyear/${year}/vehicletype/${type}?format=json`);
+        const data = await r.json();
+        return { type, names: (data.Results || []).map((m) => m.Model_Name) };
+      } catch {
+        return { type, names: [] };
+      }
+    })
+  );
+  const bodyByModel = {};
+  for (const { type, names } of results) {
+    for (const name of names) if (!bodyByModel[name]) bodyByModel[name] = NHTSA_VEHICLE_TYPE_TO_BODY[type];
+  }
+  return bodyByModel;
+}
 // Same depreciation math as estimateValue's retained-value curve, but without
 // mileage/condition/comps — this is a general reference table, not a
 // personalized estimate (the real valuation tool at /value is for that).
-function guidePriceAtAge(make, modelKey, age) {
+// bodyOverride lets a caller supply a real NHTSA-classified body style for
+// models outside GUIDE_MODEL_BODY (see classifyGuideBodyTypes below) instead
+// of silently defaulting every unknown model to a Sedan curve.
+function guidePriceAtAge(make, modelKey, age, bodyOverride) {
   const anchor = MODEL_BASE_PRICE[make]?.[modelKey] ?? MAKE_BASE_PRICE[make];
-  const body = GUIDE_MODEL_BODY[make]?.[modelKey] || "Sedan";
+  const body = bodyOverride || GUIDE_MODEL_BODY[make]?.[modelKey] || "Sedan";
   const curve = BODY_DEPRECIATION_CURVES[body] || BODY_DEPRECIATION_CURVES.Sedan;
   let retained = 1;
   for (let y = 0; y < age; y++) retained *= y === 0 ? curve.year1 : curve.after;
@@ -3987,7 +4016,20 @@ function GuideMake({ allListings }) {
       .catch(() => setAllModels([]))
       .finally(() => setLoadingModels(false));
   }, [make]);
+
+  // Real body type per model (SUV/Truck/Sedan/Van) from NHTSA, so the
+  // long-tail models below can get a genuinely differentiated price instead
+  // of all defaulting to the same flat brand number — see
+  // classifyGuideBodyTypes above.
+  const [bodyByModel, setBodyByModel] = useState({});
+  useEffect(() => {
+    if (!make) return;
+    classifyGuideBodyTypes(make).then(setBodyByModel);
+  }, [make]);
+
   const otherModels = allModels.filter((name) => !curatedKeys.has(name.toLowerCase()));
+  const classifiedModels = otherModels.filter((name) => bodyByModel[name]);
+  const unclassifiedModels = otherModels.filter((name) => !bodyByModel[name]);
 
   if (!make) return <NotFound />;
   return (
@@ -4036,14 +4078,34 @@ function GuideMake({ allListings }) {
           </div>
         )}
 
-        {otherModels.length > 0 && (
+        {classifiedModels.length > 0 && (
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 4 }}>More {make} models</div>
+            <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>
+              Pulled live from NHTSA, with a real body type (so a truck depreciates like a truck, not a sedan) but not yet a model-specific base price — these use the {make} brand anchor with the correct depreciation curve.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+              {classifiedModels.map((name) => {
+                const p5 = guidePriceAtAge(make, name.toLowerCase(), 5, bodyByModel[name]);
+                return (
+                  <Link key={name} to={`/guide/${makeSlug}/${slugify(name)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "12px 14px", textDecoration: "none", display: "block" }}>
+                    <div style={{ fontFamily: FONT_HEAD, fontSize: 14.5, color: C.ink, marginBottom: 3 }}>{make} {name}</div>
+                    <div style={{ fontSize: 12, color: C.steel }}>~${p5.toLocaleString()} at 5 years old ({bodyByModel[name]})</div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {unclassifiedModels.length > 0 && (
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 4 }}>Every other {make} model</div>
             <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>
-              Pulled live from NHTSA's public vehicle database. We don't have model-specific pricing for these yet, so rather than show you a guessed number, each one links straight to the real valuation tool with the model pre-filled.
+              We couldn't classify these enough to price them honestly, so each links straight to the real valuation tool with the model pre-filled instead of guessing.
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {otherModels.map((name) => (
+              {unclassifiedModels.map((name) => (
                 <Link key={name} to={`/value?make=${encodeURIComponent(make)}&model=${encodeURIComponent(name)}`} style={{ fontSize: 12.5, color: C.steel, background: "#F0EEE5", borderRadius: 3, padding: "5px 10px", textDecoration: "none" }}>{name}</Link>
               ))}
             </div>
@@ -4062,29 +4124,46 @@ function GuidePage({ allListings }) {
   const navigate = useNavigate();
   const entry = GUIDE_CATALOG.find((g) => slugify(g.make) === makeSlug && slugify(g.modelKey) === modelSlug);
   const fallbackMake = !entry ? Object.keys(MAKE_BASE_PRICE).find((m) => slugify(m) === makeSlug) : null;
-  // Only curated models (GUIDE_CATALOG) get an actual guide page — they have
-  // real model-specific pricing and a known body style. Anything else would
-  // just repeat the same flat make-level number under a different name,
-  // which is both misleading (looks like a real per-model estimate when
-  // it isn't) and bad for SEO (a page that's identical to hundreds of
-  // others except its title reads as thin/duplicate content to Google).
-  // Redirect those straight into a prefilled valuation-tool run instead of
-  // rendering that page at all.
+
+  // For a non-curated model, this resolves whether NHTSA can give us a real
+  // body type for it (see classifyGuideBodyTypes) — if so, render a real
+  // page using that body's actual depreciation curve; if not, there's
+  // nothing honest to show, so redirect into a prefilled valuation-tool run
+  // instead of a page that would just repeat the flat brand number under a
+  // different name (misleading, and thin/duplicate content for SEO).
+  const [fallbackState, setFallbackState] = useState(null); // null=loading, {name, body}, or "redirect"
   useEffect(() => {
-    if (!entry && fallbackMake) {
+    if (entry || !fallbackMake) return;
+    let cancelled = false;
+    Promise.all([
+      fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(fallbackMake)}?format=json`).then((r) => r.json()).catch(() => ({ Results: [] })),
+      classifyGuideBodyTypes(fallbackMake),
+    ]).then(([data, bodyByModel]) => {
+      if (cancelled) return;
+      const names = (data.Results || []).map((m) => m.Model_Name).filter(isGuideCarModel);
+      const realName = names.find((n) => slugify(n) === modelSlug);
+      if (realName && bodyByModel[realName]) setFallbackState({ name: realName, body: bodyByModel[realName] });
+      else setFallbackState("redirect");
+    });
+    return () => { cancelled = true; };
+  }, [entry, fallbackMake, modelSlug]);
+
+  useEffect(() => {
+    if (fallbackState === "redirect" && fallbackMake) {
       navigate(`/value?make=${encodeURIComponent(fallbackMake)}&model=${encodeURIComponent(modelSlug.replace(/-/g, " "))}`, { replace: true });
     }
-  }, [entry, fallbackMake, modelSlug, navigate]);
+  }, [fallbackState, fallbackMake, modelSlug, navigate]);
+
   if (!entry && !fallbackMake) return <NotFound />;
-  if (!entry) return null;
-  const make = entry.make;
-  const modelKey = entry.modelKey;
-  const label = entry.label;
+  if (!entry && !fallbackState) return null; // loading — brief, avoids a flash of "not found" or wrong content
+  if (!entry && fallbackState === "redirect") return null;
+
+  const make = entry ? entry.make : fallbackMake;
+  const modelKey = entry ? entry.modelKey : fallbackState.name.toLowerCase();
+  const label = entry ? entry.label : fallbackState.name;
+  const bodyOverride = entry ? undefined : fallbackState.body;
   const ages = guideAges();
-  // guidePriceAtAge falls back to MAKE_BASE_PRICE + a Sedan curve on its own
-  // when modelKey isn't in MODEL_BASE_PRICE/GUIDE_MODEL_BODY, which is
-  // exactly the fallback case wants — no special-casing needed here.
-  const prices = ages.map((age) => ({ age, price: guidePriceAtAge(make, modelKey, age) }));
+  const prices = ages.map((age) => ({ age, price: guidePriceAtAge(make, modelKey, age, bodyOverride) }));
   const comps = (allListings || []).filter((c) => c.make?.toLowerCase() === make.toLowerCase() && (c.model?.toLowerCase().includes(modelKey.replace(/-/g, "")) || c.model?.toLowerCase().includes(modelKey)));
   const activeComps = comps.filter((c) => c.status !== "sold").slice(0, 6);
   const currentYear = new Date().getFullYear();
@@ -4103,6 +4182,12 @@ function GuidePage({ allListings }) {
         subtitle={`What a ${make} ${label} should actually cost, by age — a reference range, not a personalized estimate.`}
       />
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
+        {bodyOverride && (
+          <div style={{ marginBottom: 20, background: "#FFF3D6", border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <Info size={15} color={C.yellowDark} style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 13, color: C.yellowDark, margin: 0, lineHeight: 1.5 }}>We don't have {make} {label}-specific pricing yet — this uses the {make} brand price with a real {bodyOverride.toLowerCase()} depreciation curve (via NHTSA), not a model-specific one.</p>
+          </div>
+        )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
           <GuideStat icon={<DollarSign size={13} />} label="New, typical" value={`$${maxPrice.toLocaleString()}`} />
           <GuideStat icon={<TrendingDown size={13} />} label="At 5 years old" value={`$${prices.find((p) => p.age === 5).price.toLocaleString()}`} />
