@@ -721,6 +721,7 @@ function TopBar({ onPost }) {
             <NavLink label="Browse" to="/" active={pathname === "/" || pathname.startsWith("/listing") || pathname.startsWith("/category")} />
             <NavLink label="Value my car" to="/value" active={pathname === "/value"} />
             <NavLink label="My Car Quiz" to="/quiz" active={pathname.startsWith("/quiz")} />
+            <NavLink label="Price Guide" to="/guide" active={pathname.startsWith("/guide")} />
           </div>
         </div>
         <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 16px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
@@ -3788,6 +3789,32 @@ function DraftReviewBanner() {
 // crawl the whole set.
 function guideAges() { return [0, 3, 5, 8, 10]; }
 
+// Small bordered stat block reused across all three guide pages — a
+// consistent "here's one real fact" unit instead of a paragraph of prose.
+function GuideStat({ icon, label, value, note }) {
+  return (
+    <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 6, padding: "14px 16px", flex: "1 1 180px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, color: C.steel, fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 6 }}>
+        {icon}{label}
+      </div>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 20, color: C.ink }}>{value}</div>
+      {note && <div style={{ fontSize: 12, color: C.steel, marginTop: 2 }}>{note}</div>}
+    </div>
+  );
+}
+
+function GuideHero({ eyebrow, title, subtitle }) {
+  return (
+    <div style={{ background: C.ink, borderBottom: `4px solid ${C.yellow}` }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 20px 32px" }}>
+        {eyebrow && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>{eyebrow}</div>}
+        <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(24px, 4vw, 34px)", color: "#fff", margin: 0, marginBottom: 8 }}>{title}</h1>
+        {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, lineHeight: 1.6, maxWidth: 640, margin: 0 }}>{subtitle}</p>}
+      </div>
+    </div>
+  );
+}
+
 function GuideIndex() {
   const byMake = {};
   for (const { make, modelKey, label } of GUIDE_CATALOG) {
@@ -3795,28 +3822,41 @@ function GuideIndex() {
   }
   const allMakes = Object.keys(MAKE_BASE_PRICE).sort();
   return (
-    <div style={{ maxWidth: 780, margin: "0 auto", padding: "48px 20px 70px" }}>
+    <div>
       <SEOHead
         title="Car Price Guide — What Should You Actually Pay? | HIGHWAYLOT"
         description="Real depreciation-based price guides by make and model — what a car should cost at 3, 5, 8, and 10 years old, so you know if an asking price is fair."
         path="/guide"
       />
-      <h1 style={{ fontFamily: FONT_HEAD, fontSize: 26, color: C.ink, marginBottom: 6 }}>Car Price Guide</h1>
-      <p style={{ color: C.steel, fontSize: 14, lineHeight: 1.6, marginBottom: 24, maxWidth: 620 }}>
-        What a car should actually cost at different ages and mileages — not a sticker price, a reasoned range based on depreciation, brand resale strength, and (where we have them) real recent listings. Pick a make below, or jump straight to a model.
-      </p>
-      {allMakes.map((make) => (
-        <div key={make} style={{ marginBottom: 20 }}>
-          <Link to={`/guide/${slugify(make)}`} style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, textDecoration: "none" }}>{make}</Link>
-          {byMake[make] && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px 14px", marginTop: 6 }}>
-              {byMake[make].map(({ modelKey, label }) => (
-                <Link key={modelKey} to={`/guide/${slugify(make)}/${slugify(modelKey)}`} style={{ fontSize: 13, color: C.steel, textDecoration: "none" }}>{label}</Link>
-              ))}
-            </div>
-          )}
+      <GuideHero
+        eyebrow="HIGHWAYLOT"
+        title="Car Price Guide"
+        subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data. Pick a make to start."
+      />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
+          {allMakes.map((make) => {
+            const models = byMake[make];
+            const anchor = MAKE_BASE_PRICE[make];
+            return (
+              <Link key={make} to={`/guide/${slugify(make)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "16px 18px", textDecoration: "none", display: "block" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                  <CarIcon size={16} color={C.yellowDark} />
+                  <span style={{ fontFamily: FONT_HEAD, fontSize: 17, color: C.ink }}>{make}</span>
+                </div>
+                <div style={{ fontSize: 12.5, color: C.steel, marginBottom: models ? 10 : 0 }}>New starting around ${anchor.toLocaleString()}</div>
+                {models && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {models.map(({ label }) => (
+                      <span key={label} style={{ fontSize: 11.5, color: C.steel, background: "#F0EEE5", borderRadius: 3, padding: "3px 7px" }}>{label}</span>
+                    ))}
+                  </div>
+                )}
+              </Link>
+            );
+          })}
         </div>
-      ))}
+      </div>
     </div>
   );
 }
@@ -3828,37 +3868,46 @@ function GuideMake({ allListings }) {
   const models = GUIDE_CATALOG.filter((g) => g.make === make);
   const anchor = MAKE_BASE_PRICE[make];
   const brandMult = BRAND_RESALE_MULTIPLIER[make] ?? 1.0;
+  const resaleLabel = brandMult > 1.02 ? "Above average" : brandMult < 0.92 ? "Below average" : "About average";
   return (
-    <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
+    <div>
       <SEOHead
         title={`${make} Price Guide — What ${make}s Actually Cost | HIGHWAYLOT`}
         description={`What a ${make} should cost by age and mileage, plus resale strength vs. other brands — a reasoned reference, not a sticker price.`}
         path={`/guide/${makeSlug}`}
       />
-      <div style={{ fontSize: 12, color: C.steel, marginBottom: 6 }}><Link to="/guide" style={{ color: C.steel }}>Price Guide</Link> / {make}</div>
-      <h1 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, marginBottom: 10 }}>{make} Price Guide</h1>
-      <p style={{ color: "#3B4250", fontSize: 13.5, lineHeight: 1.6, marginBottom: 16 }}>
-        {make} holds value {brandMult > 1.02 ? "better than most brands" : brandMult < 0.92 ? "below average" : "about average"} at resale, based on typical depreciation curves for its body styles. A new {make} starting around ${anchor.toLocaleString()} depreciates from there — see specific models below for age-by-age numbers.
-      </p>
-      {BRAND_REPAIR_COST[make] && (
-        <div style={{ marginBottom: 20, border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", background: "#FAFAF7" }}>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, marginBottom: 4 }}>Reliability & repair cost</div>
-          <p style={{ fontSize: 13, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>
-            {make} owners spend about <strong>${BRAND_REPAIR_COST[make].toLocaleString()}/year</strong> on average repairs (RepairPal data) — {BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? `below the $${ALL_BRAND_AVG_REPAIR_COST.toLocaleString()}/year average across all brands, part of why ${make}s tend to hold value at resale` : `above the $${ALL_BRAND_AVG_REPAIR_COST.toLocaleString()}/year average across all brands — worth budgeting for when comparing total cost of ownership, not just purchase price`}.
-          </p>
+      <GuideHero
+        eyebrow={<><Link to="/guide" style={{ color: "inherit", textDecoration: "underline" }}>Price Guide</Link> / {make}</>}
+        title={`${make} Price Guide`}
+        subtitle={`A new ${make} starts around $${anchor.toLocaleString()} and depreciates from there. See specific models below for age-by-age numbers, or use the full valuation tool for your exact car.`}
+      />
+      <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
+          <GuideStat icon={<DollarSign size={13} />} label="New, typical" value={`$${anchor.toLocaleString()}`} />
+          <GuideStat icon={brandMult >= 1 ? <TrendingUp size={13} /> : <TrendingDown size={13} />} label="Resale strength" value={resaleLabel} note="vs. other brands" />
+          {BRAND_REPAIR_COST[make] && (
+            <GuideStat icon={<ShieldCheck size={13} />} label="Avg. annual repairs" value={`$${BRAND_REPAIR_COST[make].toLocaleString()}`} note={BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? `below $${ALL_BRAND_AVG_REPAIR_COST} avg` : `above $${ALL_BRAND_AVG_REPAIR_COST} avg`} />
+          )}
         </div>
-      )}
-      {models.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, marginBottom: 8 }}>Models with detailed guides</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {models.map(({ modelKey, label }) => (
-              <Link key={modelKey} to={`/guide/${makeSlug}/${slugify(modelKey)}`} style={{ fontSize: 14, color: C.ink, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 4, padding: "8px 12px" }}>{make} {label} →</Link>
-            ))}
+
+        {models.length > 0 && (
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 10 }}>Models with detailed guides</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+              {models.map(({ modelKey, label }) => {
+                const p5 = guidePriceAtAge(make, modelKey, 5);
+                return (
+                  <Link key={modelKey} to={`/guide/${makeSlug}/${slugify(modelKey)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "12px 14px", textDecoration: "none", display: "block" }}>
+                    <div style={{ fontFamily: FONT_HEAD, fontSize: 14.5, color: C.ink, marginBottom: 3 }}>{make} {label}</div>
+                    <div style={{ fontSize: 12, color: C.steel }}>~${p5.toLocaleString()} at 5 years old</div>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
-      <Link to="/value" style={{ display: "inline-block", background: C.ink, color: "#fff", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Get a real estimate for your {make} →</Link>
+        )}
+        <Link to="/value" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: C.ink, color: "#fff", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Get a real estimate for your {make} →</Link>
+      </div>
     </div>
   );
 }
@@ -3868,65 +3917,71 @@ function GuidePage({ allListings }) {
   const entry = GUIDE_CATALOG.find((g) => slugify(g.make) === makeSlug && slugify(g.modelKey) === modelSlug);
   if (!entry) return <NotFound />;
   const { make, modelKey, label } = entry;
-  const body = GUIDE_MODEL_BODY[make]?.[modelKey] || "Sedan";
   const ages = guideAges();
   const prices = ages.map((age) => ({ age, price: guidePriceAtAge(make, modelKey, age) }));
   const comps = (allListings || []).filter((c) => c.make?.toLowerCase() === make.toLowerCase() && (c.model?.toLowerCase().includes(modelKey.replace(/-/g, "")) || c.model?.toLowerCase().includes(modelKey)));
   const activeComps = comps.filter((c) => c.status !== "sold").slice(0, 6);
   const currentYear = new Date().getFullYear();
+  const maxPrice = prices[0].price;
   return (
-    <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
+    <div>
       <SEOHead
         title={`${make} ${label} Price Guide — What Should It Cost? | HIGHWAYLOT`}
         description={`What a used ${make} ${label} should cost at 3, 5, 8, and 10 years old — a depreciation-based reference so you know if an asking price is fair.`}
         path={`/guide/${makeSlug}/${modelSlug}`}
       />
-      <div style={{ fontSize: 12, color: C.steel, marginBottom: 6 }}>
-        <Link to="/guide" style={{ color: C.steel }}>Price Guide</Link> / <Link to={`/guide/${makeSlug}`} style={{ color: C.steel }}>{make}</Link> / {label}
-      </div>
-      <h1 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, marginBottom: 4 }}>{make} {label} Price Guide</h1>
-      <p style={{ color: C.steel, fontSize: 13, marginBottom: 20 }}>What a {make} {label} should actually cost, by age — a reference range, not a personalized estimate.</p>
-
-      <div style={{ border: `1px solid ${C.line}`, borderRadius: 6, overflow: "hidden", marginBottom: 24 }}>
-        {prices.map(({ age, price }, i) => (
-          <div key={age} style={{ display: "flex", justifyContent: "space-between", padding: "10px 16px", borderTop: i === 0 ? "none" : `1px solid ${C.line}`, background: i % 2 === 0 ? "#fff" : "#FAFAF7" }}>
-            <span style={{ fontSize: 13.5, color: C.ink }}>{age === 0 ? "New" : `${age} years old (~${currentYear - age})`}</span>
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: C.ink }}>${price.toLocaleString()}</span>
-          </div>
-        ))}
-      </div>
-
-      {BRAND_REPAIR_COST[make] && (
-        <div style={{ marginBottom: 24, border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", background: "#FAFAF7" }}>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, marginBottom: 4 }}>What to budget for repairs</div>
-          <p style={{ fontSize: 13, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>
-            {make} owners spend about <strong>${BRAND_REPAIR_COST[make].toLocaleString()}/year</strong> on average repairs (RepairPal data) — {BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? "below the all-brand average, one reason these tend to hold value" : "above the all-brand average, worth factoring into total cost of ownership"}. This is a brand-wide average, not specific to the {label} — a pre-purchase inspection is the only way to know this particular car's actual condition.
-          </p>
+      <GuideHero
+        eyebrow={<><Link to="/guide" style={{ color: "inherit", textDecoration: "underline" }}>Price Guide</Link> / <Link to={`/guide/${makeSlug}`} style={{ color: "inherit", textDecoration: "underline" }}>{make}</Link> / {label}</>}
+        title={`${make} ${label} Price Guide`}
+        subtitle={`What a ${make} ${label} should actually cost, by age — a reference range, not a personalized estimate.`}
+      />
+      <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
+          <GuideStat icon={<DollarSign size={13} />} label="New, typical" value={`$${maxPrice.toLocaleString()}`} />
+          <GuideStat icon={<TrendingDown size={13} />} label="At 5 years old" value={`$${prices.find((p) => p.age === 5).price.toLocaleString()}`} />
+          {BRAND_REPAIR_COST[make] && (
+            <GuideStat icon={<ShieldCheck size={13} />} label="Avg. annual repairs" value={`$${BRAND_REPAIR_COST[make].toLocaleString()}`} note={BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? `below $${ALL_BRAND_AVG_REPAIR_COST} avg` : `above $${ALL_BRAND_AVG_REPAIR_COST} avg`} />
+          )}
         </div>
-      )}
 
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}>Is your asking price fair?</div>
-        <p style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6 }}>
-          These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and — where available — recent local sales, use the <Link to="/value" style={{ color: C.ink }}>full valuation tool</Link> instead of this reference table.
-        </p>
-      </div>
-
-      {activeComps.length > 0 && (
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 8 }}>Currently listed on HIGHWAYLOT</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {activeComps.map((c) => (
-              <Link key={c.id} to={`/listing/${c.id}`} style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, color: C.ink, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 4, padding: "8px 12px" }}>
-                <span>{c.year} {c.make} {c.model}{c.mileage ? ` · ${c.mileage.toLocaleString()} mi` : ""}</span>
-                <span style={{ fontWeight: 600 }}>${(c.price || 0).toLocaleString()}</span>
-              </Link>
+        <div style={{ marginBottom: 28 }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 10 }}>Price by age</div>
+          <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 6, overflow: "hidden" }}>
+            {prices.map(({ age, price }, i) => (
+              <div key={age} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderTop: i === 0 ? "none" : `1px solid ${C.line}` }}>
+                <span style={{ fontSize: 13, color: C.steel, width: 150, flexShrink: 0 }}>{age === 0 ? "New" : `${age} yrs old (~${currentYear - age})`}</span>
+                <div style={{ flex: 1, height: 8, background: "#F0EEE5", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ width: `${Math.max((price / maxPrice) * 100, 4)}%`, height: "100%", background: C.yellow, borderRadius: 4 }} />
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 600, color: C.ink, width: 80, textAlign: "right", flexShrink: 0 }}>${price.toLocaleString()}</span>
+              </div>
             ))}
           </div>
         </div>
-      )}
 
-      <Link to="/value" style={{ display: "inline-block", background: C.ink, color: "#fff", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Get my {make} {label}'s real value →</Link>
+        <div style={{ marginBottom: 28, background: "#FAFAF7", border: `1px solid ${C.line}`, borderRadius: 6, padding: "14px 18px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}><Info size={15} /> Is your asking price fair?</div>
+          <p style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>
+            These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and — where available — recent local sales, use the <Link to="/value" style={{ color: C.ink, fontWeight: 600 }}>full valuation tool</Link> instead of this reference table.
+          </p>
+        </div>
+
+        {activeComps.length > 0 && (
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 10 }}>Currently listed on HIGHWAYLOT</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {activeComps.map((c) => (
+                <Link key={c.id} to={`/listing/${c.id}`} className="hl-listing-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, color: C.ink, textDecoration: "none", background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "12px 14px" }}>
+                  <span>{c.year} {c.make} {c.model}{c.mileage ? ` · ${c.mileage.toLocaleString()} mi` : ""}</span>
+                  <span style={{ fontFamily: FONT_HEAD, fontWeight: 600 }}>${(c.price || 0).toLocaleString()}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <Link to="/value" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: C.ink, color: "#fff", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Get my {make} {label}'s real value →</Link>
+      </div>
     </div>
   );
 }
