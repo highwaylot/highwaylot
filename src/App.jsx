@@ -1769,6 +1769,32 @@ const BRAND_REPAIR_COST = {
   Audi: 987, GMC: 744, Volkswagen: 676, Subaru: 617,
 };
 const ALL_BRAND_AVG_REPAIR_COST = 652;
+// Hand-reasoned, deliberately general reputation notes — not a claim about
+// any specific car or VIN, and not sourced from a recall/complaint database
+// (that would need real NHTSA complaint data, which this isn't). Worded as
+// "commonly reported" rather than fact, same honesty posture as the rest of
+// this pricing data. Only covers brands with a genuinely common reputation
+// point; brands without a clear one are left out rather than padded with a
+// generic line.
+const BRAND_COMMON_NOTES = {
+  Toyota: "Widely reported for going well past 150-200k miles with routine maintenance; strong resale is largely built on this reputation.",
+  Honda: "Similar reliability reputation to Toyota; older V6 models are commonly noted for timing-belt service being due around 100k miles.",
+  Ford: "F-150s and Explorers are commonly discussed for transmission and electrical issues in certain model years — check service history on those specifically.",
+  Chevrolet: "Older GM trucks and SUVs have a reputation for simple, cheap-to-fix mechanicals, though electronics can be a weak point on newer models.",
+  BMW: "Commonly reported for higher-than-average maintenance costs once out of warranty, especially cooling-system and electronic components.",
+  "Mercedes-Benz": "Similar pattern to BMW — strong when new, maintenance costs climb noticeably after the factory warranty period.",
+  Audi: "Similar reputation to other German luxury brands for higher out-of-warranty maintenance costs, particularly electronics.",
+  Subaru: "Head gasket issues are commonly reported on older (pre-2011) models; newer generations are widely considered to have resolved this.",
+  Jeep: "Wranglers and Grand Cherokees are commonly discussed for electrical gremlins; off-road-focused models can also show more wear if used hard.",
+  Nissan: "CVT transmissions on 2013-2018 models (Altima, Rogue, Sentra) are commonly reported as a weak point — a service history check is worth it.",
+  Hyundai: "Some 2011-2019 models were subject to engine-related recalls/extended warranties (Theta II engine) — worth checking VIN-specific recall status.",
+  Kia: "Shares some of the same engine concerns as Hyundai on overlapping model years, given the shared parent company.",
+  Volkswagen: "Electrical and infotainment issues are commonly reported, along with turbocharged-engine maintenance costs on some models.",
+  Dodge: "Pacifica/Chrysler minivans and Dodge cars have a mixed reliability reputation — transmission service history is worth checking specifically.",
+  Chrysler: "Similar to Dodge — mixed reputation, transmission-related concerns are the most commonly discussed issue on minivans.",
+  Mazda: "Generally strong reliability reputation; some 2016-2018 models report suspension and clutch wear complaints.",
+  Tesla: "Panel gaps and paint/build-quality issues are the most commonly discussed concern rather than drivetrain reliability.",
+};
 function getBrandMultiplier(make) {
   const cost = BRAND_REPAIR_COST[make];
   return cost ? cost / ALL_BRAND_AVG_REPAIR_COST : 1.0;
@@ -2043,24 +2069,39 @@ const MAKE_BASE_PRICE = {
   Buick: 32000, Cadillac: 56000, Tesla: 45000, Mitsubishi: 26000, Volvo: 44000, Acura: 38000,
 };
 
-// Model-specific figures for the highest-volume models only — deliberately
-// narrow. jev-tested: broader coverage (50+ models) adds hand-maintenance
-// burden without proportional accuracy benefit (score 0.45/3), so this stays
-// scoped to the models that actually move the needle for most valuations.
+// Model-specific figures for the highest-volume models per make — expanded
+// September 2026 to cover the Price Guide's per-model pages, not just the
+// original valuation-tool anchor use. Still hand-reasoned, not live-scraped
+// (same honesty pattern as MAKE_BASE_PRICE/BRAND_REPAIR_COST below), so
+// worth periodically re-checking rather than treated as exact forever.
 // Keys are lowercased for matching against whatever casing the model field
 // (NHTSA-sourced or custom-typed) happens to have.
 const MODEL_BASE_PRICE = {
-  Toyota: { camry: 28000, corolla: 23000, rav4: 30000, highlander: 40000, tacoma: 34000, tundra: 44000 },
-  Honda: { civic: 25000, accord: 28000, "cr-v": 31000, crv: 31000, pilot: 40000, odyssey: 38000 },
-  Ford: { "f-150": 45000, f150: 45000, explorer: 40000, escape: 30000, mustang: 32000, "bronco sport": 30000 },
-  Chevrolet: { silverado: 46000, equinox: 30000, malibu: 27000, tahoe: 56000, traverse: 37000 },
-  Ram: { "1500": 48000, 1500: 48000 },
-  Jeep: { "grand cherokee": 42000, wrangler: 38000, cherokee: 30000, compass: 28000 },
-  Nissan: { altima: 27000, rogue: 30000, sentra: 22000 },
-  Hyundai: { elantra: 22000, tucson: 29000, "santa fe": 33000 },
-  Kia: { forte: 22000, sportage: 29000, telluride: 40000 },
-  Subaru: { outback: 31000, forester: 29000, crosstrek: 26000 },
-  Tesla: { "model 3": 42000, "model y": 47000 },
+  Toyota: { camry: 28000, corolla: 23000, rav4: 30000, highlander: 40000, tacoma: 34000, tundra: 44000, sienna: 42000, "4runner": 42000 },
+  Honda: { civic: 25000, accord: 28000, "cr-v": 31000, crv: 31000, pilot: 40000, odyssey: 38000, ridgeline: 42000 },
+  Ford: { "f-150": 45000, f150: 45000, explorer: 40000, escape: 30000, mustang: 32000, "bronco sport": 30000, expedition: 58000, edge: 38000 },
+  Chevrolet: { silverado: 46000, equinox: 30000, malibu: 27000, tahoe: 56000, traverse: 37000, colorado: 38000, camaro: 34000, blazer: 36000 },
+  Ram: { "1500": 48000, 1500: 48000, "2500": 58000, 2500: 58000 },
+  Jeep: { "grand cherokee": 42000, wrangler: 38000, cherokee: 30000, compass: 28000, gladiator: 40000 },
+  Nissan: { altima: 27000, rogue: 30000, sentra: 22000, pathfinder: 38000, frontier: 34000, murano: 36000 },
+  Hyundai: { elantra: 22000, tucson: 29000, "santa fe": 33000, sonata: 28000, palisade: 40000, kona: 24000 },
+  Kia: { forte: 22000, sportage: 29000, telluride: 40000, k5: 27000, optima: 27000, soul: 22000, seltos: 24000 },
+  Subaru: { outback: 31000, forester: 29000, crosstrek: 26000, impreza: 24000, ascent: 36000 },
+  Tesla: { "model 3": 42000, "model y": 47000, "model s": 78000 },
+  GMC: { sierra: 50000, yukon: 62000, terrain: 32000 },
+  BMW: { "3 series": 46000, "x5": 62000 },
+  "Mercedes-Benz": { "c-class": 46000, glc: 48000 },
+  Audi: { a4: 42000, q5: 46000 },
+  Lexus: { rx: 50000, es: 44000 },
+  Mazda: { "cx-5": 30000, "cx-9": 38000, mazda3: 26000 },
+  Dodge: { charger: 34000, durango: 40000 },
+  Chrysler: { pacifica: 38000 },
+  Buick: { encore: 27000, enclave: 44000 },
+  Cadillac: { escalade: 82000, xt5: 48000 },
+  Mitsubishi: { outlander: 30000 },
+  Volvo: { xc60: 48000 },
+  Acura: { mdx: 52000, rdx: 44000 },
+  Volkswagen: { jetta: 24000, tiguan: 30000 },
 };
 // Resolves the anchor price for a valuation in tiers: model-specific first
 // (most accurate, narrow coverage), then make-level (broad, less precise),
@@ -2082,17 +2123,31 @@ function getPricingAnchor(make, model, body) {
 // by estimateValue (which takes body directly from the listing/form). Only
 // needs to cover the same models as MODEL_BASE_PRICE.
 const GUIDE_MODEL_BODY = {
-  Toyota: { camry: "Sedan", corolla: "Sedan", rav4: "SUV", highlander: "SUV", tacoma: "Truck", tundra: "Truck" },
-  Honda: { civic: "Sedan", accord: "Sedan", "cr-v": "SUV", pilot: "SUV", odyssey: "Van/Minivan" },
-  Ford: { "f-150": "Truck", explorer: "SUV", escape: "SUV", mustang: "Coupe", "bronco sport": "SUV" },
-  Chevrolet: { silverado: "Truck", equinox: "SUV", malibu: "Sedan", tahoe: "SUV", traverse: "SUV" },
-  Ram: { "1500": "Truck" },
-  Jeep: { "grand cherokee": "SUV", wrangler: "SUV", cherokee: "SUV", compass: "SUV" },
-  Nissan: { altima: "Sedan", rogue: "SUV", sentra: "Sedan" },
-  Hyundai: { elantra: "Sedan", tucson: "SUV", "santa fe": "SUV" },
-  Kia: { forte: "Sedan", sportage: "SUV", telluride: "SUV" },
-  Subaru: { outback: "SUV", forester: "SUV", crosstrek: "SUV" },
-  Tesla: { "model 3": "Sedan", "model y": "SUV" },
+  Toyota: { camry: "Sedan", corolla: "Sedan", rav4: "SUV", highlander: "SUV", tacoma: "Truck", tundra: "Truck", sienna: "Van/Minivan", "4runner": "SUV" },
+  Honda: { civic: "Sedan", accord: "Sedan", "cr-v": "SUV", pilot: "SUV", odyssey: "Van/Minivan", ridgeline: "Truck" },
+  Ford: { "f-150": "Truck", explorer: "SUV", escape: "SUV", mustang: "Coupe", "bronco sport": "SUV", expedition: "SUV", edge: "SUV" },
+  Chevrolet: { silverado: "Truck", equinox: "SUV", malibu: "Sedan", tahoe: "SUV", traverse: "SUV", colorado: "Truck", camaro: "Coupe", blazer: "SUV" },
+  Ram: { "1500": "Truck", "2500": "Truck" },
+  Jeep: { "grand cherokee": "SUV", wrangler: "SUV", cherokee: "SUV", compass: "SUV", gladiator: "Truck" },
+  Nissan: { altima: "Sedan", rogue: "SUV", sentra: "Sedan", pathfinder: "SUV", frontier: "Truck", murano: "SUV" },
+  Hyundai: { elantra: "Sedan", tucson: "SUV", "santa fe": "SUV", sonata: "Sedan", palisade: "SUV", kona: "SUV" },
+  Kia: { forte: "Sedan", sportage: "SUV", telluride: "SUV", k5: "Sedan", optima: "Sedan", soul: "Hatchback", seltos: "SUV" },
+  Subaru: { outback: "SUV", forester: "SUV", crosstrek: "SUV", impreza: "Sedan", ascent: "SUV" },
+  Tesla: { "model 3": "Sedan", "model y": "SUV", "model s": "Sedan" },
+  GMC: { sierra: "Truck", yukon: "SUV", terrain: "SUV" },
+  BMW: { "3 series": "Sedan", "x5": "SUV" },
+  "Mercedes-Benz": { "c-class": "Sedan", glc: "SUV" },
+  Audi: { a4: "Sedan", q5: "SUV" },
+  Lexus: { rx: "SUV", es: "Sedan" },
+  Mazda: { "cx-5": "SUV", "cx-9": "SUV", mazda3: "Sedan" },
+  Dodge: { charger: "Sedan", durango: "SUV" },
+  Chrysler: { pacifica: "Van/Minivan" },
+  Buick: { encore: "SUV", enclave: "SUV" },
+  Cadillac: { escalade: "SUV", xt5: "SUV" },
+  Mitsubishi: { outlander: "SUV" },
+  Volvo: { xc60: "SUV" },
+  Acura: { mdx: "SUV", rdx: "SUV" },
+  Volkswagen: { jetta: "Sedan", tiguan: "SUV" },
 };
 // De-duplicated (make, modelKey) pairs for the guide — MODEL_BASE_PRICE has
 // a couple of aliases (f150/f-150, crv/cr-v, 1500 keyed twice) pointing at
@@ -3771,6 +3826,23 @@ function AdminPage() {
 // crawl the whole set.
 function guideAges() { return [0, 3, 5, 8, 10]; }
 
+// Real manufacturer logos are trademarked — using them without a license
+// is a real legal exposure, not a style call, so guide pages get a colored
+// monogram badge instead. Colors are just a deterministic hash of the make
+// name, not brand colors (we don't have rights to those either).
+function brandBadgeColor(make) {
+  let hash = 0;
+  for (let i = 0; i < make.length; i++) hash = (hash * 31 + make.charCodeAt(i)) % 360;
+  return `hsl(${hash}, 42%, 40%)`;
+}
+function BrandBadge({ make, size = 36 }) {
+  return (
+    <div style={{ width: size, height: size, borderRadius: "50%", background: brandBadgeColor(make), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_HEAD, fontSize: size * 0.42, flexShrink: 0 }}>
+      {make.replace("-", "").slice(0, 2).toUpperCase()}
+    </div>
+  );
+}
+
 // Small bordered stat block reused across all three guide pages — a
 // consistent "here's one real fact" unit instead of a paragraph of prose.
 function GuideStat({ icon, label, value, note }) {
@@ -3785,13 +3857,18 @@ function GuideStat({ icon, label, value, note }) {
   );
 }
 
-function GuideHero({ eyebrow, title, subtitle }) {
+function GuideHero({ eyebrow, title, subtitle, make }) {
   return (
     <div style={{ background: C.ink, borderBottom: `4px solid ${C.yellow}` }}>
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 20px 32px" }}>
         {eyebrow && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>{eyebrow}</div>}
-        <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(24px, 4vw, 34px)", color: "#fff", margin: 0, marginBottom: 8 }}>{title}</h1>
-        {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, lineHeight: 1.6, maxWidth: 640, margin: 0 }}>{subtitle}</p>}
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {make && <BrandBadge make={make} size={44} />}
+          <div>
+            <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(24px, 4vw, 34px)", color: "#fff", margin: 0, marginBottom: 8 }}>{title}</h1>
+            {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, lineHeight: 1.6, maxWidth: 640, margin: 0 }}>{subtitle}</p>}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -3822,15 +3899,17 @@ function GuideIndex() {
             const anchor = MAKE_BASE_PRICE[make];
             return (
               <Link key={make} to={`/guide/${slugify(make)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "16px 18px", textDecoration: "none", display: "block" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                  <CarIcon size={16} color={C.yellowDark} />
-                  <span style={{ fontFamily: FONT_HEAD, fontSize: 17, color: C.ink }}>{make}</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                  <BrandBadge make={make} />
+                  <div>
+                    <div style={{ fontFamily: FONT_HEAD, fontSize: 17, color: C.ink }}>{make}</div>
+                    <div style={{ fontSize: 12, color: C.steel }}>New starting around ${anchor.toLocaleString()}</div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 12.5, color: C.steel, marginBottom: models ? 10 : 0 }}>New starting around ${anchor.toLocaleString()}</div>
                 {models && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {models.map(({ label }) => (
-                      <span key={label} style={{ fontSize: 11.5, color: C.steel, background: "#F0EEE5", borderRadius: 3, padding: "3px 7px" }}>{label}</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                    {models.map(({ modelKey, label }) => (
+                      <span key={label} style={{ fontSize: 11.5, color: C.steel, background: "#F0EEE5", borderRadius: 3, padding: "3px 7px" }}>{label} · ${guidePriceAtAge(make, modelKey, 5).toLocaleString()}</span>
                     ))}
                   </div>
                 )}
@@ -3859,6 +3938,7 @@ function GuideMake({ allListings }) {
         path={`/guide/${makeSlug}`}
       />
       <GuideHero
+        make={make}
         eyebrow={<><Link to="/guide" style={{ color: "inherit", textDecoration: "underline" }}>Price Guide</Link> / {make}</>}
         title={`${make} Price Guide`}
         subtitle={`A new ${make} starts around $${anchor.toLocaleString()} and depreciates from there. See specific models below for age-by-age numbers, or use the full valuation tool for your exact car.`}
@@ -3871,6 +3951,13 @@ function GuideMake({ allListings }) {
             <GuideStat icon={<ShieldCheck size={13} />} label="Avg. annual repairs" value={`$${BRAND_REPAIR_COST[make].toLocaleString()}`} note={BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? `below $${ALL_BRAND_AVG_REPAIR_COST} avg` : `above $${ALL_BRAND_AVG_REPAIR_COST} avg`} />
           )}
         </div>
+
+        {BRAND_COMMON_NOTES[make] && (
+          <div style={{ marginBottom: 28, background: "#FAFAF7", border: `1px solid ${C.line}`, borderRadius: 6, padding: "14px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}><ShieldCheck size={15} /> What to check before buying</div>
+            <p style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>{BRAND_COMMON_NOTES[make]} This reflects general owner-reported reputation, not a defect claim about any specific car — always verify with a pre-purchase inspection and the vehicle's actual service history.</p>
+          </div>
+        )}
 
         {models.length > 0 && (
           <div style={{ marginBottom: 28 }}>
@@ -3913,6 +4000,7 @@ function GuidePage({ allListings }) {
         path={`/guide/${makeSlug}/${modelSlug}`}
       />
       <GuideHero
+        make={make}
         eyebrow={<><Link to="/guide" style={{ color: "inherit", textDecoration: "underline" }}>Price Guide</Link> / <Link to={`/guide/${makeSlug}`} style={{ color: "inherit", textDecoration: "underline" }}>{make}</Link> / {label}</>}
         title={`${make} ${label} Price Guide`}
         subtitle={`What a ${make} ${label} should actually cost, by age — a reference range, not a personalized estimate.`}
@@ -3940,6 +4028,13 @@ function GuidePage({ allListings }) {
             ))}
           </div>
         </div>
+
+        {BRAND_COMMON_NOTES[make] && (
+          <div style={{ marginBottom: 28, background: "#FAFAF7", border: `1px solid ${C.line}`, borderRadius: 6, padding: "14px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}><ShieldCheck size={15} /> What to check before buying</div>
+            <p style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>{BRAND_COMMON_NOTES[make]} This reflects general owner-reported reputation, not a defect claim about this specific {label} — always verify with a pre-purchase inspection and the vehicle's actual service history.</p>
+          </div>
+        )}
 
         <div style={{ marginBottom: 28, background: "#FAFAF7", border: `1px solid ${C.line}`, borderRadius: 6, padding: "14px 18px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}><Info size={15} /> Is your asking price fair?</div>
