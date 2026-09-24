@@ -3970,7 +3970,7 @@ function GuideIndex() {
   return (
     <div>
       <SEOHead
-        title="Car Price Guide — What Should You Actually Pay? | HIGHWAYLOT"
+        title="wikiLOT: Car Price Guide | HIGHWAYLOT"
         description="Real depreciation-based price guides by make and model — what a car should cost at 3, 5, 8, and 10 years old, so you know if an asking price is fair."
         path="/guide"
       />
