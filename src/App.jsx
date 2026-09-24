@@ -3925,11 +3925,35 @@ function GuideIndex() {
 function GuideMake({ allListings }) {
   const { make: makeSlug } = useParams();
   const make = Object.keys(MAKE_BASE_PRICE).find((m) => slugify(m) === makeSlug);
-  if (!make) return <NotFound />;
-  const models = GUIDE_CATALOG.filter((g) => g.make === make);
-  const anchor = MAKE_BASE_PRICE[make];
-  const brandMult = BRAND_RESALE_MULTIPLIER[make] ?? 1.0;
+  const models = make ? GUIDE_CATALOG.filter((g) => g.make === make) : [];
+  const curatedKeys = new Set(models.map((m) => m.modelKey));
+  const anchor = make ? MAKE_BASE_PRICE[make] : 0;
+  const brandMult = make ? (BRAND_RESALE_MULTIPLIER[make] ?? 1.0) : 1.0;
   const resaleLabel = brandMult > 1.02 ? "Above average" : brandMult < 0.92 ? "Below average" : "About average";
+
+  // Full real model list from NHTSA — same free API + fetch pattern
+  // MakeModelPicker already uses for the /post and /value forms, so this
+  // needs no separate data source. Curated models (GUIDE_CATALOG, above)
+  // already have real per-model pricing; everything else NHTSA returns
+  // still gets listed here so the guide's model coverage is exhaustive for
+  // this make, not capped at the ~65 we've hand-priced.
+  const [allModels, setAllModels] = useState([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  useEffect(() => {
+    if (!make) return;
+    setLoadingModels(true);
+    fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`)
+      .then((r) => r.json())
+      .then((data) => {
+        const names = Array.from(new Set((data.Results || []).map((m) => m.Model_Name))).sort();
+        setAllModels(names);
+      })
+      .catch(() => setAllModels([]))
+      .finally(() => setLoadingModels(false));
+  }, [make]);
+  const otherModels = allModels.filter((name) => !curatedKeys.has(name.toLowerCase()));
+
+  if (!make) return <NotFound />;
   return (
     <div>
       <SEOHead
@@ -3975,6 +3999,20 @@ function GuideMake({ allListings }) {
             </div>
           </div>
         )}
+
+        {otherModels.length > 0 && (
+          <div style={{ marginBottom: 28 }}>
+            <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 4 }}>Every other {make} model</div>
+            <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>Pulled live from NHTSA's public vehicle database. These use the general {make} brand estimate rather than model-specific pricing.</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {otherModels.map((name) => (
+                <Link key={name} to={`/guide/${makeSlug}/${slugify(name)}`} style={{ fontSize: 12.5, color: C.steel, background: "#F0EEE5", borderRadius: 3, padding: "5px 10px", textDecoration: "none" }}>{name}</Link>
+              ))}
+            </div>
+          </div>
+        )}
+        {loadingModels && <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 20 }}>Loading full model list…</p>}
+
         <Link to="/value" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: C.ink, color: "#fff", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Get a real estimate for your {make} →</Link>
       </div>
     </div>
@@ -3984,9 +4022,23 @@ function GuideMake({ allListings }) {
 function GuidePage({ allListings }) {
   const { make: makeSlug, model: modelSlug } = useParams();
   const entry = GUIDE_CATALOG.find((g) => slugify(g.make) === makeSlug && slugify(g.modelKey) === modelSlug);
-  if (!entry) return <NotFound />;
-  const { make, modelKey, label } = entry;
+  // Curated models (GUIDE_CATALOG) have real model-specific pricing + a
+  // known body style. Anything else NHTSA has on file for a known make
+  // still gets a page — just honestly using the make-level anchor and a
+  // Sedan-shaped depreciation curve as a fallback, since we don't know its
+  // real body style without a second live NHTSA call. hasModelData flags
+  // this distinction for the UI so it's never presented as more precise
+  // than it is.
+  const fallbackMake = !entry ? Object.keys(MAKE_BASE_PRICE).find((m) => slugify(m) === makeSlug) : null;
+  if (!entry && !fallbackMake) return <NotFound />;
+  const make = entry ? entry.make : fallbackMake;
+  const modelKey = entry ? entry.modelKey : modelSlug.replace(/-/g, " ");
+  const label = entry ? entry.label : modelSlug.replace(/(^|-)\w/g, (c) => c.toUpperCase().replace("-", " ")).trim();
+  const hasModelData = Boolean(entry);
   const ages = guideAges();
+  // guidePriceAtAge falls back to MAKE_BASE_PRICE + a Sedan curve on its own
+  // when modelKey isn't in MODEL_BASE_PRICE/GUIDE_MODEL_BODY, which is
+  // exactly the fallback case wants — no special-casing needed here.
   const prices = ages.map((age) => ({ age, price: guidePriceAtAge(make, modelKey, age) }));
   const comps = (allListings || []).filter((c) => c.make?.toLowerCase() === make.toLowerCase() && (c.model?.toLowerCase().includes(modelKey.replace(/-/g, "")) || c.model?.toLowerCase().includes(modelKey)));
   const activeComps = comps.filter((c) => c.status !== "sold").slice(0, 6);
@@ -4006,6 +4058,12 @@ function GuidePage({ allListings }) {
         subtitle={`What a ${make} ${label} should actually cost, by age — a reference range, not a personalized estimate.`}
       />
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
+        {!hasModelData && (
+          <div style={{ marginBottom: 20, background: "#FFF3D6", border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 8 }}>
+            <Info size={15} color={C.yellowDark} style={{ flexShrink: 0, marginTop: 1 }} />
+            <p style={{ fontSize: 13, color: C.yellowDark, margin: 0, lineHeight: 1.5 }}>We don't have {make} {label}-specific pricing data yet — these numbers use the general {make} brand estimate instead, which is less precise than our detailed model pages.</p>
+          </div>
+        )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
           <GuideStat icon={<DollarSign size={13} />} label="New, typical" value={`$${maxPrice.toLocaleString()}`} />
           <GuideStat icon={<TrendingDown size={13} />} label="At 5 years old" value={`$${prices.find((p) => p.age === 5).price.toLocaleString()}`} />
