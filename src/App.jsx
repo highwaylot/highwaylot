@@ -720,7 +720,6 @@ function TopBar({ onPost }) {
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             <NavLink label="Browse" to="/" active={pathname === "/" || pathname.startsWith("/listing") || pathname.startsWith("/category")} />
             <NavLink label="Value my car" to="/value" active={pathname === "/value"} />
-            <NavLink label="My Car Quiz" to="/quiz" active={pathname.startsWith("/quiz")} />
             <NavLink label="wikiLOT" to="/guide" active={pathname.startsWith("/guide")} />
           </div>
         </div>
@@ -4576,8 +4575,6 @@ export default function App() {
         <Route path="/post" element={<PostAd onSubmit={handlePostSubmit} existingListings={listings} log={log} />} />
         <Route path="/post/success" element={<Success />} />
         <Route path="/value" element={<ValueMyCar allListings={listings} log={log} />} />
-        <Route path="/quiz" element={<Quiz log={log} onComplete={handleQuizComplete} />} />
-        <Route path="/quiz/results" element={<QuizResults allListings={visibleListings} openListing={openListing} />} />
         <Route path="/guide" element={<GuideIndex />} />
         <Route path="/guide/:make" element={<GuideMake allListings={visibleListings} />} />
         <Route path="/guide/:make/:model" element={<GuidePage allListings={visibleListings} />} />
