@@ -3930,27 +3930,15 @@ function BrandBadge({ make, size = 36 }) {
   );
 }
 
-// Simple hand-drawn side-profile silhouettes, one shape per body style —
-// our own version of the icon-grid pattern (no stock photography, no
-// licensing question, and each shape is actually differentiated by
-// roofline/proportions rather than one generic car icon recolored 7 times).
-const BODY_STYLE_SILHOUETTE = {
-  Sedan: "M4 30h2l3-9h22l3 9h2v6H4z M9 21l3-7h16l3 7z",
-  Coupe: "M3 30h2l4-10h18l4 10h2v6H3z M9 20l4-8h12l4 8z",
-  Hatchback: "M4 30h2l3-8h20l3 8h2v6H4z M9 22l3-6h14l3 6z",
-  SUV: "M3 29h2l3-11h24l3 11h2v7H3z M8 18l3-8h18l3 8z",
-  Truck: "M3 30h2l2-9h11v-9h9l5 9h2v9h2v6H3z M25 12v9h6l-4-9z",
-  "Van/Minivan": "M3 29h2l2-13h26l2 13h2v7H3z M7 16l2-9h22l2 9z",
-  Convertible: "M3 30h2l4-10h18l4 10h2v6H3z M10 20l2-5h14l2 5z",
-};
-function BodyStyleBadge({ body, size = 40, color = C.ink }) {
-  const path = BODY_STYLE_SILHOUETTE[body];
+// Bold typographic tag instead of an attempted car icon — hand-drawn
+// vehicle silhouettes never read as intentional at this size, so this
+// leans on the same FONT_HEAD/yellow-accent treatment the rest of the site
+// already uses for visual weight instead.
+function BodyStyleTag({ body }) {
   return (
-    <svg viewBox="0 0 40 40" width={size} height={size}>
-      {path && <path d={path} fill={color} />}
-      <circle cx="11" cy="35" r="3" fill={color} />
-      <circle cx="29" cy="35" r="3" fill={color} />
-    </svg>
+    <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", border: `2px solid ${C.ink}`, borderRadius: 4, padding: "6px 10px" }}>
+      <span style={{ fontFamily: FONT_HEAD, fontSize: 15, letterSpacing: 0.3, color: C.ink, textTransform: "uppercase" }}>{body}</span>
+    </div>
   );
 }
 
@@ -4022,10 +4010,9 @@ function GuideIndex() {
         <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 14 }}>Typical new price by body style — a starting anchor before brand and model narrow it down.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10, marginBottom: 36 }}>
           {Object.entries(TYPICAL_NEW_PRICE_BY_BODY).map(([body, price]) => (
-            <Link key={body} to={`/value?body=${encodeURIComponent(body)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "14px 10px", textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-              <BodyStyleBadge body={body} color={C.steel} />
-              <div style={{ fontFamily: FONT_HEAD, fontSize: 13.5, color: C.ink, marginTop: 8 }}>{body}</div>
-              <div style={{ fontSize: 11.5, color: C.steel, marginTop: 2 }}>~${price.toLocaleString()} new</div>
+            <Link key={body} to={`/value?body=${encodeURIComponent(body)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "16px 10px", textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 8 }}>
+              <BodyStyleTag body={body} />
+              <div style={{ fontSize: 11.5, color: C.steel }}>~${price.toLocaleString()} new</div>
             </Link>
           ))}
         </div>
