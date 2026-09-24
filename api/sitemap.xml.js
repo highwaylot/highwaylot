@@ -51,6 +51,36 @@ function xmlEscape(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// NHTSA registers BMW Motorrad (motorcycles) under the same "BMW" make name
+// as BMW Automobile — mirrors isGuideCarModel in src/App.jsx.
+const NON_CAR_MODEL_PATTERN = /^(K|R|F|G|C|S)\s?\d{2,4}|^HP\d|^M\s\d{3,4}|^(L7|K1|CE\s?0[24])$/i;
+
+// Mirrors classifyGuideBodyTypes in src/App.jsx — a model gets its own
+// sitemap URL only once it either has curated pricing (GUIDE_MODELS above)
+// or a real NHTSA body-type classification, since GuidePage itself only
+// renders content for those two cases and redirects everything else. This
+// keeps the sitemap from pointing crawlers at URLs that just 302 away.
+async function classifiedModelsForMake(make, curatedSet) {
+  const year = new Date().getFullYear() - 1;
+  const vehicleTypes = ["car", "truck", "mpv", "van", "bus"];
+  try {
+    const [allRes, ...typeResList] = await Promise.all([
+      fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`).then((r) => r.json()),
+      ...vehicleTypes.map((type) =>
+        fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeYear/make/${encodeURIComponent(make)}/modelyear/${year}/vehicletype/${type}?format=json`)
+          .then((r) => r.json())
+          .catch(() => ({ Results: [] }))
+      ),
+    ]);
+    const allNames = new Set((allRes.Results || []).map((m) => m.Model_Name).filter((n) => !NON_CAR_MODEL_PATTERN.test(n.trim())));
+    const classified = new Set();
+    for (const typeRes of typeResList) for (const m of typeRes.Results || []) if (allNames.has(m.Model_Name)) classified.add(m.Model_Name);
+    return [...classified].filter((n) => !curatedSet.has(n.toLowerCase()));
+  } catch {
+    return [];
+  }
+}
+
 export default async function handler(req, res) {
   try {
     const listingsRes = await fetch(
@@ -63,15 +93,19 @@ export default async function handler(req, res) {
 
     for (const route of STATIC_ROUTES) urls.set(route, null);
 
-    // Only curated models get their own /guide/:make/:model URL — anything
-    // NHTSA has on file beyond this list now redirects to a prefilled /value
-    // run instead of rendering a page (see GuidePage in src/App.jsx), so
-    // there's nothing there worth pointing a crawler at.
     for (const make of GUIDE_MAKES) {
-      const makeSlug = slugify(make);
-      urls.set(`/guide/${makeSlug}`, null);
-      for (const model of GUIDE_MODELS[make] || []) urls.set(`/guide/${makeSlug}/${slugify(model)}`, null);
+      urls.set(`/guide/${slugify(make)}`, null);
+      for (const model of GUIDE_MODELS[make] || []) urls.set(`/guide/${slugify(make)}/${slugify(model)}`, null);
     }
+    // Run all 25 makes' classification fetches concurrently rather than one
+    // at a time — sequential would be ~150 fetches in series, too slow for
+    // a serverless response even with the 6hr CDN cache absorbing repeats.
+    const classifiedByMake = await Promise.all(
+      GUIDE_MAKES.map((make) => classifiedModelsForMake(make, new Set((GUIDE_MODELS[make] || []).map((m) => m.toLowerCase()))))
+    );
+    GUIDE_MAKES.forEach((make, i) => {
+      for (const model of classifiedByMake[i]) urls.set(`/guide/${slugify(make)}/${slugify(model)}`, null);
+    });
 
     for (const l of listings) {
       const lastmod = l.updated_at || l.created_at || null;
@@ -89,7 +123,10 @@ export default async function handler(req, res) {
       .join("\n")}\n</urlset>\n`;
 
     res.setHeader("Content-Type", "application/xml");
-    res.setHeader("Cache-Control", "public, max-age=0, s-maxage=3600"); // CDN can cache an hour; browsers shouldn't
+    // 6hr CDN cache (was 1hr) — this now runs ~150 live NHTSA fetches per
+    // build (6 per make x 25 makes) to classify long-tail model body types,
+    // and that data barely changes day to day.
+    res.setHeader("Cache-Control", "public, max-age=0, s-maxage=21600");
     res.status(200).send(body);
   } catch (err) {
     console.error("sitemap generation failed:", err.message);
