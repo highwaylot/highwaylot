@@ -2368,7 +2368,7 @@ function ValueMyCar({ allListings, log }) {
   // straight into a real personalized estimate instead of a guide page that
   // would otherwise have to fake precision it doesn't have.
   const [initialParams] = useState(() => new URLSearchParams(window.location.search));
-  const [form, setForm] = useState({ year: "", make: initialParams.get("make") || "", model: initialParams.get("model") || "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "", vin: "" });
+  const [form, setForm] = useState({ year: "", make: initialParams.get("make") || "", model: initialParams.get("model") || "", mileage: "", condition: "Good", originalPrice: "", body: initialParams.get("body") || "Sedan", state: "", loan_status: "Paid off", loan_balance: "", vin: "" });
   const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
   const [saveError, setSaveError] = useState(null);
@@ -3930,6 +3930,30 @@ function BrandBadge({ make, size = 36 }) {
   );
 }
 
+// Simple hand-drawn side-profile silhouettes, one shape per body style —
+// our own version of the icon-grid pattern (no stock photography, no
+// licensing question, and each shape is actually differentiated by
+// roofline/proportions rather than one generic car icon recolored 7 times).
+const BODY_STYLE_SILHOUETTE = {
+  Sedan: "M4 30h2l3-9h22l3 9h2v6H4z M9 21l3-7h16l3 7z",
+  Coupe: "M3 30h2l4-10h18l4 10h2v6H3z M9 20l4-8h12l4 8z",
+  Hatchback: "M4 30h2l3-8h20l3 8h2v6H4z M9 22l3-6h14l3 6z",
+  SUV: "M3 29h2l3-11h24l3 11h2v7H3z M8 18l3-8h18l3 8z",
+  Truck: "M3 30h2l2-9h11v-9h9l5 9h2v9h2v6H3z M25 12v9h6l-4-9z",
+  "Van/Minivan": "M3 29h2l2-13h26l2 13h2v7H3z M7 16l2-9h22l2 9z",
+  Convertible: "M3 30h2l4-10h18l4 10h2v6H3z M10 20l2-5h14l2 5z",
+};
+function BodyStyleBadge({ body, size = 40, color = C.ink }) {
+  const path = BODY_STYLE_SILHOUETTE[body];
+  return (
+    <svg viewBox="0 0 40 40" width={size} height={size}>
+      {path && <path d={path} fill={color} />}
+      <circle cx="11" cy="35" r="3" fill={color} />
+      <circle cx="29" cy="35" r="3" fill={color} />
+    </svg>
+  );
+}
+
 // Small bordered stat block reused across all three guide pages — a
 // consistent "here's one real fact" unit instead of a paragraph of prose.
 function GuideStat({ icon, label, value, note }) {
@@ -3940,6 +3964,20 @@ function GuideStat({ icon, label, value, note }) {
       </div>
       <div style={{ fontFamily: FONT_HEAD, fontSize: 20, color: C.ink }}>{value}</div>
       {note && <div style={{ fontSize: 12, color: C.steel, marginTop: 2 }}>{note}</div>}
+    </div>
+  );
+}
+
+// The one number a visitor came for, given the same boxed-and-bordered
+// treatment JD Power's "Average Price Paid" callout uses — big, bordered,
+// impossible to miss — but in HIGHWAYLOT's own yellow/ink palette instead
+// of copying their layout wholesale.
+function GuideHeroStat({ label, value, range }) {
+  return (
+    <div style={{ border: `2px solid ${C.yellow}`, borderRadius: 8, padding: "18px 22px", marginBottom: 20, background: "#FFFBEF" }}>
+      <div style={{ fontSize: 12, color: C.yellowDark, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: "clamp(32px, 6vw, 44px)", color: C.ink, lineHeight: 1 }}>{value}</div>
+      {range && <div style={{ fontSize: 13, color: C.steel, marginTop: 6 }}>{range}</div>}
     </div>
   );
 }
@@ -3970,7 +4008,7 @@ function GuideIndex() {
   return (
     <div>
       <SEOHead
-        title="wikiLOT: Car Price Guide | HIGHWAYLOT"
+        title="wikiLOT — Car Price Guide | HIGHWAYLOT"
         description="Real depreciation-based price guides by make and model — what a car should cost at 3, 5, 8, and 10 years old, so you know if an asking price is fair."
         path="/guide"
       />
@@ -3980,6 +4018,19 @@ function GuideIndex() {
         subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data. Pick a make to start."
       />
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 4 }}>Pricing by body style</div>
+        <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 14 }}>Typical new price by body style — a starting anchor before brand and model narrow it down.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10, marginBottom: 36 }}>
+          {Object.entries(TYPICAL_NEW_PRICE_BY_BODY).map(([body, price]) => (
+            <Link key={body} to={`/value?body=${encodeURIComponent(body)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "14px 10px", textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+              <BodyStyleBadge body={body} color={C.steel} />
+              <div style={{ fontFamily: FONT_HEAD, fontSize: 13.5, color: C.ink, marginTop: 8 }}>{body}</div>
+              <div style={{ fontSize: 11.5, color: C.steel, marginTop: 2 }}>~${price.toLocaleString()} new</div>
+            </Link>
+          ))}
+        </div>
+
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 14 }}>Browse by make</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
           {allMakes.map((make) => {
             const models = byMake[make];
@@ -4057,7 +4108,7 @@ function GuideMake({ allListings }) {
   return (
     <div>
       <SEOHead
-        title={`${make} Price Guide — What ${make}s Actually Cost | HIGHWAYLOT`}
+        title={`${make} Price Guide — What ${make}s Actually Cost | wikiLOT`}
         description={`What a ${make} should cost by age and mileage, plus resale strength vs. other brands — a reasoned reference, not a sticker price.`}
         path={`/guide/${makeSlug}`}
       />
@@ -4068,8 +4119,8 @@ function GuideMake({ allListings }) {
         subtitle={`A new ${make} starts around $${anchor.toLocaleString()} and depreciates from there. See specific models below for age-by-age numbers, or use the full valuation tool for your exact car.`}
       />
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
+        <GuideHeroStat label={`${make}, new — typical price`} value={`$${anchor.toLocaleString()}`} range={`Depreciates from there — see specific models below for age-by-age numbers.`} />
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
-          <GuideStat icon={<DollarSign size={13} />} label="New, typical" value={`$${anchor.toLocaleString()}`} />
           <GuideStat icon={brandMult >= 1 ? <TrendingUp size={13} /> : <TrendingDown size={13} />} label="Resale strength" value={resaleLabel} note="vs. other brands" />
           {BRAND_REPAIR_COST[make] && (
             <GuideStat icon={<ShieldCheck size={13} />} label="Avg. annual repairs" value={`$${BRAND_REPAIR_COST[make].toLocaleString()}`} note={BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? `below $${ALL_BRAND_AVG_REPAIR_COST} avg` : `above $${ALL_BRAND_AVG_REPAIR_COST} avg`} />
@@ -4197,7 +4248,7 @@ function GuidePage({ allListings }) {
   return (
     <div>
       <SEOHead
-        title={`${make} ${label} Price Guide — What Should It Cost? | HIGHWAYLOT`}
+        title={`${make} ${label} Price Guide — What Should It Cost? | wikiLOT`}
         description={`What a used ${make} ${label} should cost at 3, 5, 8, and 10 years old — a depreciation-based reference so you know if an asking price is fair.`}
         path={`/guide/${makeSlug}/${modelSlug}`}
       />
@@ -4214,9 +4265,13 @@ function GuidePage({ allListings }) {
             <p style={{ fontSize: 13, color: C.yellowDark, margin: 0, lineHeight: 1.5 }}>We don't have {make} {label}-specific pricing yet — this uses the {make} brand price with a real {bodyOverride.toLowerCase()} depreciation curve (via NHTSA), not a model-specific one.</p>
           </div>
         )}
+        <GuideHeroStat
+          label={`${make} ${label} — typical price at 5 years old`}
+          value={`$${prices.find((p) => p.age === 5).price.toLocaleString()}`}
+          range={`New: $${maxPrice.toLocaleString()} · At 10 years: $${prices.find((p) => p.age === 10).price.toLocaleString()}`}
+        />
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
           <GuideStat icon={<DollarSign size={13} />} label="New, typical" value={`$${maxPrice.toLocaleString()}`} />
-          <GuideStat icon={<TrendingDown size={13} />} label="At 5 years old" value={`$${prices.find((p) => p.age === 5).price.toLocaleString()}`} />
           {BRAND_REPAIR_COST[make] && (
             <GuideStat icon={<ShieldCheck size={13} />} label="Avg. annual repairs" value={`$${BRAND_REPAIR_COST[make].toLocaleString()}`} note={BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? `below $${ALL_BRAND_AVG_REPAIR_COST} avg` : `above $${ALL_BRAND_AVG_REPAIR_COST} avg`} />
           )}
