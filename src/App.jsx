@@ -2103,6 +2103,19 @@ const MODEL_BASE_PRICE = {
   Acura: { mdx: 52000, rdx: 44000 },
   Volkswagen: { jetta: 24000, tiguan: 30000 },
 };
+
+// NHTSA registers BMW Motorrad (motorcycles) under the same "BMW" make name
+// as BMW Automobile — confirmed by inspecting a live getmodelsformake/BMW
+// response, which returns things like "K1300S", "R1200GS", "G310R" mixed in
+// with real cars. Filtered out of the Price Guide's BMW model list since
+// this is a car marketplace; not a guess, a real data-source quirk. BMW is
+// the only make in GUIDE_MAKES confirmed to have this problem as of
+// September 2026 — worth re-checking if other dual-market makes are added.
+const NON_CAR_MODEL_PATTERN = /^(K|R|F|G|C|S)\s?\d{2,4}|^HP\d|^M\s\d{3,4}|^(L7|K1|CE\s?0[24])$/i;
+function isGuideCarModel(name) {
+  return !NON_CAR_MODEL_PATTERN.test(name.trim());
+}
+
 // Resolves the anchor price for a valuation in tiers: model-specific first
 // (most accurate, narrow coverage), then make-level (broad, less precise),
 // then body-style (last resort for makes we don't have figures for at all).
@@ -2281,7 +2294,12 @@ function LiveValueBar({ result, percent }) {
 
 function ValueMyCar({ allListings, log }) {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "", vin: "" });
+  // Prefilled from a Price Guide link (/value?make=BMW&model=633csi) for a
+  // model we don't have detailed guide pricing for — sends the visitor
+  // straight into a real personalized estimate instead of a guide page that
+  // would otherwise have to fake precision it doesn't have.
+  const [initialParams] = useState(() => new URLSearchParams(window.location.search));
+  const [form, setForm] = useState({ year: "", make: initialParams.get("make") || "", model: initialParams.get("model") || "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "", vin: "" });
   const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
   const [saveError, setSaveError] = useState(null);
@@ -3963,7 +3981,7 @@ function GuideMake({ allListings }) {
     fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`)
       .then((r) => r.json())
       .then((data) => {
-        const names = Array.from(new Set((data.Results || []).map((m) => m.Model_Name))).sort();
+        const names = Array.from(new Set((data.Results || []).map((m) => m.Model_Name))).filter(isGuideCarModel).sort();
         setAllModels(names);
       })
       .catch(() => setAllModels([]))
@@ -4021,10 +4039,12 @@ function GuideMake({ allListings }) {
         {otherModels.length > 0 && (
           <div style={{ marginBottom: 28 }}>
             <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 4 }}>Every other {make} model</div>
-            <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>Pulled live from NHTSA's public vehicle database. These use the general {make} brand estimate rather than model-specific pricing.</p>
+            <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>
+              Pulled live from NHTSA's public vehicle database. We don't have model-specific pricing for these yet, so rather than show you a guessed number, each one links straight to the real valuation tool with the model pre-filled.
+            </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {otherModels.map((name) => (
-                <Link key={name} to={`/guide/${makeSlug}/${slugify(name)}`} style={{ fontSize: 12.5, color: C.steel, background: "#F0EEE5", borderRadius: 3, padding: "5px 10px", textDecoration: "none" }}>{name}</Link>
+                <Link key={name} to={`/value?make=${encodeURIComponent(make)}&model=${encodeURIComponent(name)}`} style={{ fontSize: 12.5, color: C.steel, background: "#F0EEE5", borderRadius: 3, padding: "5px 10px", textDecoration: "none" }}>{name}</Link>
               ))}
             </div>
           </div>
@@ -4039,20 +4059,27 @@ function GuideMake({ allListings }) {
 
 function GuidePage({ allListings }) {
   const { make: makeSlug, model: modelSlug } = useParams();
+  const navigate = useNavigate();
   const entry = GUIDE_CATALOG.find((g) => slugify(g.make) === makeSlug && slugify(g.modelKey) === modelSlug);
-  // Curated models (GUIDE_CATALOG) have real model-specific pricing + a
-  // known body style. Anything else NHTSA has on file for a known make
-  // still gets a page — just honestly using the make-level anchor and a
-  // Sedan-shaped depreciation curve as a fallback, since we don't know its
-  // real body style without a second live NHTSA call. hasModelData flags
-  // this distinction for the UI so it's never presented as more precise
-  // than it is.
   const fallbackMake = !entry ? Object.keys(MAKE_BASE_PRICE).find((m) => slugify(m) === makeSlug) : null;
+  // Only curated models (GUIDE_CATALOG) get an actual guide page — they have
+  // real model-specific pricing and a known body style. Anything else would
+  // just repeat the same flat make-level number under a different name,
+  // which is both misleading (looks like a real per-model estimate when
+  // it isn't) and bad for SEO (a page that's identical to hundreds of
+  // others except its title reads as thin/duplicate content to Google).
+  // Redirect those straight into a prefilled valuation-tool run instead of
+  // rendering that page at all.
+  useEffect(() => {
+    if (!entry && fallbackMake) {
+      navigate(`/value?make=${encodeURIComponent(fallbackMake)}&model=${encodeURIComponent(modelSlug.replace(/-/g, " "))}`, { replace: true });
+    }
+  }, [entry, fallbackMake, modelSlug, navigate]);
   if (!entry && !fallbackMake) return <NotFound />;
-  const make = entry ? entry.make : fallbackMake;
-  const modelKey = entry ? entry.modelKey : modelSlug.replace(/-/g, " ");
-  const label = entry ? entry.label : modelSlug.replace(/(^|-)\w/g, (c) => c.toUpperCase().replace("-", " ")).trim();
-  const hasModelData = Boolean(entry);
+  if (!entry) return null;
+  const make = entry.make;
+  const modelKey = entry.modelKey;
+  const label = entry.label;
   const ages = guideAges();
   // guidePriceAtAge falls back to MAKE_BASE_PRICE + a Sedan curve on its own
   // when modelKey isn't in MODEL_BASE_PRICE/GUIDE_MODEL_BODY, which is
@@ -4076,12 +4103,6 @@ function GuidePage({ allListings }) {
         subtitle={`What a ${make} ${label} should actually cost, by age — a reference range, not a personalized estimate.`}
       />
       <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
-        {!hasModelData && (
-          <div style={{ marginBottom: 20, background: "#FFF3D6", border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 8 }}>
-            <Info size={15} color={C.yellowDark} style={{ flexShrink: 0, marginTop: 1 }} />
-            <p style={{ fontSize: 13, color: C.yellowDark, margin: 0, lineHeight: 1.5 }}>We don't have {make} {label}-specific pricing data yet — these numbers use the general {make} brand estimate instead, which is less precise than our detailed model pages.</p>
-          </div>
-        )}
         <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
           <GuideStat icon={<DollarSign size={13} />} label="New, typical" value={`$${maxPrice.toLocaleString()}`} />
           <GuideStat icon={<TrendingDown size={13} />} label="At 5 years old" value={`$${prices.find((p) => p.age === 5).price.toLocaleString()}`} />
