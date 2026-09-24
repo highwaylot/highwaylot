@@ -721,7 +721,7 @@ function TopBar({ onPost }) {
             <NavLink label="Browse" to="/" active={pathname === "/" || pathname.startsWith("/listing") || pathname.startsWith("/category")} />
             <NavLink label="Value my car" to="/value" active={pathname === "/value"} />
             <NavLink label="My Car Quiz" to="/quiz" active={pathname.startsWith("/quiz")} />
-            <NavLink label="Price Guide" to="/guide" active={pathname.startsWith("/guide")} />
+            <NavLink label="wikiLOT" to="/guide" active={pathname.startsWith("/guide")} />
           </div>
         </div>
         <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 16px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
@@ -3936,7 +3936,7 @@ function GuideIndex() {
       />
       <GuideHero
         eyebrow="HIGHWAYLOT"
-        title="Car Price Guide"
+        title="wikiLOT: the Car Price Guide"
         subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data. Pick a make to start."
       />
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
