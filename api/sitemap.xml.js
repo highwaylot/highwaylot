@@ -51,26 +51,6 @@ function xmlEscape(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// Full model list per make, straight from NHTSA's free public API — same
-// source GuideMake fetches client-side for the "every other model" section,
-// pulled here too so the sitemap can point crawlers directly at those URLs
-// instead of relying on them discovering client-rendered links. This
-// sandbox's dev proxy can't reach vpic.nhtsa.dot.gov, but this function runs
-// on real Vercel infra in production with normal internet access — same as
-// any other fetch already in this file. A per-make failure just means that
-// make's long-tail models are missing from this run's sitemap, not a
-// broken build.
-async function fetchNhtsaModels(make) {
-  try {
-    const r = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`);
-    if (!r.ok) return [];
-    const data = await r.json();
-    return Array.from(new Set((data.Results || []).map((m) => m.Model_Name)));
-  } catch {
-    return [];
-  }
-}
-
 export default async function handler(req, res) {
   try {
     const listingsRes = await fetch(
@@ -78,22 +58,19 @@ export default async function handler(req, res) {
       { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
     );
     const listings = listingsRes.ok ? await listingsRes.json() : [];
-    const nhtsaByMake = Object.fromEntries(
-      await Promise.all(GUIDE_MAKES.map(async (make) => [make, await fetchNhtsaModels(make)]))
-    );
 
     const urls = new Map(); // path -> lastmod, dedupes category combos automatically
 
     for (const route of STATIC_ROUTES) urls.set(route, null);
 
+    // Only curated models get their own /guide/:make/:model URL — anything
+    // NHTSA has on file beyond this list now redirects to a prefilled /value
+    // run instead of rendering a page (see GuidePage in src/App.jsx), so
+    // there's nothing there worth pointing a crawler at.
     for (const make of GUIDE_MAKES) {
       const makeSlug = slugify(make);
       urls.set(`/guide/${makeSlug}`, null);
-      const curated = new Set((GUIDE_MODELS[make] || []).map((m) => m.toLowerCase()));
       for (const model of GUIDE_MODELS[make] || []) urls.set(`/guide/${makeSlug}/${slugify(model)}`, null);
-      for (const model of nhtsaByMake[make] || []) {
-        if (!curated.has(model.toLowerCase())) urls.set(`/guide/${makeSlug}/${slugify(model)}`, null);
-      }
     }
 
     for (const l of listings) {
@@ -112,10 +89,7 @@ export default async function handler(req, res) {
       .join("\n")}\n</urlset>\n`;
 
     res.setHeader("Content-Type", "application/xml");
-    // Longer CDN cache than before (was 1hr) now that this fetches ~25 live
-    // NHTSA model lists per request on top of the Supabase listings query —
-    // that data barely changes day to day, so no reason to re-fetch it hourly.
-    res.setHeader("Cache-Control", "public, max-age=0, s-maxage=21600"); // 6hr CDN cache; browsers shouldn't cache
+    res.setHeader("Cache-Control", "public, max-age=0, s-maxage=3600"); // CDN can cache an hour; browsers shouldn't
     res.status(200).send(body);
   } catch (err) {
     console.error("sitemap generation failed:", err.message);
