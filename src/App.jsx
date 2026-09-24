@@ -3840,6 +3840,14 @@ function GuideMake({ allListings }) {
       <p style={{ color: "#3B4250", fontSize: 13.5, lineHeight: 1.6, marginBottom: 16 }}>
         {make} holds value {brandMult > 1.02 ? "better than most brands" : brandMult < 0.92 ? "below average" : "about average"} at resale, based on typical depreciation curves for its body styles. A new {make} starting around ${anchor.toLocaleString()} depreciates from there — see specific models below for age-by-age numbers.
       </p>
+      {BRAND_REPAIR_COST[make] && (
+        <div style={{ marginBottom: 20, border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", background: "#FAFAF7" }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, marginBottom: 4 }}>Reliability & repair cost</div>
+          <p style={{ fontSize: 13, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>
+            {make} owners spend about <strong>${BRAND_REPAIR_COST[make].toLocaleString()}/year</strong> on average repairs (RepairPal data) — {BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? `below the $${ALL_BRAND_AVG_REPAIR_COST.toLocaleString()}/year average across all brands, part of why ${make}s tend to hold value at resale` : `above the $${ALL_BRAND_AVG_REPAIR_COST.toLocaleString()}/year average across all brands — worth budgeting for when comparing total cost of ownership, not just purchase price`}.
+          </p>
+        </div>
+      )}
       {models.length > 0 && (
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, marginBottom: 8 }}>Models with detailed guides</div>
@@ -3887,6 +3895,15 @@ function GuidePage({ allListings }) {
           </div>
         ))}
       </div>
+
+      {BRAND_REPAIR_COST[make] && (
+        <div style={{ marginBottom: 24, border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", background: "#FAFAF7" }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, marginBottom: 4 }}>What to budget for repairs</div>
+          <p style={{ fontSize: 13, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>
+            {make} owners spend about <strong>${BRAND_REPAIR_COST[make].toLocaleString()}/year</strong> on average repairs (RepairPal data) — {BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? "below the all-brand average, one reason these tend to hold value" : "above the all-brand average, worth factoring into total cost of ownership"}. This is a brand-wide average, not specific to the {label} — a pre-purchase inspection is the only way to know this particular car's actual condition.
+          </p>
+        </div>
+      )}
 
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}>Is your asking price fair?</div>
