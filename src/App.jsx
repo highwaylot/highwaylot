@@ -1322,7 +1322,7 @@ function PostAd({ onSubmit, existingListings, log }) {
 
   return (
     <div>
-      <GuideHero eyebrow="HIGHWAYLOT" title="Post Your Car" subtitle="Listings are visible across the United States. Fields marked required." />
+      <SplitHero title={{ rest: "Post Your Car" }} subtitle="Listings are visible across the United States. Fields marked required." />
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px 70px" }}>
       <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, marginBottom: 16, textDecoration: "none" }}><ChevronLeft size={15} /> Cancel</Link>
       {prefill && (
@@ -2432,7 +2432,7 @@ function ValueMyCar({ allListings, log }) {
 
   return (
     <div>
-      <GuideHero big eyebrow="HIGHWAYLOT" title="What's Your Car Worth?" subtitle="Fill in your car's details for a real estimate — same depreciation math and comp data wikiLOT's price guides use, personalized to your actual car." />
+      <SplitHero title={{ rest: "What's Your Car Worth?" }} subtitle="Fill in your car's details for a real estimate — same depreciation math and comp data wikiLOT's price guides use, personalized to your actual car." />
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "36px 20px 70px" }}>
       <VinDecoder
         vin={form.vin}
@@ -4015,123 +4015,90 @@ function useCountUp(target, duration = 900) {
   return value;
 }
 
-// ---------- Hero concepts (comparison only, temp routes) ----------
-// Real structural alternatives, not color tweaks — each breaks the
-// centered-flat-band habit a different way. All figures are real
-// (MAKE_BASE_PRICE/etc.), nothing decorative is fabricated.
-function HeroConcept1() {
-  const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
-  const count = useCountUp(avg);
+// Real stat-pair generators for the split hero's widget — each pulls from
+// data already used elsewhere in the app (MAKE_BASE_PRICE, resale/repair
+// tables, curated model pricing), nothing invented for decoration. One is
+// picked at random per page load so repeat visitors and different pages
+// see different real content instead of the same static pair forever.
+const HERO_STAT_WIDGETS = [
+  () => {
+    const entries = Object.entries(MAKE_BASE_PRICE);
+    const cheapest = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
+    const priciest = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    return { label: "Range, new", top: { value: `$${cheapest[1].toLocaleString()}`, name: cheapest[0] }, bottom: { value: `$${priciest[1].toLocaleString()}`, name: priciest[0] } };
+  },
+  () => {
+    const entries = Object.entries(BRAND_RESALE_MULTIPLIER);
+    const best = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    const worst = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
+    return { label: "Resale strength", top: { value: `+${Math.round((best[1] - 1) * 100)}%`, name: best[0] }, bottom: { value: `${Math.round((worst[1] - 1) * 100)}%`, name: worst[0] } };
+  },
+  () => {
+    const entries = Object.entries(BRAND_REPAIR_COST);
+    const lowest = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
+    const highest = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    return { label: "Avg. annual repairs", top: { value: `$${lowest[1].toLocaleString()}`, name: lowest[0] }, bottom: { value: `$${highest[1].toLocaleString()}`, name: highest[0] } };
+  },
+  () => {
+    const entries = Object.entries(TYPICAL_NEW_PRICE_BY_BODY);
+    const cheapest = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
+    const priciest = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    return { label: "By body style, new", top: { value: `$${cheapest[1].toLocaleString()}`, name: cheapest[0] }, bottom: { value: `$${priciest[1].toLocaleString()}`, name: priciest[0] } };
+  },
+  () => {
+    const priced = GUIDE_CATALOG.map((g) => ({ ...g, price: guidePriceAtAge(g.make, g.modelKey, 5) }));
+    const cheapest = priced.reduce((a, b) => (b.price < a.price ? b : a));
+    const priciest = priced.reduce((a, b) => (b.price > a.price ? b : a));
+    return { label: "At 5 years old", top: { value: `$${cheapest.price.toLocaleString()}`, name: `${cheapest.make} ${cheapest.label}` }, bottom: { value: `$${priciest.price.toLocaleString()}`, name: `${priciest.make} ${priciest.label}` } };
+  },
+];
+
+function HeroStatWidget() {
+  const [widget] = useState(() => HERO_STAT_WIDGETS[Math.floor(Math.random() * HERO_STAT_WIDGETS.length)]());
   return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: `linear-gradient(135deg, ${C.ink} 0%, #0F151E 100%)`, minHeight: 340 }}>
-      {/* Oversized bleeding watermark figure — real avg price, not a prop number */}
-      <div style={{ position: "absolute", right: -40, top: -30, fontFamily: FONT_HEAD, fontSize: 260, fontWeight: 700, color: "rgba(245,183,0,0.07)", lineHeight: 1, whiteSpace: "nowrap", userSelect: "none" }}>
-        ${Math.round(avg / 1000)}K
+    <div style={{ background: C.ink, borderRadius: 8, padding: "20px 26px", boxShadow: "0 20px 44px rgba(0,0,0,0.35)" }}>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{widget.label}</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <span style={{ fontFamily: FONT_HEAD, fontSize: 22, color: "#fff" }}>{widget.top.value}</span>
+        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{widget.top.name}</span>
       </div>
-      {/* Angled accent block, not a hairline border */}
-      <div style={{ position: "absolute", left: 0, bottom: 0, width: "38%", height: 10, background: C.yellow, clipPath: "polygon(0 0, 100% 0, 85% 100%, 0% 100%)" }} />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "72px 20px 0", position: "relative" }}>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 10, letterSpacing: 1 }}>HIGHWAYLOT</div>
-        <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(38px, 8vw, 64px)", color: "#fff", margin: 0, lineHeight: 0.98, maxWidth: 640 }}>
-          <span style={{ color: C.yellow }}>wikiLOT</span><br />what a car should<br />actually cost.
-        </h1>
-        <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 15.5, maxWidth: 460, marginTop: 18 }}>Real depreciation curves, brand resale strength, and repair-cost data — not a sticker price.</p>
-        {/* Stat pill breaking out of the hero's bottom edge — depth via shadow + overlap, not a box inside a box */}
-        <div style={{ display: "inline-flex", alignItems: "baseline", gap: 10, background: "#fff", borderRadius: 8, padding: "16px 24px", marginTop: 28, transform: "translateY(50%)", boxShadow: "0 16px 40px rgba(0,0,0,0.25)" }}>
-          <span style={{ fontSize: 11.5, color: C.steel, textTransform: "uppercase", letterSpacing: 0.5 }}>Avg. new, all brands</span>
-          <span style={{ fontFamily: FONT_HEAD, fontSize: 26, color: C.ink }}>${count.toLocaleString()}</span>
-        </div>
+      <div style={{ height: 1, background: "rgba(255,255,255,0.15)", margin: "10px 0" }} />
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <span style={{ fontFamily: FONT_HEAD, fontSize: 22, color: "#fff" }}>{widget.bottom.value}</span>
+        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{widget.bottom.name}</span>
       </div>
-      <div style={{ height: 60 }} />
     </div>
   );
 }
 
-function HeroConcept2() {
-  const cheapest = Object.entries(MAKE_BASE_PRICE).reduce((a, b) => (b[1] < a[1] ? b : a));
-  const priciest = Object.entries(MAKE_BASE_PRICE).reduce((a, b) => (b[1] > a[1] ? b : a));
+// The real hero, chosen from the 3 concepts — diagonal two-tone split with
+// a real rotating stat widget. Used on every top-level landing page
+// (wikiLOT index, /value, /post) so they share one bold identity instead
+// of each having its own header treatment. Compact GuideHero (below) stays
+// on make/model detail pages, where a breadcrumb + brand badge fits better
+// than a full diagonal split.
+function SplitHero({ title, subtitle, showWidget = true }) {
   return (
     <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink, minHeight: 320 }}>
-      {/* Diagonal two-tone split instead of a flat single-color band */}
       <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(68% 0, 100% 0, 100% 100%, 40% 100%)" }} />
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "56px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
         <div style={{ maxWidth: 500 }}>
           <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 10, letterSpacing: 1 }}>HIGHWAYLOT</div>
-          <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(30px, 6vw, 46px)", color: "#fff", margin: 0, lineHeight: 1.02 }}>
-            <span style={{ color: C.yellow }}>wikiLOT</span>: the Car Price Guide
+          <h1 style={{ margin: 0, lineHeight: 0.95 }}>
+            {title.brand && (
+              <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(46px, 9vw, 72px)", color: C.yellow, letterSpacing: -1 }}>{title.brand}</div>
+            )}
+            {title.rest && (
+              <div style={{ fontFamily: FONT_HEAD, fontSize: "clamp(22px, 4vw, 30px)", color: "#fff", marginTop: title.brand ? 2 : 0 }}>{title.rest}</div>
+            )}
           </h1>
-          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, marginTop: 14 }}>Real numbers across every brand — not a sticker price.</p>
+          {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, marginTop: 16 }}>{subtitle}</p>}
         </div>
-        {/* Stat card sitting on the yellow side, overlapping the seam with real shadow depth */}
-        <div style={{ background: C.ink, borderRadius: 8, padding: "20px 26px", boxShadow: "0 20px 44px rgba(0,0,0,0.35)", marginRight: 20 }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Range, new</div>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ fontFamily: FONT_HEAD, fontSize: 22, color: "#fff" }}>${cheapest[1].toLocaleString()}</span>
-            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{cheapest[0]}</span>
+        {showWidget && (
+          <div style={{ marginRight: 20 }}>
+            <HeroStatWidget />
           </div>
-          <div style={{ height: 1, background: "rgba(255,255,255,0.15)", margin: "10px 0" }} />
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ fontFamily: FONT_HEAD, fontSize: 22, color: "#fff" }}>${priciest[1].toLocaleString()}</span>
-            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{priciest[0]}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HeroConcept3() {
-  const sample = [["Toyota", "Camry", 14800], ["Ford", "F-150", 30000], ["Honda", "Civic", 12950], ["BMW", "X5", 35100]];
-  return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: `radial-gradient(ellipse at top right, #253244 0%, ${C.ink} 60%)`, minHeight: 340 }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "60px 20px 80px", position: "relative", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
-        <div style={{ maxWidth: 520 }}>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 10, letterSpacing: 1 }}>HIGHWAYLOT</div>
-          <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(32px, 6vw, 48px)", color: "#fff", margin: 0, lineHeight: 1.05 }}>
-            <span style={{ position: "relative", display: "inline-block" }}>
-              <span style={{ position: "absolute", left: -6, right: -6, bottom: "6%", height: "32%", background: C.yellow, zIndex: 0, transform: "skewX(-6deg)" }} />
-              <span style={{ position: "relative", zIndex: 1, color: "#fff" }}>wikiLOT</span>
-            </span>: the Car Price Guide
-          </h1>
-          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, marginTop: 16, maxWidth: 420 }}>What a car should actually cost — real depreciation data, model by model.</p>
-        </div>
-        {/* Fanned, layered price cards — real make/model/5yr-price data, rotated + shadow-stacked for depth */}
-        <div style={{ position: "relative", width: 220, height: 160 }}>
-          {sample.map(([make, model, price], i) => (
-            <div key={make} style={{
-              position: "absolute", left: i * 18, top: i * 10, width: 160, background: "#fff", borderRadius: 8,
-              padding: "12px 14px", boxShadow: "0 10px 30px rgba(0,0,0,0.3)", transform: `rotate(${(i - 1.5) * 6}deg)`,
-              zIndex: i,
-            }}>
-              <div style={{ fontFamily: FONT_HEAD, fontSize: 13, color: C.ink }}>{make} {model}</div>
-              <div style={{ fontSize: 12, color: C.steel, marginTop: 2 }}>${price.toLocaleString()}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HeroPreviewPage({ Hero, label }) {
-  const allMakes = Object.keys(MAKE_BASE_PRICE).sort();
-  return (
-    <div>
-      <SEOHead title={`Hero concept — ${label}`} path="/hero-preview" noindex />
-      <Hero />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 14 }}>Browse by make</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
-          {allMakes.slice(0, 8).map((make) => (
-            <div key={make} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-              <BrandBadge make={make} />
-              <div>
-                <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink }}>{make}</div>
-                <div style={{ fontSize: 11.5, color: C.steel }}>${MAKE_BASE_PRICE[make].toLocaleString()} new</div>
-              </div>
-            </div>
-          ))}
-        </div>
+        )}
       </div>
     </div>
   );
@@ -4179,11 +4146,9 @@ function GuideIndex() {
         description="Real depreciation-based price guides by make and model — what a car should cost at 3, 5, 8, and 10 years old, so you know if an asking price is fair."
         path="/guide"
       />
-      <GuideHero
-        big
-        eyebrow="HIGHWAYLOT"
-        title="wikiLOT: the Car Price Guide"
-        subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data. Pick a make to start."
+      <SplitHero
+        title={{ brand: "wikiLOT", rest: "the Car Price Guide" }}
+        subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data."
       />
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
         <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 4 }}>Pricing by body style</div>
@@ -4221,188 +4186,6 @@ function GuideIndex() {
               </Link>
             );
           })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------- wikiLOT homepage alternates (comparison only, temp routes) ----------
-// Shared search index for both alternates below — every make and every
-// curated model, flattened once. Same underlying data as GuideIndex's
-// browse grid, just indexed for typing instead of clicking.
-function guideSearchIndex() {
-  const items = Object.keys(MAKE_BASE_PRICE).map((make) => ({
-    label: make,
-    sub: `New starting around $${MAKE_BASE_PRICE[make].toLocaleString()}`,
-    to: `/guide/${slugify(make)}`,
-  }));
-  for (const { make, modelKey, label } of GUIDE_CATALOG) {
-    items.push({
-      label: `${make} ${label}`,
-      sub: `~$${guidePriceAtAge(make, modelKey, 5).toLocaleString()} at 5 years old`,
-      to: `/guide/${slugify(make)}/${slugify(modelKey)}`,
-    });
-  }
-  return items;
-}
-
-function GuideSearchBox({ autoFocus }) {
-  const navigate = useNavigate();
-  const [query, setQuery] = useState("");
-  const [index] = useState(guideSearchIndex);
-  const matches = query.trim().length > 0
-    ? index.filter((item) => item.label.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 8)
-    : [];
-  const go = (to) => { setQuery(""); navigate(to); };
-  return (
-    <div style={{ position: "relative", maxWidth: 520 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `2px solid ${C.ink}`, borderRadius: 6, padding: "12px 16px" }}>
-        <Search size={18} color={C.steel} />
-        <input
-          autoFocus={autoFocus}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && matches.length > 0) go(matches[0].to); }}
-          placeholder="Type any make or model — e.g. Toyota, RAV4, F-150"
-          style={{ flex: 1, border: "none", outline: "none", fontSize: 16, fontFamily: FONT_BODY, color: C.ink }}
-        />
-      </div>
-      {matches.length > 0 && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 6, boxShadow: "0 8px 24px rgba(27,36,49,0.15)", overflow: "hidden", zIndex: 10 }}>
-          {matches.map((item) => (
-            <div key={item.to} onClick={() => go(item.to)} style={{ padding: "10px 16px", cursor: "pointer", borderBottom: `1px solid ${C.line}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}
-              onMouseDown={(e) => e.preventDefault()}>
-              <span style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink }}>{item.label}</span>
-              <span style={{ fontSize: 12, color: C.steel, whiteSpace: "nowrap" }}>{item.sub}</span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Option A — search-first. Big search up top (most visitors arrive already
-// knowing what car they want priced), browse grids pushed below as
-// secondary wayfinding for people who don't.
-function GuideIndexSearchFirst() {
-  const popularModels = GUIDE_CATALOG.slice(0, 8);
-  const allMakes = Object.keys(MAKE_BASE_PRICE).sort();
-  return (
-    <div>
-      <SEOHead title="wikiLOT — Car Price Guide | HIGHWAYLOT" description="Search any make or model for a real depreciation-based price guide." path="/guide-a" noindex />
-      <div style={{ background: C.ink, borderBottom: `4px solid ${C.yellow}` }}>
-        <div style={{ maxWidth: 780, margin: "0 auto", padding: "56px 20px 44px", textAlign: "center" }}>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 10 }}>HIGHWAYLOT</div>
-          <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(26px, 5vw, 38px)", color: "#fff", margin: 0, marginBottom: 14 }}>wikiLOT: the Car Price Guide</h1>
-          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, marginBottom: 24 }}>What a car should actually cost — search any make or model to start.</p>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <GuideSearchBox autoFocus />
-          </div>
-        </div>
-      </div>
-      <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 10 }}>Popular searches</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 32 }}>
-          {popularModels.map(({ make, modelKey, label }) => (
-            <Link key={`${make}-${modelKey}`} to={`/guide/${slugify(make)}/${slugify(modelKey)}`} style={{ fontSize: 13, color: C.ink, background: "#F0EEE5", borderRadius: 20, padding: "6px 14px", textDecoration: "none" }}>{make} {label}</Link>
-          ))}
-        </div>
-
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 10 }}>By body style</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 32 }}>
-          {Object.keys(TYPICAL_NEW_PRICE_BY_BODY).map((body) => (
-            <Link key={body} to={`/value?body=${encodeURIComponent(body)}`} style={{ textDecoration: "none" }}><BodyStyleTag body={body} /></Link>
-          ))}
-        </div>
-
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 10 }}>All makes</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "6px 12px" }}>
-          {allMakes.map((make) => (
-            <Link key={make} to={`/guide/${slugify(make)}`} style={{ fontSize: 13.5, color: C.steel, textDecoration: "none", padding: "4px 0" }}>{make}</Link>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Option B — market dashboard. Real aggregate stats up top, all makes as a
-// dense sortable table instead of a card grid — leans into "prove it with
-// numbers" over browsing.
-function GuideIndexDashboard() {
-  const [sortKey, setSortKey] = useState("anchor");
-  const [sortDir, setSortDir] = useState("desc");
-  const allMakes = Object.keys(MAKE_BASE_PRICE);
-  const rows = allMakes.map((make) => ({
-    make,
-    anchor: MAKE_BASE_PRICE[make],
-    resale: BRAND_RESALE_MULTIPLIER[make] ?? 1.0,
-    repair: BRAND_REPAIR_COST[make] ?? null,
-  }));
-  rows.sort((a, b) => {
-    const av = a[sortKey] ?? -Infinity, bv = b[sortKey] ?? -Infinity;
-    return sortDir === "desc" ? bv - av : av - bv;
-  });
-  const setSort = (key) => { if (key === sortKey) setSortDir((d) => (d === "desc" ? "asc" : "desc")); else { setSortKey(key); setSortDir("desc"); } };
-  const avgAnchor = Math.round(rows.reduce((s, r) => s + r.anchor, 0) / rows.length);
-  const cheapest = rows.reduce((a, b) => (b.anchor < a.anchor ? b : a));
-  const priciest = rows.reduce((a, b) => (b.anchor > a.anchor ? b : a));
-  const bestResale = rows.reduce((a, b) => (b.resale > a.resale ? b : a));
-  const th = (label, key) => (
-    <th onClick={() => setSort(key)} style={{ textAlign: "left", padding: "10px 14px", fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4, color: C.steel, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
-      {label} {sortKey === key && (sortDir === "desc" ? "↓" : "↑")}
-    </th>
-  );
-  return (
-    <div>
-      <SEOHead title="wikiLOT — Car Price Guide | HIGHWAYLOT" description="Real market data by brand — new-car anchor price, resale strength, and repair cost, sortable." path="/guide-b" noindex />
-      <GuideHero eyebrow="HIGHWAYLOT" title="wikiLOT: the Car Price Guide" subtitle="What a car should actually cost — real numbers across every brand, sortable." />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
-          <GuideStat icon={<DollarSign size={13} />} label="Avg. new price, all brands" value={`$${avgAnchor.toLocaleString()}`} />
-          <GuideStat icon={<TrendingDown size={13} />} label="Cheapest brand, new" value={cheapest.make} note={`$${cheapest.anchor.toLocaleString()}`} />
-          <GuideStat icon={<TrendingUp size={13} />} label="Priciest brand, new" value={priciest.make} note={`$${priciest.anchor.toLocaleString()}`} />
-          <GuideStat icon={<ShieldCheck size={13} />} label="Best resale strength" value={bestResale.make} note={`${Math.round((bestResale.resale - 1) * 100)}% above average`} />
-        </div>
-
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 4 }}>Pricing by body style</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 28 }}>
-          {Object.entries(TYPICAL_NEW_PRICE_BY_BODY).map(([body, price]) => (
-            <Link key={body} to={`/value?body=${encodeURIComponent(body)}`} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 20, padding: "5px 12px 5px 5px", background: "#fff" }}>
-              <BodyStyleTag body={body} />
-              <span style={{ fontSize: 12, color: C.steel }}>${price.toLocaleString()}</span>
-            </Link>
-          ))}
-        </div>
-
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 10 }}>All brands</div>
-        <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 6, overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead style={{ borderBottom: `1px solid ${C.line}`, background: "#FAFAF7" }}>
-              <tr>
-                <th style={{ textAlign: "left", padding: "10px 14px", fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4, color: C.steel }}>Make</th>
-                {th("New, typical", "anchor")}
-                {th("Resale strength", "resale")}
-                {th("Avg. repairs/yr", "repair")}
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={r.make} style={{ borderTop: i === 0 ? "none" : `1px solid ${C.line}` }}>
-                  <td style={{ padding: "10px 14px" }}>
-                    <Link to={`/guide/${slugify(r.make)}`} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: C.ink, fontFamily: FONT_HEAD, fontSize: 14 }}>
-                      <BrandBadge make={r.make} size={24} />{r.make}
-                    </Link>
-                  </td>
-                  <td style={{ padding: "10px 14px", fontSize: 13.5, color: C.ink }}>${r.anchor.toLocaleString()}</td>
-                  <td style={{ padding: "10px 14px", fontSize: 13.5, color: r.resale >= 1 ? C.green : C.steel }}>{r.resale >= 1 ? "+" : ""}{Math.round((r.resale - 1) * 100)}%</td>
-                  <td style={{ padding: "10px 14px", fontSize: 13.5, color: C.steel }}>{r.repair ? `$${r.repair.toLocaleString()}` : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
@@ -4962,12 +4745,6 @@ export default function App() {
         <Route path="/post/success" element={<Success />} />
         <Route path="/value" element={<ValueMyCar allListings={listings} log={log} />} />
         <Route path="/guide" element={<GuideIndex />} />
-        {/* Temp comparison routes, next branch only — not linked from nav, noindex'd, delete once a winner's picked */}
-        <Route path="/guide-a" element={<GuideIndexSearchFirst />} />
-        <Route path="/guide-b" element={<GuideIndexDashboard />} />
-        <Route path="/hero-1" element={<HeroPreviewPage Hero={HeroConcept1} label="1 — watermark + breakout stat" />} />
-        <Route path="/hero-2" element={<HeroPreviewPage Hero={HeroConcept2} label="2 — diagonal split" />} />
-        <Route path="/hero-3" element={<HeroPreviewPage Hero={HeroConcept3} label="3 — layered fanned cards" />} />
         <Route path="/guide/:make" element={<GuideMake allListings={visibleListings} />} />
         <Route path="/guide/:make/:model" element={<GuidePage allListings={visibleListings} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
