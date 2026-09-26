@@ -1322,7 +1322,7 @@ function PostAd({ onSubmit, existingListings, log }) {
 
   return (
     <div>
-      <SplitHero title={{ rest: "Post Your Car" }} subtitle="Listings are visible across the United States. Fields marked required." />
+      <SplitHero title={{ brand: "Post", rest: "your car for sale" }} subtitle="Listings are visible across the United States. Fields marked required." />
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px 70px" }}>
       <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, marginBottom: 16, textDecoration: "none" }}><ChevronLeft size={15} /> Cancel</Link>
       {prefill && (
@@ -2432,7 +2432,7 @@ function ValueMyCar({ allListings, log }) {
 
   return (
     <div>
-      <SplitHero title={{ rest: "What's Your Car Worth?" }} subtitle="Fill in your car's details for a real estimate — same depreciation math and comp data wikiLOT's price guides use, personalized to your actual car." />
+      <SplitHero title={{ brand: "wikiLOT", rest: "what's your car worth?" }} subtitle="Fill in your car's details for a real estimate — same depreciation math and comp data wikiLOT's price guides use, personalized to your actual car." />
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "36px 20px 70px" }}>
       <VinDecoder
         vin={form.vin}
