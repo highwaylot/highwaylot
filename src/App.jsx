@@ -4105,194 +4105,30 @@ function SplitHero({ subtitle, showWidget = true }) {
 // /value's hero — a literal price-tag shape (notched corner + punch hole),
 // distinct from wikiLOT's diagonal split. The real avg-new-price figure
 // lives inside the tag itself instead of a separate stat card.
+// One line, one real number, no subtitle paragraph. "Less text, just
+// simplicity" — no shape/metaphor tricks, no separate stat block.
 function PriceTagHero() {
   const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
   const count = useCountUp(avg);
   return (
-    <div className="hl-hero-fade" style={{ background: C.ink, padding: "34px 20px" }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
-        <div style={{
-          position: "relative", background: C.yellow, padding: "18px 30px 18px 40px",
-          clipPath: "polygon(24px 0, 100% 0, 100% 100%, 24px 100%, 0 50%)",
-          flexShrink: 0,
-        }}>
-          <div style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, borderRadius: "50%", background: C.ink }} />
-          <div style={{ fontSize: 10.5, color: "rgba(27,36,49,0.6)", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>Avg. price, all brands</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(30px, 5vw, 42px)", color: C.ink, lineHeight: 1 }}>${count.toLocaleString()}</div>
-        </div>
-        <div style={{ maxWidth: 460 }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(22px, 4vw, 30px)", color: "#fff", lineHeight: 1.1 }}>What's your car actually worth?</div>
-          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, marginTop: 8 }}>Fill in your car's details — same depreciation math and comp data wikiLOT's price guides use.</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// /post's hero — a roadside "FOR SALE" sign, since this page is literally
-// about posting a car for sale. A real, concrete metaphor instead of an
-// abstract shape.
-// ---------- Minimal hero variants (comparison only) ----------
-// Grounded in the research discussion: no more shape/metaphor tricks
-// (tag, sign, badge) — restrained type, generous whitespace, and one
-// interactive variant per page (IKEA effect: engagement > decoration).
-// One flexible component, 5 layout variants, reused for both pages.
-function MinimalHeroVariant({ variant, eyebrowWord, title, sub, statLabel, statValue, interactive }) {
-  const base = { background: C.ink, padding: "34px 20px" };
-  if (variant === 1) {
-    // Plain left-aligned, thin accent rule, stat as plain text line.
-    return (
-      <div className="hl-hero-fade" style={base}>
-        <div style={{ maxWidth: 700, margin: "0 auto" }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 8 }}>HIGHWAYLOT</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(28px, 5vw, 42px)", color: "#fff", lineHeight: 1.05 }}>{title}</div>
-          <div style={{ width: 48, height: 3, background: C.yellow, margin: "14px 0" }} />
-          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, marginBottom: 6 }}>{sub}</p>
-          <div style={{ color: C.yellow, fontFamily: FONT_HEAD, fontSize: 15 }}>{statLabel}: {statValue}</div>
-        </div>
-      </div>
-    );
-  }
-  if (variant === 2) {
-    // Interactive — a real live input the visitor can type into right in the hero.
-    return (
-      <div className="hl-hero-fade" style={base}>
-        <div style={{ maxWidth: 700, margin: "0 auto" }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 8 }}>HIGHWAYLOT</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 4.5vw, 38px)", color: "#fff", lineHeight: 1.1, marginBottom: 14 }}>{title}</div>
-          {interactive}
-        </div>
-      </div>
-    );
-  }
-  if (variant === 3) {
-    // Centered, symmetric.
-    return (
-      <div className="hl-hero-fade" style={{ ...base, textAlign: "center" }}>
-        <div style={{ maxWidth: 600, margin: "0 auto" }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 8 }}>HIGHWAYLOT</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 5vw, 40px)", color: "#fff", lineHeight: 1.1 }}>{title}</div>
-          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14, marginTop: 10 }}>{sub}</p>
-          <div style={{ color: C.yellow, fontFamily: FONT_HEAD, fontSize: 15, marginTop: 6 }}>{statLabel}: {statValue}</div>
-        </div>
-      </div>
-    );
-  }
-  if (variant === 4) {
-    // Hard flat two-color split — no diagonal, no rotation.
-    return (
-      <div className="hl-hero-fade" style={{ display: "flex" }}>
-        <div style={{ flex: 1.4, background: C.ink, padding: "34px 24px" }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 8 }}>HIGHWAYLOT</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(24px, 4vw, 34px)", color: "#fff", lineHeight: 1.1 }}>{title}</div>
-        </div>
-        <div style={{ flex: 1, background: C.yellow, padding: "34px 24px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={{ fontSize: 11, color: "rgba(27,36,49,0.6)", letterSpacing: 0.5, marginBottom: 4 }}>{statLabel}</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(22px, 3.6vw, 30px)", color: C.ink }}>{statValue}</div>
-        </div>
-      </div>
-    );
-  }
-  // variant 5 — ultra-minimal, one line, mostly whitespace.
-  return (
-    <div className="hl-hero-fade" style={{ ...base, padding: "44px 20px" }}>
+    <div className="hl-hero-fade" style={{ background: C.ink, padding: "40px 20px" }}>
       <div style={{ maxWidth: 700, margin: "0 auto" }}>
         <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 10 }}>HIGHWAYLOT</div>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(22px, 4vw, 32px)", color: "#fff", lineHeight: 1.3 }}>
-          {title} <span style={{ color: C.yellow }}>{statValue}</span>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(24px, 4.5vw, 36px)", color: "#fff", lineHeight: 1.25 }}>
+          What's your car worth? <span style={{ color: C.yellow }}>${count.toLocaleString()} avg.</span>
         </div>
       </div>
-    </div>
-  );
-}
-
-function MinimalHeroOptionsPage() {
-  const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
-  const [mileageInput, setMileageInput] = useState("60000");
-  const [askInput, setAskInput] = useState("18000");
-  const valueVariants = [1, 2, 3, 4, 5].map((v) => ({
-    v,
-    label: `Value ${v}`,
-    el: (
-      <MinimalHeroVariant
-        variant={v}
-        title={v === 5 ? "Your car is worth about" : "What's your car actually worth?"}
-        sub="Fill in your car's details for a real estimate."
-        statLabel="Avg. new, all brands"
-        statValue={v === 5 ? `$${avg.toLocaleString()}` : `$${avg.toLocaleString()}`}
-        interactive={v === 2 ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <input value={mileageInput} onChange={(e) => setMileageInput(e.target.value.replace(/\D/g, ""))} style={{ fontFamily: FONT_HEAD, fontSize: 18, padding: "8px 12px", borderRadius: 4, border: "none", width: 120 }} />
-            <span style={{ color: "#fff", fontSize: 14 }}>miles → about</span>
-            <span style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.yellow }}>${Math.max(avg - Math.round(Number(mileageInput || 0) * 0.05), 3000).toLocaleString()}</span>
-          </div>
-        ) : null}
-      />
-    ),
-  }));
-  const postVariants = [1, 2, 3, 4, 5].map((v) => ({
-    v,
-    label: `Post ${v}`,
-    el: (
-      <MinimalHeroVariant
-        variant={v}
-        title={v === 5 ? "Post your car for" : "Post your car for sale"}
-        sub="Listings are visible across the United States. $0 fees."
-        statLabel="Listing fee"
-        statValue="$0"
-        interactive={v === 2 ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ color: "#fff", fontSize: 14 }}>Asking</span>
-            <span style={{ fontFamily: FONT_HEAD, fontSize: 18, color: "#fff" }}>$</span>
-            <input value={askInput} onChange={(e) => setAskInput(e.target.value.replace(/\D/g, ""))} style={{ fontFamily: FONT_HEAD, fontSize: 18, padding: "8px 12px", borderRadius: 4, border: "none", width: 120 }} />
-            <span style={{ color: "#fff", fontSize: 14 }}>— you keep</span>
-            <span style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.yellow }}>${Number(askInput || 0).toLocaleString()}</span>
-          </div>
-        ) : null}
-      />
-    ),
-  }));
-  return (
-    <div>
-      <SEOHead title="Minimal hero options" path="/minimal-hero-options" noindex />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "16px 20px 0", fontFamily: FONT_HEAD, fontSize: 14, color: C.ink }}>/value variants</div>
-      {valueVariants.map(({ v, label, el }) => (
-        <div key={label}>
-          <div style={{ maxWidth: 1000, margin: "0 auto", padding: "10px 20px 0", fontFamily: FONT_HEAD, fontSize: 12.5, color: C.steel }}>{label}</div>
-          {el}
-        </div>
-      ))}
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "24px 20px 0", fontFamily: FONT_HEAD, fontSize: 14, color: C.ink }}>/post variants</div>
-      {postVariants.map(({ v, label, el }) => (
-        <div key={label}>
-          <div style={{ maxWidth: 1000, margin: "0 auto", padding: "10px 20px 0", fontFamily: FONT_HEAD, fontSize: 12.5, color: C.steel }}>{label}</div>
-          {el}
-        </div>
-      ))}
     </div>
   );
 }
 
 function ForSaleSignHero() {
   return (
-    <div className="hl-hero-fade" style={{ background: C.yellow, padding: "30px 20px", position: "relative", overflow: "hidden" }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", alignItems: "center", gap: 22, flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flexShrink: 0 }}>
-          {/* The stake/post the sign is "mounted" on */}
-          <div style={{ position: "absolute", left: "50%", bottom: -18, width: 6, height: 22, background: "#8A6600", transform: "translateX(-50%)" }} />
-          <div style={{
-            background: C.ink, color: "#fff", padding: "16px 26px", borderRadius: 3, transform: "rotate(-2deg)",
-            boxShadow: "0 14px 30px rgba(0,0,0,0.3)", border: `3px solid ${C.ink}`,
-          }}>
-            <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(30px, 5.5vw, 46px)", lineHeight: 0.95, letterSpacing: -1 }}>FOR SALE</div>
-            <div style={{ fontFamily: FONT_HEAD, fontSize: 13, color: C.yellow, marginTop: 4 }}>BY YOU — $0 FEES</div>
-          </div>
-        </div>
-        <div style={{ maxWidth: 440 }}>
-          <div style={{ fontSize: 11, color: "rgba(27,36,49,0.6)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(22px, 4vw, 30px)", color: C.ink, lineHeight: 1.1 }}>Post your car for sale</div>
-          <p style={{ color: "rgba(27,36,49,0.7)", fontSize: 13, marginTop: 8 }}>Listings are visible across the United States. Fields marked required.</p>
+    <div className="hl-hero-fade" style={{ background: C.ink, padding: "40px 20px" }}>
+      <div style={{ maxWidth: 700, margin: "0 auto" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 10 }}>HIGHWAYLOT</div>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(24px, 4.5vw, 36px)", color: "#fff", lineHeight: 1.25 }}>
+          Post your car for sale. <span style={{ color: C.yellow }}>$0 fees.</span>
         </div>
       </div>
     </div>
@@ -4937,7 +4773,6 @@ export default function App() {
         <Route path="/post/success" element={<Success />} />
         <Route path="/value" element={<ValueMyCar allListings={listings} log={log} />} />
         <Route path="/guide" element={<GuideIndex />} />
-        <Route path="/minimal-hero-options" element={<MinimalHeroOptionsPage />} />
         <Route path="/guide/:make" element={<GuideMake allListings={visibleListings} />} />
         <Route path="/guide/:make/:model" element={<GuidePage allListings={visibleListings} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
