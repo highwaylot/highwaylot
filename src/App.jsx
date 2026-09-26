@@ -4085,9 +4085,21 @@ function SplitHero({ title, subtitle, showWidget = true }) {
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "26px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div style={{ maxWidth: 500 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 4, letterSpacing: 1 }}>HIGHWAYLOT</div>
-          <h1 style={{ margin: 0, lineHeight: 0.95, display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+          <h1 style={{ margin: 0, lineHeight: 0.95, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
             {title.brand && (
-              <span style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(28px, 5vw, 38px)", color: C.yellow, letterSpacing: -0.5 }}>{title.brand}</span>
+              title.brand === "wikiLOT" ? (
+                <span style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(28px, 5vw, 38px)", color: C.yellow, letterSpacing: -0.5 }}>{title.brand}</span>
+              ) : (
+                // Short plain-English action words (Post, Sell, etc.) read
+                // weak next to wikiLOT's wordmark at the same treatment —
+                // a stamped badge chip gives them equivalent visual weight
+                // instead of just matching font size.
+                <span style={{
+                  fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(22px, 4vw, 30px)", color: C.ink,
+                  background: C.yellow, padding: "4px 14px 6px", borderRadius: 4, textTransform: "uppercase",
+                  letterSpacing: 0.5, transform: "rotate(-2deg)", display: "inline-block", boxShadow: "0 6px 16px rgba(0,0,0,0.25)",
+                }}>{title.brand}</span>
+              )
             )}
             {title.rest && (
               <span style={{ fontFamily: FONT_HEAD, fontSize: "clamp(16px, 2.6vw, 20px)", color: "#fff" }}>{title.rest}</span>
