@@ -4072,90 +4072,98 @@ function HeroStatWidget({ compact }) {
   );
 }
 
-// ---------- Typography treatments for /post's hero (comparison only) ----------
-// The badge chip was rejected as still bland. These 5 are genuinely
-// different typographic approaches, not size tweaks on the same idea.
-function PostHeroA() {
-  // Oversized full-bleed word — dominates the whole left column.
+// ---------- Typography treatments for /post's hero, round 2 (comparison only) ----------
+// Direction from round 1: big "POST" on the ink side, "Sell your car. Zero
+// fees." on the yellow side. Text on yellow needs C.ink (dark), not white —
+// white-on-yellow barely reads.
+function PostHeroF() {
+  // Straightforward split: huge POST left, statement stacked right, both centered.
   return (
     <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
-      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "20px 20px 10px", position: "relative" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1 }}>HIGHWAYLOT</div>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(64px, 13vw, 120px)", color: C.yellow, lineHeight: 0.85, letterSpacing: -2 }}>POST</div>
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: "#fff", marginTop: -6 }}>your car for sale — free, no fees.</div>
-      </div>
-    </div>
-  );
-}
-
-function PostHeroB() {
-  // Hollow outlined text — bold via stroke/contrast, not fill.
-  return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
-      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "34px 20px", position: "relative" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
-        <div style={{
-          fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(48px, 9vw, 84px)", lineHeight: 0.9,
-          color: "transparent", WebkitTextStroke: `2px ${C.yellow}`, letterSpacing: -1,
-        }}>POST</div>
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: "#fff", marginTop: 8 }}>your car for sale</div>
-      </div>
-    </div>
-  );
-}
-
-function PostHeroC() {
-  // Full bold statement — whole phrase at wikiLOT-scale, no isolated word.
-  return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
-      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "30px 20px", position: "relative" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 6 }}>HIGHWAYLOT</div>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(30px, 6vw, 48px)", lineHeight: 1.02, color: "#fff", maxWidth: 480 }}>
-          Sell your car.<br /><span style={{ color: C.yellow }}>Zero fees.</span>
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(58% 0, 100% 0, 100% 100%, 38% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "30px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 2 }}>HIGHWAYLOT</div>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(56px, 11vw, 96px)", color: C.yellow, lineHeight: 0.85, letterSpacing: -2 }}>POST</div>
+        </div>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(24px, 4vw, 34px)", lineHeight: 1.1, color: C.ink, textAlign: "right", maxWidth: 320 }}>
+          Sell your car.<br />Zero fees.
         </div>
       </div>
     </div>
   );
 }
 
-function PostHeroD() {
-  // Layered poster-shadow duplicate — offset solid copy behind the word.
+function PostHeroG() {
+  // POST rotated/angled like a stamp on the ink side; statement in a clean
+  // stacked block on yellow, left-aligned within its half.
   return (
     <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
-      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px", position: "relative" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 6 }}>HIGHWAYLOT</div>
-        <div style={{ position: "relative", display: "inline-block" }}>
-          <div style={{ position: "absolute", top: 6, left: 6, fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(46px, 9vw, 76px)", color: "rgba(0,0,0,0.35)", lineHeight: 0.9, letterSpacing: -1 }}>POST</div>
-          <div style={{ position: "relative", fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(46px, 9vw, 76px)", color: C.yellow, lineHeight: 0.9, letterSpacing: -1 }}>POST</div>
-        </div>
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: "#fff", marginTop: 10 }}>your car for sale</div>
-      </div>
-    </div>
-  );
-}
-
-function PostHeroE() {
-  // Number-led — real fact ($0 fees) as the dominant visual instead of a word.
-  return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
-      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "30px 20px", position: "relative", display: "flex", alignItems: "center", gap: 20 }}>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(60px, 11vw, 96px)", color: C.yellow, lineHeight: 0.85, letterSpacing: -2 }}>$0</div>
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(58% 0, 100% 0, 100% 100%, 38% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "34px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: "#fff", lineHeight: 1.1 }}>to post your car for sale</div>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(50px, 9vw, 78px)", color: C.yellow, lineHeight: 0.85, letterSpacing: -1.5, transform: "rotate(-4deg)", display: "inline-block" }}>POST</div>
         </div>
+        <div style={{ maxWidth: 300 }}>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(22px, 3.6vw, 30px)", lineHeight: 1.15, color: C.ink }}>Sell your car.</div>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(22px, 3.6vw, 30px)", lineHeight: 1.15, color: C.ink }}>Zero fees.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PostHeroH() {
+  // Hollow outlined POST on ink, statement in a solid ink chip sitting on yellow.
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(58% 0, 100% 0, 100% 100%, 38% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(50px, 9vw, 84px)", lineHeight: 0.85, color: "transparent", WebkitTextStroke: `2.5px ${C.yellow}`, letterSpacing: -1.5 }}>POST</div>
+        </div>
+        <div style={{ background: C.ink, color: "#fff", borderRadius: 8, padding: "14px 20px", boxShadow: "0 12px 28px rgba(0,0,0,0.3)" }}>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 20, lineHeight: 1.3 }}>Sell your car.<br /><span style={{ color: C.yellow }}>Zero fees.</span></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PostHeroI() {
+  // POST bleeding off the top/bottom edges on ink; statement skewed to follow the diagonal seam.
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink, minHeight: 170 }}>
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(58% 0, 100% 0, 100% 100%, 38% 100%)" }} />
+      <div style={{ position: "absolute", left: 20, top: -14, fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(90px, 15vw, 140px)", color: C.yellow, lineHeight: 0.8, letterSpacing: -3, opacity: 0.9 }}>POST</div>
+      <div style={{ position: "absolute", top: 14, left: 20, fontSize: 11, color: "rgba(255,255,255,0.6)", letterSpacing: 1 }}>HIGHWAYLOT</div>
+      <div style={{ position: "absolute", right: 30, top: "50%", transform: "translateY(-50%) skewY(-8deg)", textAlign: "right" }}>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(20px, 3.4vw, 28px)", lineHeight: 1.15, color: C.ink }}>Sell your car.<br />Zero fees.</div>
+      </div>
+    </div>
+  );
+}
+
+function PostHeroJ() {
+  // Both halves equally weighted, divided by a hard vertical seam instead of
+  // a diagonal — POST left on ink, statement right on yellow, stacked large.
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink, display: "flex" }}>
+      <div style={{ flex: 1, padding: "34px 24px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(48px, 8vw, 76px)", color: C.yellow, lineHeight: 0.85, letterSpacing: -1.5 }}>POST</div>
+      </div>
+      <div style={{ flex: 1, background: C.yellow, padding: "34px 24px", display: "flex", alignItems: "center" }}>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(24px, 4vw, 34px)", lineHeight: 1.1, color: C.ink }}>Sell your car.<br />Zero fees.</div>
       </div>
     </div>
   );
 }
 
 function PostHeroOptionsPage() {
-  const options = [["A — oversized full-bleed word", PostHeroA], ["B — hollow outlined text", PostHeroB], ["C — full bold statement, no isolated word", PostHeroC], ["D — layered poster-shadow duplicate", PostHeroD], ["E — number-led ($0 fees, real)", PostHeroE]];
+  const options = [["F — straightforward split, centered", PostHeroF], ["G — POST angled like a stamp", PostHeroG], ["H — hollow POST + solid ink chip", PostHeroH], ["I — POST bleeding off edges, skewed statement", PostHeroI], ["J — hard vertical seam, equal halves", PostHeroJ]];
   return (
     <div>
       <SEOHead title="Post hero options" path="/post-hero-options" noindex />
