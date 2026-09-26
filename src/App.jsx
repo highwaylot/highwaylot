@@ -4053,19 +4053,20 @@ const HERO_STAT_WIDGETS = [
   },
 ];
 
-function HeroStatWidget() {
+function HeroStatWidget({ compact }) {
   const [widget] = useState(() => HERO_STAT_WIDGETS[Math.floor(Math.random() * HERO_STAT_WIDGETS.length)]());
+  const valueSize = compact ? 16 : 22;
   return (
-    <div style={{ background: C.ink, borderRadius: 8, padding: "20px 26px", boxShadow: "0 20px 44px rgba(0,0,0,0.35)" }}>
-      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>{widget.label}</div>
+    <div style={{ background: C.ink, borderRadius: 8, padding: compact ? "10px 16px" : "20px 26px", boxShadow: "0 12px 28px rgba(0,0,0,0.35)" }}>
+      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: compact ? 4 : 8 }}>{widget.label}</div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span style={{ fontFamily: FONT_HEAD, fontSize: 22, color: "#fff" }}>{widget.top.value}</span>
-        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{widget.top.name}</span>
+        <span style={{ fontFamily: FONT_HEAD, fontSize: valueSize, color: "#fff" }}>{widget.top.value}</span>
+        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{widget.top.name}</span>
       </div>
-      <div style={{ height: 1, background: "rgba(255,255,255,0.15)", margin: "10px 0" }} />
+      <div style={{ height: 1, background: "rgba(255,255,255,0.15)", margin: compact ? "5px 0" : "10px 0" }} />
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span style={{ fontFamily: FONT_HEAD, fontSize: 22, color: "#fff" }}>{widget.bottom.value}</span>
-        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{widget.bottom.name}</span>
+        <span style={{ fontFamily: FONT_HEAD, fontSize: valueSize, color: "#fff" }}>{widget.bottom.value}</span>
+        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{widget.bottom.name}</span>
       </div>
     </div>
   );
@@ -4079,24 +4080,24 @@ function HeroStatWidget() {
 // than a full diagonal split.
 function SplitHero({ title, subtitle, showWidget = true }) {
   return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink, minHeight: 320 }}>
-      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(68% 0, 100% 0, 100% 100%, 40% 100%)" }} />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "56px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "26px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
         <div style={{ maxWidth: 500 }}>
-          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 10, letterSpacing: 1 }}>HIGHWAYLOT</div>
-          <h1 style={{ margin: 0, lineHeight: 0.95 }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 4, letterSpacing: 1 }}>HIGHWAYLOT</div>
+          <h1 style={{ margin: 0, lineHeight: 0.95, display: "flex", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
             {title.brand && (
-              <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(46px, 9vw, 72px)", color: C.yellow, letterSpacing: -1 }}>{title.brand}</div>
+              <span style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(28px, 5vw, 38px)", color: C.yellow, letterSpacing: -0.5 }}>{title.brand}</span>
             )}
             {title.rest && (
-              <div style={{ fontFamily: FONT_HEAD, fontSize: "clamp(22px, 4vw, 30px)", color: "#fff", marginTop: title.brand ? 2 : 0 }}>{title.rest}</div>
+              <span style={{ fontFamily: FONT_HEAD, fontSize: "clamp(16px, 2.6vw, 20px)", color: "#fff" }}>{title.rest}</span>
             )}
           </h1>
-          {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, marginTop: 16 }}>{subtitle}</p>}
+          {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 6, marginBottom: 0, maxWidth: 460 }}>{subtitle}</p>}
         </div>
         {showWidget && (
           <div style={{ marginRight: 20 }}>
-            <HeroStatWidget />
+            <HeroStatWidget compact />
           </div>
         )}
       </div>
