@@ -4072,6 +4072,103 @@ function HeroStatWidget({ compact }) {
   );
 }
 
+// ---------- Typography treatments for /post's hero (comparison only) ----------
+// The badge chip was rejected as still bland. These 5 are genuinely
+// different typographic approaches, not size tweaks on the same idea.
+function PostHeroA() {
+  // Oversized full-bleed word — dominates the whole left column.
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "20px 20px 10px", position: "relative" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1 }}>HIGHWAYLOT</div>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(64px, 13vw, 120px)", color: C.yellow, lineHeight: 0.85, letterSpacing: -2 }}>POST</div>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: "#fff", marginTop: -6 }}>your car for sale — free, no fees.</div>
+      </div>
+    </div>
+  );
+}
+
+function PostHeroB() {
+  // Hollow outlined text — bold via stroke/contrast, not fill.
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "34px 20px", position: "relative" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
+        <div style={{
+          fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(48px, 9vw, 84px)", lineHeight: 0.9,
+          color: "transparent", WebkitTextStroke: `2px ${C.yellow}`, letterSpacing: -1,
+        }}>POST</div>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: "#fff", marginTop: 8 }}>your car for sale</div>
+      </div>
+    </div>
+  );
+}
+
+function PostHeroC() {
+  // Full bold statement — whole phrase at wikiLOT-scale, no isolated word.
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "30px 20px", position: "relative" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 6 }}>HIGHWAYLOT</div>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(30px, 6vw, 48px)", lineHeight: 1.02, color: "#fff", maxWidth: 480 }}>
+          Sell your car.<br /><span style={{ color: C.yellow }}>Zero fees.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PostHeroD() {
+  // Layered poster-shadow duplicate — offset solid copy behind the word.
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px", position: "relative" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 6 }}>HIGHWAYLOT</div>
+        <div style={{ position: "relative", display: "inline-block" }}>
+          <div style={{ position: "absolute", top: 6, left: 6, fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(46px, 9vw, 76px)", color: "rgba(0,0,0,0.35)", lineHeight: 0.9, letterSpacing: -1 }}>POST</div>
+          <div style={{ position: "relative", fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(46px, 9vw, 76px)", color: C.yellow, lineHeight: 0.9, letterSpacing: -1 }}>POST</div>
+        </div>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: "#fff", marginTop: 10 }}>your car for sale</div>
+      </div>
+    </div>
+  );
+}
+
+function PostHeroE() {
+  // Number-led — real fact ($0 fees) as the dominant visual instead of a word.
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "30px 20px", position: "relative", display: "flex", alignItems: "center", gap: 20 }}>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(60px, 11vw, 96px)", color: C.yellow, lineHeight: 0.85, letterSpacing: -2 }}>$0</div>
+        <div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 24, color: "#fff", lineHeight: 1.1 }}>to post your car for sale</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PostHeroOptionsPage() {
+  const options = [["A — oversized full-bleed word", PostHeroA], ["B — hollow outlined text", PostHeroB], ["C — full bold statement, no isolated word", PostHeroC], ["D — layered poster-shadow duplicate", PostHeroD], ["E — number-led ($0 fees, real)", PostHeroE]];
+  return (
+    <div>
+      <SEOHead title="Post hero options" path="/post-hero-options" noindex />
+      {options.map(([label, Comp]) => (
+        <div key={label} style={{ marginBottom: 4 }}>
+          <div style={{ maxWidth: 1000, margin: "0 auto", padding: "10px 20px 0", fontFamily: FONT_HEAD, fontSize: 13, color: C.steel }}>{label}</div>
+          <Comp />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // The real hero, chosen from the 3 concepts — diagonal two-tone split with
 // a real rotating stat widget. Used on every top-level landing page
 // (wikiLOT index, /value, /post) so they share one bold identity instead
@@ -4758,6 +4855,7 @@ export default function App() {
         <Route path="/post/success" element={<Success />} />
         <Route path="/value" element={<ValueMyCar allListings={listings} log={log} />} />
         <Route path="/guide" element={<GuideIndex />} />
+        <Route path="/post-hero-options" element={<PostHeroOptionsPage />} />
         <Route path="/guide/:make" element={<GuideMake allListings={visibleListings} />} />
         <Route path="/guide/:make/:model" element={<GuidePage allListings={visibleListings} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
