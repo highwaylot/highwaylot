@@ -1322,7 +1322,7 @@ function PostAd({ onSubmit, existingListings, log }) {
 
   return (
     <div>
-      <SplitHero title={{ brand: "Post", rest: "your car for sale" }} subtitle="Listings are visible across the United States. Fields marked required." />
+      <ForSaleSignHero />
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px 70px" }}>
       <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, marginBottom: 16, textDecoration: "none" }}><ChevronLeft size={15} /> Cancel</Link>
       {prefill && (
@@ -2432,7 +2432,7 @@ function ValueMyCar({ allListings, log }) {
 
   return (
     <div>
-      <SplitHero title={{ brand: "wikiLOT", rest: "what's your car worth?" }} subtitle="Fill in your car's details for a real estimate — same depreciation math and comp data wikiLOT's price guides use, personalized to your actual car." />
+      <PriceTagHero />
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "36px 20px 70px" }}>
       <VinDecoder
         vin={form.vin}
@@ -4072,110 +4072,6 @@ function HeroStatWidget({ compact }) {
   );
 }
 
-// ---------- Typography treatments for /post's hero, round 2 (comparison only) ----------
-// Direction from round 1: big "POST" on the ink side, "Sell your car. Zero
-// fees." on the yellow side. Text on yellow needs C.ink (dark), not white —
-// white-on-yellow barely reads.
-function PostHeroF() {
-  // Straightforward split: huge POST left, statement stacked right, both centered.
-  return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
-      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(58% 0, 100% 0, 100% 100%, 38% 100%)" }} />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "30px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 2 }}>HIGHWAYLOT</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(56px, 11vw, 96px)", color: C.yellow, lineHeight: 0.85, letterSpacing: -2 }}>POST</div>
-        </div>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(24px, 4vw, 34px)", lineHeight: 1.1, color: C.ink, textAlign: "right", maxWidth: 320 }}>
-          Sell your car.<br />Zero fees.
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PostHeroG() {
-  // POST rotated/angled like a stamp on the ink side; statement in a clean
-  // stacked block on yellow, left-aligned within its half.
-  return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
-      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(58% 0, 100% 0, 100% 100%, 38% 100%)" }} />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "34px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(50px, 9vw, 78px)", color: C.yellow, lineHeight: 0.85, letterSpacing: -1.5, transform: "rotate(-4deg)", display: "inline-block" }}>POST</div>
-        </div>
-        <div style={{ maxWidth: 300 }}>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(22px, 3.6vw, 30px)", lineHeight: 1.15, color: C.ink }}>Sell your car.</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(22px, 3.6vw, 30px)", lineHeight: 1.15, color: C.ink }}>Zero fees.</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PostHeroH() {
-  // Hollow outlined POST on ink, statement in a solid ink chip sitting on yellow.
-  return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
-      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(58% 0, 100% 0, 100% 100%, 38% 100%)" }} />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(50px, 9vw, 84px)", lineHeight: 0.85, color: "transparent", WebkitTextStroke: `2.5px ${C.yellow}`, letterSpacing: -1.5 }}>POST</div>
-        </div>
-        <div style={{ background: C.ink, color: "#fff", borderRadius: 8, padding: "14px 20px", boxShadow: "0 12px 28px rgba(0,0,0,0.3)" }}>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 20, lineHeight: 1.3 }}>Sell your car.<br /><span style={{ color: C.yellow }}>Zero fees.</span></div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PostHeroI() {
-  // POST bleeding off the top/bottom edges on ink; statement skewed to follow the diagonal seam.
-  return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink, minHeight: 170 }}>
-      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(58% 0, 100% 0, 100% 100%, 38% 100%)" }} />
-      <div style={{ position: "absolute", left: 20, top: -14, fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(90px, 15vw, 140px)", color: C.yellow, lineHeight: 0.8, letterSpacing: -3, opacity: 0.9 }}>POST</div>
-      <div style={{ position: "absolute", top: 14, left: 20, fontSize: 11, color: "rgba(255,255,255,0.6)", letterSpacing: 1 }}>HIGHWAYLOT</div>
-      <div style={{ position: "absolute", right: 30, top: "50%", transform: "translateY(-50%) skewY(-8deg)", textAlign: "right" }}>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(20px, 3.4vw, 28px)", lineHeight: 1.15, color: C.ink }}>Sell your car.<br />Zero fees.</div>
-      </div>
-    </div>
-  );
-}
-
-function PostHeroJ() {
-  // Both halves equally weighted, divided by a hard vertical seam instead of
-  // a diagonal — POST left on ink, statement right on yellow, stacked large.
-  return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink, display: "flex" }}>
-      <div style={{ flex: 1, padding: "34px 24px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(48px, 8vw, 76px)", color: C.yellow, lineHeight: 0.85, letterSpacing: -1.5 }}>POST</div>
-      </div>
-      <div style={{ flex: 1, background: C.yellow, padding: "34px 24px", display: "flex", alignItems: "center" }}>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(24px, 4vw, 34px)", lineHeight: 1.1, color: C.ink }}>Sell your car.<br />Zero fees.</div>
-      </div>
-    </div>
-  );
-}
-
-function PostHeroOptionsPage() {
-  const options = [["F — straightforward split, centered", PostHeroF], ["G — POST angled like a stamp", PostHeroG], ["H — hollow POST + solid ink chip", PostHeroH], ["I — POST bleeding off edges, skewed statement", PostHeroI], ["J — hard vertical seam, equal halves", PostHeroJ]];
-  return (
-    <div>
-      <SEOHead title="Post hero options" path="/post-hero-options" noindex />
-      {options.map(([label, Comp]) => (
-        <div key={label} style={{ marginBottom: 4 }}>
-          <div style={{ maxWidth: 1000, margin: "0 auto", padding: "10px 20px 0", fontFamily: FONT_HEAD, fontSize: 13, color: C.steel }}>{label}</div>
-          <Comp />
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // The real hero, chosen from the 3 concepts — diagonal two-tone split with
 // a real rotating stat widget. Used on every top-level landing page
@@ -4183,7 +4079,7 @@ function PostHeroOptionsPage() {
 // of each having its own header treatment. Compact GuideHero (below) stays
 // on make/model detail pages, where a breadcrumb + brand badge fits better
 // than a full diagonal split.
-function SplitHero({ title, subtitle, showWidget = true }) {
+function SplitHero({ subtitle, showWidget = true }) {
   return (
     <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
       <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
@@ -4191,24 +4087,8 @@ function SplitHero({ title, subtitle, showWidget = true }) {
         <div style={{ maxWidth: 500 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 4, letterSpacing: 1 }}>HIGHWAYLOT</div>
           <h1 style={{ margin: 0, lineHeight: 0.95, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-            {title.brand && (
-              title.brand === "wikiLOT" ? (
-                <span style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(28px, 5vw, 38px)", color: C.yellow, letterSpacing: -0.5 }}>{title.brand}</span>
-              ) : (
-                // Short plain-English action words (Post, Sell, etc.) read
-                // weak next to wikiLOT's wordmark at the same treatment —
-                // a stamped badge chip gives them equivalent visual weight
-                // instead of just matching font size.
-                <span style={{
-                  fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(22px, 4vw, 30px)", color: C.ink,
-                  background: C.yellow, padding: "4px 14px 6px", borderRadius: 4, textTransform: "uppercase",
-                  letterSpacing: 0.5, transform: "rotate(-2deg)", display: "inline-block", boxShadow: "0 6px 16px rgba(0,0,0,0.25)",
-                }}>{title.brand}</span>
-              )
-            )}
-            {title.rest && (
-              <span style={{ fontFamily: FONT_HEAD, fontSize: "clamp(16px, 2.6vw, 20px)", color: "#fff" }}>{title.rest}</span>
-            )}
+            <span style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(28px, 5vw, 38px)", color: C.yellow, letterSpacing: -0.5 }}>wikiLOT</span>
+            <span style={{ fontFamily: FONT_HEAD, fontSize: "clamp(16px, 2.6vw, 20px)", color: "#fff" }}>the Car Price Guide</span>
           </h1>
           {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 6, marginBottom: 0, maxWidth: 460 }}>{subtitle}</p>}
         </div>
@@ -4217,6 +4097,62 @@ function SplitHero({ title, subtitle, showWidget = true }) {
             <HeroStatWidget compact />
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// /value's hero — a literal price-tag shape (notched corner + punch hole),
+// distinct from wikiLOT's diagonal split. The real avg-new-price figure
+// lives inside the tag itself instead of a separate stat card.
+function PriceTagHero() {
+  const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
+  const count = useCountUp(avg);
+  return (
+    <div className="hl-hero-fade" style={{ background: C.ink, padding: "34px 20px" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", alignItems: "center", gap: 28, flexWrap: "wrap" }}>
+        <div style={{
+          position: "relative", background: C.yellow, padding: "18px 30px 18px 40px",
+          clipPath: "polygon(24px 0, 100% 0, 100% 100%, 24px 100%, 0 50%)",
+          flexShrink: 0,
+        }}>
+          <div style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 8, height: 8, borderRadius: "50%", background: C.ink }} />
+          <div style={{ fontSize: 10.5, color: "rgba(27,36,49,0.6)", textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600 }}>Avg. price, all brands</div>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(30px, 5vw, 42px)", color: C.ink, lineHeight: 1 }}>${count.toLocaleString()}</div>
+        </div>
+        <div style={{ maxWidth: 460 }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(22px, 4vw, 30px)", color: "#fff", lineHeight: 1.1 }}>What's your car actually worth?</div>
+          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 13, marginTop: 8 }}>Fill in your car's details — same depreciation math and comp data wikiLOT's price guides use.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// /post's hero — a roadside "FOR SALE" sign, since this page is literally
+// about posting a car for sale. A real, concrete metaphor instead of an
+// abstract shape.
+function ForSaleSignHero() {
+  return (
+    <div className="hl-hero-fade" style={{ background: C.yellow, padding: "30px 20px", position: "relative", overflow: "hidden" }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto", display: "flex", alignItems: "center", gap: 22, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", flexShrink: 0 }}>
+          {/* The stake/post the sign is "mounted" on */}
+          <div style={{ position: "absolute", left: "50%", bottom: -18, width: 6, height: 22, background: "#8A6600", transform: "translateX(-50%)" }} />
+          <div style={{
+            background: C.ink, color: "#fff", padding: "16px 26px", borderRadius: 3, transform: "rotate(-2deg)",
+            boxShadow: "0 14px 30px rgba(0,0,0,0.3)", border: `3px solid ${C.ink}`,
+          }}>
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(30px, 5.5vw, 46px)", lineHeight: 0.95, letterSpacing: -1 }}>FOR SALE</div>
+            <div style={{ fontFamily: FONT_HEAD, fontSize: 13, color: C.yellow, marginTop: 4 }}>BY YOU — $0 FEES</div>
+          </div>
+        </div>
+        <div style={{ maxWidth: 440 }}>
+          <div style={{ fontSize: 11, color: "rgba(27,36,49,0.6)", letterSpacing: 1, marginBottom: 4 }}>HIGHWAYLOT</div>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(22px, 4vw, 30px)", color: C.ink, lineHeight: 1.1 }}>Post your car for sale</div>
+          <p style={{ color: "rgba(27,36,49,0.7)", fontSize: 13, marginTop: 8 }}>Listings are visible across the United States. Fields marked required.</p>
+        </div>
       </div>
     </div>
   );
@@ -4264,10 +4200,7 @@ function GuideIndex() {
         description="Real depreciation-based price guides by make and model — what a car should cost at 3, 5, 8, and 10 years old, so you know if an asking price is fair."
         path="/guide"
       />
-      <SplitHero
-        title={{ brand: "wikiLOT", rest: "the Car Price Guide" }}
-        subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data."
-      />
+      <SplitHero subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data." />
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
         <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 4 }}>Pricing by body style</div>
         <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 14 }}>Typical new price by body style — a starting anchor before brand and model narrow it down.</p>
@@ -4863,7 +4796,6 @@ export default function App() {
         <Route path="/post/success" element={<Success />} />
         <Route path="/value" element={<ValueMyCar allListings={listings} log={log} />} />
         <Route path="/guide" element={<GuideIndex />} />
-        <Route path="/post-hero-options" element={<PostHeroOptionsPage />} />
         <Route path="/guide/:make" element={<GuideMake allListings={visibleListings} />} />
         <Route path="/guide/:make/:model" element={<GuidePage allListings={visibleListings} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
