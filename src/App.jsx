@@ -3995,6 +3995,148 @@ function renderHeroTitle(title) {
   return <>{before}<span style={{ color: C.yellow }}>wikiLOT</span>{after}</>;
 }
 
+// Counts a number up from 0 on mount — used by the hero concepts below to
+// make the real stat feel alive instead of static, reinforcing "this is
+// real data" rather than being decoration for its own sake.
+function useCountUp(target, duration = 900) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    let raf;
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(Math.round(target * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return value;
+}
+
+// ---------- Hero concepts (comparison only, temp routes) ----------
+// Real structural alternatives, not color tweaks — each breaks the
+// centered-flat-band habit a different way. All figures are real
+// (MAKE_BASE_PRICE/etc.), nothing decorative is fabricated.
+function HeroConcept1() {
+  const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
+  const count = useCountUp(avg);
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: `linear-gradient(135deg, ${C.ink} 0%, #0F151E 100%)`, minHeight: 340 }}>
+      {/* Oversized bleeding watermark figure — real avg price, not a prop number */}
+      <div style={{ position: "absolute", right: -40, top: -30, fontFamily: FONT_HEAD, fontSize: 260, fontWeight: 700, color: "rgba(245,183,0,0.07)", lineHeight: 1, whiteSpace: "nowrap", userSelect: "none" }}>
+        ${Math.round(avg / 1000)}K
+      </div>
+      {/* Angled accent block, not a hairline border */}
+      <div style={{ position: "absolute", left: 0, bottom: 0, width: "38%", height: 10, background: C.yellow, clipPath: "polygon(0 0, 100% 0, 85% 100%, 0% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "72px 20px 0", position: "relative" }}>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 10, letterSpacing: 1 }}>HIGHWAYLOT</div>
+        <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(38px, 8vw, 64px)", color: "#fff", margin: 0, lineHeight: 0.98, maxWidth: 640 }}>
+          <span style={{ color: C.yellow }}>wikiLOT</span><br />what a car should<br />actually cost.
+        </h1>
+        <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 15.5, maxWidth: 460, marginTop: 18 }}>Real depreciation curves, brand resale strength, and repair-cost data — not a sticker price.</p>
+        {/* Stat pill breaking out of the hero's bottom edge — depth via shadow + overlap, not a box inside a box */}
+        <div style={{ display: "inline-flex", alignItems: "baseline", gap: 10, background: "#fff", borderRadius: 8, padding: "16px 24px", marginTop: 28, transform: "translateY(50%)", boxShadow: "0 16px 40px rgba(0,0,0,0.25)" }}>
+          <span style={{ fontSize: 11.5, color: C.steel, textTransform: "uppercase", letterSpacing: 0.5 }}>Avg. new, all brands</span>
+          <span style={{ fontFamily: FONT_HEAD, fontSize: 26, color: C.ink }}>${count.toLocaleString()}</span>
+        </div>
+      </div>
+      <div style={{ height: 60 }} />
+    </div>
+  );
+}
+
+function HeroConcept2() {
+  const cheapest = Object.entries(MAKE_BASE_PRICE).reduce((a, b) => (b[1] < a[1] ? b : a));
+  const priciest = Object.entries(MAKE_BASE_PRICE).reduce((a, b) => (b[1] > a[1] ? b : a));
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink, minHeight: 320 }}>
+      {/* Diagonal two-tone split instead of a flat single-color band */}
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(68% 0, 100% 0, 100% 100%, 40% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "56px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 500 }}>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 10, letterSpacing: 1 }}>HIGHWAYLOT</div>
+          <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(30px, 6vw, 46px)", color: "#fff", margin: 0, lineHeight: 1.02 }}>
+            <span style={{ color: C.yellow }}>wikiLOT</span>: the Car Price Guide
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, marginTop: 14 }}>Real numbers across every brand — not a sticker price.</p>
+        </div>
+        {/* Stat card sitting on the yellow side, overlapping the seam with real shadow depth */}
+        <div style={{ background: C.ink, borderRadius: 8, padding: "20px 26px", boxShadow: "0 20px 44px rgba(0,0,0,0.35)", marginRight: 20 }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Range, new</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <span style={{ fontFamily: FONT_HEAD, fontSize: 22, color: "#fff" }}>${cheapest[1].toLocaleString()}</span>
+            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{cheapest[0]}</span>
+          </div>
+          <div style={{ height: 1, background: "rgba(255,255,255,0.15)", margin: "10px 0" }} />
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+            <span style={{ fontFamily: FONT_HEAD, fontSize: 22, color: "#fff" }}>${priciest[1].toLocaleString()}</span>
+            <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 13 }}>{priciest[0]}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroConcept3() {
+  const sample = [["Toyota", "Camry", 14800], ["Ford", "F-150", 30000], ["Honda", "Civic", 12950], ["BMW", "X5", 35100]];
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: `radial-gradient(ellipse at top right, #253244 0%, ${C.ink} 60%)`, minHeight: 340 }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "60px 20px 80px", position: "relative", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 520 }}>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 10, letterSpacing: 1 }}>HIGHWAYLOT</div>
+          <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(32px, 6vw, 48px)", color: "#fff", margin: 0, lineHeight: 1.05 }}>
+            <span style={{ position: "relative", display: "inline-block" }}>
+              <span style={{ position: "absolute", left: -6, right: -6, bottom: "6%", height: "32%", background: C.yellow, zIndex: 0, transform: "skewX(-6deg)" }} />
+              <span style={{ position: "relative", zIndex: 1, color: "#fff" }}>wikiLOT</span>
+            </span>: the Car Price Guide
+          </h1>
+          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, marginTop: 16, maxWidth: 420 }}>What a car should actually cost — real depreciation data, model by model.</p>
+        </div>
+        {/* Fanned, layered price cards — real make/model/5yr-price data, rotated + shadow-stacked for depth */}
+        <div style={{ position: "relative", width: 220, height: 160 }}>
+          {sample.map(([make, model, price], i) => (
+            <div key={make} style={{
+              position: "absolute", left: i * 18, top: i * 10, width: 160, background: "#fff", borderRadius: 8,
+              padding: "12px 14px", boxShadow: "0 10px 30px rgba(0,0,0,0.3)", transform: `rotate(${(i - 1.5) * 6}deg)`,
+              zIndex: i,
+            }}>
+              <div style={{ fontFamily: FONT_HEAD, fontSize: 13, color: C.ink }}>{make} {model}</div>
+              <div style={{ fontSize: 12, color: C.steel, marginTop: 2 }}>${price.toLocaleString()}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroPreviewPage({ Hero, label }) {
+  const allMakes = Object.keys(MAKE_BASE_PRICE).sort();
+  return (
+    <div>
+      <SEOHead title={`Hero concept — ${label}`} path="/hero-preview" noindex />
+      <Hero />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 14 }}>Browse by make</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+          {allMakes.slice(0, 8).map((make) => (
+            <div key={make} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+              <BrandBadge make={make} />
+              <div>
+                <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink }}>{make}</div>
+                <div style={{ fontSize: 11.5, color: C.steel }}>${MAKE_BASE_PRICE[make].toLocaleString()} new</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GuideHero({ eyebrow, title, subtitle, make, big }) {
   return (
     <div
@@ -4823,6 +4965,9 @@ export default function App() {
         {/* Temp comparison routes, next branch only — not linked from nav, noindex'd, delete once a winner's picked */}
         <Route path="/guide-a" element={<GuideIndexSearchFirst />} />
         <Route path="/guide-b" element={<GuideIndexDashboard />} />
+        <Route path="/hero-1" element={<HeroPreviewPage Hero={HeroConcept1} label="1 — watermark + breakout stat" />} />
+        <Route path="/hero-2" element={<HeroPreviewPage Hero={HeroConcept2} label="2 — diagonal split" />} />
+        <Route path="/hero-3" element={<HeroPreviewPage Hero={HeroConcept3} label="3 — layered fanned cards" />} />
         <Route path="/guide/:make" element={<GuideMake allListings={visibleListings} />} />
         <Route path="/guide/:make/:model" element={<GuidePage allListings={visibleListings} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
