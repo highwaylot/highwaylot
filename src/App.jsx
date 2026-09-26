@@ -1321,10 +1321,10 @@ function PostAd({ onSubmit, existingListings, log }) {
   };
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "36px 20px 70px" }}>
-      <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, marginBottom: 12, textDecoration: "none" }}><ChevronLeft size={15} /> Cancel</Link>
-      <h2 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: "0 0 4px" }}>Post your car</h2>
-      <p style={{ color: C.steel, fontSize: 14, marginBottom: 24 }}>Listings are visible across the United States. Fields marked required.</p>
+    <div>
+      <ForSaleSignHero />
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px 70px" }}>
+      <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, marginBottom: 16, textDecoration: "none" }}><ChevronLeft size={15} /> Cancel</Link>
       {prefill && (
         <div style={{ background: C.greenBg, color: C.green, fontSize: 12.5, padding: "8px 12px", borderRadius: 6, marginBottom: 18 }}>
           Carried over from your Value My Car estimate — double-check everything before posting.
@@ -1425,6 +1425,7 @@ function PostAd({ onSubmit, existingListings, log }) {
       <div style={{ marginTop: 18 }}><TurnstileWidget onVerify={setCaptchaToken} onExpire={() => setCaptchaToken(null)} /></div>
       <button onClick={submit} disabled={submitting || (!!TURNSTILE_SITE_KEY && !captchaToken)} style={{ marginTop: 12, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: (submitting || (!!TURNSTILE_SITE_KEY && !captchaToken)) ? "default" : "pointer", opacity: (submitting || (!!TURNSTILE_SITE_KEY && !captchaToken)) ? 0.7 : 1 }}>{submitting ? "Publishing…" : "Publish listing"}</button>
     </div>
+      </div>
   );
 }
 function Field({ label, required, error, children }) {
@@ -2430,13 +2431,9 @@ function ValueMyCar({ allListings, log }) {
   };
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "48px 20px 70px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 4 }}>
-        <DollarSign size={26} color={C.ink} />
-        <h2 style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 6vw, 34px)", color: C.ink, margin: 0, textTransform: "uppercase", letterSpacing: 0.5 }}>What's Your Car Worth?</h2>
-      </div>
-      <p style={{ color: C.steel, fontSize: 14, marginBottom: 24, textAlign: "center" }}>Fill in your car's details to get an estimate.</p>
-
+    <div>
+      <PriceTagHero />
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "36px 20px 70px" }}>
       <VinDecoder
         vin={form.vin}
         onVinChange={(v) => setForm((prev) => ({ ...prev, vin: v }))}
@@ -2591,6 +2588,7 @@ function ValueMyCar({ allListings, log }) {
           } } })} style={{ marginTop: 16, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer", color: C.ink }}>List this car</button>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -3970,16 +3968,177 @@ function GuideHeroStat({ label, value, range }) {
   );
 }
 
-function GuideHero({ eyebrow, title, subtitle, make }) {
+// Splits a title at "wikiLOT" so that word alone renders in the brand
+// yellow — the rest of the sentence stays white. Falls back to plain white
+// text if the title doesn't contain it (e.g. "Ford Price Guide").
+function renderHeroTitle(title) {
+  if (typeof title !== "string" || !title.includes("wikiLOT")) return title;
+  const [before, after] = title.split("wikiLOT");
+  return <>{before}<span style={{ color: C.yellow }}>wikiLOT</span>{after}</>;
+}
+
+// Counts a number up from 0 on mount — used by the hero concepts below to
+// make the real stat feel alive instead of static, reinforcing "this is
+// real data" rather than being decoration for its own sake.
+function useCountUp(target, duration = 900) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    let raf;
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(Math.round(target * eased));
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, duration]);
+  return value;
+}
+
+// Real stat-pair generators for the split hero's widget — each pulls from
+// data already used elsewhere in the app (MAKE_BASE_PRICE, resale/repair
+// tables, curated model pricing), nothing invented for decoration. One is
+// picked at random per page load so repeat visitors and different pages
+// see different real content instead of the same static pair forever.
+const HERO_STAT_WIDGETS = [
+  () => {
+    const entries = Object.entries(MAKE_BASE_PRICE);
+    const cheapest = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
+    const priciest = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    return { label: "Range, new", top: { value: `$${cheapest[1].toLocaleString()}`, name: cheapest[0] }, bottom: { value: `$${priciest[1].toLocaleString()}`, name: priciest[0] } };
+  },
+  () => {
+    const entries = Object.entries(BRAND_RESALE_MULTIPLIER);
+    const best = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    const worst = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
+    return { label: "Resale strength", top: { value: `+${Math.round((best[1] - 1) * 100)}%`, name: best[0] }, bottom: { value: `${Math.round((worst[1] - 1) * 100)}%`, name: worst[0] } };
+  },
+  () => {
+    const entries = Object.entries(BRAND_REPAIR_COST);
+    const lowest = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
+    const highest = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    return { label: "Avg. annual repairs", top: { value: `$${lowest[1].toLocaleString()}`, name: lowest[0] }, bottom: { value: `$${highest[1].toLocaleString()}`, name: highest[0] } };
+  },
+  () => {
+    const entries = Object.entries(TYPICAL_NEW_PRICE_BY_BODY);
+    const cheapest = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
+    const priciest = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    return { label: "By body style, new", top: { value: `$${cheapest[1].toLocaleString()}`, name: cheapest[0] }, bottom: { value: `$${priciest[1].toLocaleString()}`, name: priciest[0] } };
+  },
+  () => {
+    const priced = GUIDE_CATALOG.map((g) => ({ ...g, price: guidePriceAtAge(g.make, g.modelKey, 5) }));
+    const cheapest = priced.reduce((a, b) => (b.price < a.price ? b : a));
+    const priciest = priced.reduce((a, b) => (b.price > a.price ? b : a));
+    return { label: "At 5 years old", top: { value: `$${cheapest.price.toLocaleString()}`, name: `${cheapest.make} ${cheapest.label}` }, bottom: { value: `$${priciest.price.toLocaleString()}`, name: `${priciest.make} ${priciest.label}` } };
+  },
+];
+
+function HeroStatWidget({ compact }) {
+  const [widget] = useState(() => HERO_STAT_WIDGETS[Math.floor(Math.random() * HERO_STAT_WIDGETS.length)]());
+  const valueSize = compact ? 16 : 22;
   return (
-    <div style={{ background: C.ink, borderBottom: `4px solid ${C.yellow}` }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 20px 32px" }}>
-        {eyebrow && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>{eyebrow}</div>}
+    <div style={{ background: C.ink, borderRadius: 8, padding: compact ? "10px 16px" : "20px 26px", boxShadow: "0 12px 28px rgba(0,0,0,0.35)" }}>
+      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: compact ? 4 : 8 }}>{widget.label}</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <span style={{ fontFamily: FONT_HEAD, fontSize: valueSize, color: "#fff" }}>{widget.top.value}</span>
+        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{widget.top.name}</span>
+      </div>
+      <div style={{ height: 1, background: "rgba(255,255,255,0.15)", margin: compact ? "5px 0" : "10px 0" }} />
+      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        <span style={{ fontFamily: FONT_HEAD, fontSize: valueSize, color: "#fff" }}>{widget.bottom.value}</span>
+        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{widget.bottom.name}</span>
+      </div>
+    </div>
+  );
+}
+
+
+// The real hero, chosen from the 3 concepts — diagonal two-tone split with
+// a real rotating stat widget. Used on every top-level landing page
+// (wikiLOT index, /value, /post) so they share one bold identity instead
+// of each having its own header treatment. Compact GuideHero (below) stays
+// on make/model detail pages, where a breadcrumb + brand badge fits better
+// than a full diagonal split.
+function SplitHero({ subtitle, showWidget = true }) {
+  return (
+    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
+      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "26px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ maxWidth: 500 }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 4, letterSpacing: 1 }}>HIGHWAYLOT</div>
+          <h1 style={{ margin: 0, lineHeight: 0.95, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+            <span style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(28px, 5vw, 38px)", color: C.yellow, letterSpacing: -0.5 }}>wikiLOT</span>
+            <span style={{ fontFamily: FONT_HEAD, fontSize: "clamp(16px, 2.6vw, 20px)", color: "#fff" }}>the Car Price Guide</span>
+          </h1>
+          {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 6, marginBottom: 0, maxWidth: 460 }}>{subtitle}</p>}
+        </div>
+        {showWidget && (
+          <div style={{ marginRight: 20 }}>
+            <HeroStatWidget compact />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// /value's hero — a literal price-tag shape (notched corner + punch hole),
+// distinct from wikiLOT's diagonal split. The real avg-new-price figure
+// lives inside the tag itself instead of a separate stat card.
+// One line, one real number, no subtitle paragraph. "Less text, just
+// simplicity" — no shape/metaphor tricks, no separate stat block.
+function PriceTagHero() {
+  const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
+  const count = useCountUp(avg);
+  return (
+    <div className="hl-hero-fade" style={{ background: C.ink, padding: "40px 20px" }}>
+      <div style={{ maxWidth: 700, margin: "0 auto" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 10 }}>HIGHWAYLOT</div>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(24px, 4.5vw, 36px)", color: "#fff", lineHeight: 1.25 }}>
+          What's your car worth? <span style={{ color: C.yellow }}>${count.toLocaleString()} avg.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ForSaleSignHero() {
+  return (
+    <div className="hl-hero-fade" style={{ background: C.ink, padding: "40px 20px" }}>
+      <div style={{ maxWidth: 700, margin: "0 auto" }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 10 }}>HIGHWAYLOT</div>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(24px, 4.5vw, 36px)", color: "#fff", lineHeight: 1.25 }}>
+          Post your car for sale. <span style={{ color: C.yellow }}>$0 fees.</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GuideHero({ eyebrow, title, subtitle, make, big }) {
+  return (
+    <div
+      className="hl-hero-fade"
+      style={{
+        background: C.ink,
+        borderBottom: `4px solid ${C.yellow}`,
+        position: "relative",
+        overflow: "hidden",
+        // Repeating diagonal dashes — the same lane-line motif as the
+        // HIGHWAYLOT logo's dashed center line, done as a pure CSS gradient
+        // so it costs nothing and needs no image asset.
+        backgroundImage: "repeating-linear-gradient(-45deg, rgba(245,183,0,0.07) 0px, rgba(245,183,0,0.07) 3px, transparent 3px, transparent 34px)",
+      }}
+    >
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: big ? "64px 20px 52px" : "40px 20px 32px", position: "relative" }}>
+        {eyebrow && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 8, letterSpacing: 0.4 }}>{eyebrow}</div>}
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {make && <BrandBadge make={make} size={44} />}
           <div>
-            <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(24px, 4vw, 34px)", color: "#fff", margin: 0, marginBottom: 8 }}>{title}</h1>
-            {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, lineHeight: 1.6, maxWidth: 640, margin: 0 }}>{subtitle}</p>}
+            <h1 style={{ fontFamily: FONT_HEAD, fontSize: big ? "clamp(34px, 7vw, 56px)" : "clamp(24px, 4vw, 34px)", color: "#fff", margin: 0, marginBottom: 8, lineHeight: 1.05 }}>{renderHeroTitle(title)}</h1>
+            {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: big ? 16 : 14.5, lineHeight: 1.6, maxWidth: 640, margin: 0 }}>{subtitle}</p>}
           </div>
         </div>
       </div>
@@ -4000,11 +4159,7 @@ function GuideIndex() {
         description="Real depreciation-based price guides by make and model — what a car should cost at 3, 5, 8, and 10 years old, so you know if an asking price is fair."
         path="/guide"
       />
-      <GuideHero
-        eyebrow="HIGHWAYLOT"
-        title="wikiLOT: the Car Price Guide"
-        subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data. Pick a make to start."
-      />
+      <SplitHero subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data." />
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
         <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 4 }}>Pricing by body style</div>
         <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 14 }}>Typical new price by body style — a starting anchor before brand and model narrow it down.</p>
