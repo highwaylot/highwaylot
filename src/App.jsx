@@ -4065,6 +4065,188 @@ function GuideIndex() {
   );
 }
 
+// ---------- wikiLOT homepage alternates (comparison only, temp routes) ----------
+// Shared search index for both alternates below — every make and every
+// curated model, flattened once. Same underlying data as GuideIndex's
+// browse grid, just indexed for typing instead of clicking.
+function guideSearchIndex() {
+  const items = Object.keys(MAKE_BASE_PRICE).map((make) => ({
+    label: make,
+    sub: `New starting around $${MAKE_BASE_PRICE[make].toLocaleString()}`,
+    to: `/guide/${slugify(make)}`,
+  }));
+  for (const { make, modelKey, label } of GUIDE_CATALOG) {
+    items.push({
+      label: `${make} ${label}`,
+      sub: `~$${guidePriceAtAge(make, modelKey, 5).toLocaleString()} at 5 years old`,
+      to: `/guide/${slugify(make)}/${slugify(modelKey)}`,
+    });
+  }
+  return items;
+}
+
+function GuideSearchBox({ autoFocus }) {
+  const navigate = useNavigate();
+  const [query, setQuery] = useState("");
+  const [index] = useState(guideSearchIndex);
+  const matches = query.trim().length > 0
+    ? index.filter((item) => item.label.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 8)
+    : [];
+  const go = (to) => { setQuery(""); navigate(to); };
+  return (
+    <div style={{ position: "relative", maxWidth: 520 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff", border: `2px solid ${C.ink}`, borderRadius: 6, padding: "12px 16px" }}>
+        <Search size={18} color={C.steel} />
+        <input
+          autoFocus={autoFocus}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && matches.length > 0) go(matches[0].to); }}
+          placeholder="Type any make or model — e.g. Toyota, RAV4, F-150"
+          style={{ flex: 1, border: "none", outline: "none", fontSize: 16, fontFamily: FONT_BODY, color: C.ink }}
+        />
+      </div>
+      {matches.length > 0 && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "#fff", border: `1px solid ${C.line}`, borderRadius: 6, boxShadow: "0 8px 24px rgba(27,36,49,0.15)", overflow: "hidden", zIndex: 10 }}>
+          {matches.map((item) => (
+            <div key={item.to} onClick={() => go(item.to)} style={{ padding: "10px 16px", cursor: "pointer", borderBottom: `1px solid ${C.line}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}
+              onMouseDown={(e) => e.preventDefault()}>
+              <span style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink }}>{item.label}</span>
+              <span style={{ fontSize: 12, color: C.steel, whiteSpace: "nowrap" }}>{item.sub}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Option A — search-first. Big search up top (most visitors arrive already
+// knowing what car they want priced), browse grids pushed below as
+// secondary wayfinding for people who don't.
+function GuideIndexSearchFirst() {
+  const popularModels = GUIDE_CATALOG.slice(0, 8);
+  const allMakes = Object.keys(MAKE_BASE_PRICE).sort();
+  return (
+    <div>
+      <SEOHead title="wikiLOT — Car Price Guide | HIGHWAYLOT" description="Search any make or model for a real depreciation-based price guide." path="/guide-a" noindex />
+      <div style={{ background: C.ink, borderBottom: `4px solid ${C.yellow}` }}>
+        <div style={{ maxWidth: 780, margin: "0 auto", padding: "56px 20px 44px", textAlign: "center" }}>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 10 }}>HIGHWAYLOT</div>
+          <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(26px, 5vw, 38px)", color: "#fff", margin: 0, marginBottom: 14 }}>wikiLOT: the Car Price Guide</h1>
+          <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, marginBottom: 24 }}>What a car should actually cost — search any make or model to start.</p>
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <GuideSearchBox autoFocus />
+          </div>
+        </div>
+      </div>
+      <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 10 }}>Popular searches</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 32 }}>
+          {popularModels.map(({ make, modelKey, label }) => (
+            <Link key={`${make}-${modelKey}`} to={`/guide/${slugify(make)}/${slugify(modelKey)}`} style={{ fontSize: 13, color: C.ink, background: "#F0EEE5", borderRadius: 20, padding: "6px 14px", textDecoration: "none" }}>{make} {label}</Link>
+          ))}
+        </div>
+
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 10 }}>By body style</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 32 }}>
+          {Object.keys(TYPICAL_NEW_PRICE_BY_BODY).map((body) => (
+            <Link key={body} to={`/value?body=${encodeURIComponent(body)}`} style={{ textDecoration: "none" }}><BodyStyleTag body={body} /></Link>
+          ))}
+        </div>
+
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 10 }}>All makes</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "6px 12px" }}>
+          {allMakes.map((make) => (
+            <Link key={make} to={`/guide/${slugify(make)}`} style={{ fontSize: 13.5, color: C.steel, textDecoration: "none", padding: "4px 0" }}>{make}</Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Option B — market dashboard. Real aggregate stats up top, all makes as a
+// dense sortable table instead of a card grid — leans into "prove it with
+// numbers" over browsing.
+function GuideIndexDashboard() {
+  const [sortKey, setSortKey] = useState("anchor");
+  const [sortDir, setSortDir] = useState("desc");
+  const allMakes = Object.keys(MAKE_BASE_PRICE);
+  const rows = allMakes.map((make) => ({
+    make,
+    anchor: MAKE_BASE_PRICE[make],
+    resale: BRAND_RESALE_MULTIPLIER[make] ?? 1.0,
+    repair: BRAND_REPAIR_COST[make] ?? null,
+  }));
+  rows.sort((a, b) => {
+    const av = a[sortKey] ?? -Infinity, bv = b[sortKey] ?? -Infinity;
+    return sortDir === "desc" ? bv - av : av - bv;
+  });
+  const setSort = (key) => { if (key === sortKey) setSortDir((d) => (d === "desc" ? "asc" : "desc")); else { setSortKey(key); setSortDir("desc"); } };
+  const avgAnchor = Math.round(rows.reduce((s, r) => s + r.anchor, 0) / rows.length);
+  const cheapest = rows.reduce((a, b) => (b.anchor < a.anchor ? b : a));
+  const priciest = rows.reduce((a, b) => (b.anchor > a.anchor ? b : a));
+  const bestResale = rows.reduce((a, b) => (b.resale > a.resale ? b : a));
+  const th = (label, key) => (
+    <th onClick={() => setSort(key)} style={{ textAlign: "left", padding: "10px 14px", fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4, color: C.steel, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}>
+      {label} {sortKey === key && (sortDir === "desc" ? "↓" : "↑")}
+    </th>
+  );
+  return (
+    <div>
+      <SEOHead title="wikiLOT — Car Price Guide | HIGHWAYLOT" description="Real market data by brand — new-car anchor price, resale strength, and repair cost, sortable." path="/guide-b" noindex />
+      <GuideHero eyebrow="HIGHWAYLOT" title="wikiLOT: the Car Price Guide" subtitle="What a car should actually cost — real numbers across every brand, sortable." />
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
+          <GuideStat icon={<DollarSign size={13} />} label="Avg. new price, all brands" value={`$${avgAnchor.toLocaleString()}`} />
+          <GuideStat icon={<TrendingDown size={13} />} label="Cheapest brand, new" value={cheapest.make} note={`$${cheapest.anchor.toLocaleString()}`} />
+          <GuideStat icon={<TrendingUp size={13} />} label="Priciest brand, new" value={priciest.make} note={`$${priciest.anchor.toLocaleString()}`} />
+          <GuideStat icon={<ShieldCheck size={13} />} label="Best resale strength" value={bestResale.make} note={`${Math.round((bestResale.resale - 1) * 100)}% above average`} />
+        </div>
+
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 4 }}>Pricing by body style</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 28 }}>
+          {Object.entries(TYPICAL_NEW_PRICE_BY_BODY).map(([body, price]) => (
+            <Link key={body} to={`/value?body=${encodeURIComponent(body)}`} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", border: `1px solid ${C.line}`, borderRadius: 20, padding: "5px 12px 5px 5px", background: "#fff" }}>
+              <BodyStyleTag body={body} />
+              <span style={{ fontSize: 12, color: C.steel }}>${price.toLocaleString()}</span>
+            </Link>
+          ))}
+        </div>
+
+        <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 10 }}>All brands</div>
+        <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 6, overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead style={{ borderBottom: `1px solid ${C.line}`, background: "#FAFAF7" }}>
+              <tr>
+                <th style={{ textAlign: "left", padding: "10px 14px", fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4, color: C.steel }}>Make</th>
+                {th("New, typical", "anchor")}
+                {th("Resale strength", "resale")}
+                {th("Avg. repairs/yr", "repair")}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => (
+                <tr key={r.make} style={{ borderTop: i === 0 ? "none" : `1px solid ${C.line}` }}>
+                  <td style={{ padding: "10px 14px" }}>
+                    <Link to={`/guide/${slugify(r.make)}`} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: C.ink, fontFamily: FONT_HEAD, fontSize: 14 }}>
+                      <BrandBadge make={r.make} size={24} />{r.make}
+                    </Link>
+                  </td>
+                  <td style={{ padding: "10px 14px", fontSize: 13.5, color: C.ink }}>${r.anchor.toLocaleString()}</td>
+                  <td style={{ padding: "10px 14px", fontSize: 13.5, color: r.resale >= 1 ? C.green : C.steel }}>{r.resale >= 1 ? "+" : ""}{Math.round((r.resale - 1) * 100)}%</td>
+                  <td style={{ padding: "10px 14px", fontSize: 13.5, color: C.steel }}>{r.repair ? `$${r.repair.toLocaleString()}` : "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GuideMake({ allListings }) {
   const { make: makeSlug } = useParams();
   const make = Object.keys(MAKE_BASE_PRICE).find((m) => slugify(m) === makeSlug);
@@ -4618,6 +4800,9 @@ export default function App() {
         <Route path="/post/success" element={<Success />} />
         <Route path="/value" element={<ValueMyCar allListings={listings} log={log} />} />
         <Route path="/guide" element={<GuideIndex />} />
+        {/* Temp comparison routes, next branch only — not linked from nav, noindex'd, delete once a winner's picked */}
+        <Route path="/guide-a" element={<GuideIndexSearchFirst />} />
+        <Route path="/guide-b" element={<GuideIndexDashboard />} />
         <Route path="/guide/:make" element={<GuideMake allListings={visibleListings} />} />
         <Route path="/guide/:make/:model" element={<GuidePage allListings={visibleListings} />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
