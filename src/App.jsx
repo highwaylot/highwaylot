@@ -1321,10 +1321,10 @@ function PostAd({ onSubmit, existingListings, log }) {
   };
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", padding: "36px 20px 70px" }}>
-      <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, marginBottom: 12, textDecoration: "none" }}><ChevronLeft size={15} /> Cancel</Link>
-      <h2 style={{ fontFamily: FONT_HEAD, fontSize: 28, color: C.ink, margin: "0 0 4px" }}>Post your car</h2>
-      <p style={{ color: C.steel, fontSize: 14, marginBottom: 24 }}>Listings are visible across the United States. Fields marked required.</p>
+    <div>
+      <GuideHero eyebrow="HIGHWAYLOT" title="Post Your Car" subtitle="Listings are visible across the United States. Fields marked required." />
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "24px 20px 70px" }}>
+      <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, marginBottom: 16, textDecoration: "none" }}><ChevronLeft size={15} /> Cancel</Link>
       {prefill && (
         <div style={{ background: C.greenBg, color: C.green, fontSize: 12.5, padding: "8px 12px", borderRadius: 6, marginBottom: 18 }}>
           Carried over from your Value My Car estimate — double-check everything before posting.
@@ -1425,6 +1425,7 @@ function PostAd({ onSubmit, existingListings, log }) {
       <div style={{ marginTop: 18 }}><TurnstileWidget onVerify={setCaptchaToken} onExpire={() => setCaptchaToken(null)} /></div>
       <button onClick={submit} disabled={submitting || (!!TURNSTILE_SITE_KEY && !captchaToken)} style={{ marginTop: 12, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "13px 26px", fontFamily: FONT_HEAD, fontSize: 15, cursor: (submitting || (!!TURNSTILE_SITE_KEY && !captchaToken)) ? "default" : "pointer", opacity: (submitting || (!!TURNSTILE_SITE_KEY && !captchaToken)) ? 0.7 : 1 }}>{submitting ? "Publishing…" : "Publish listing"}</button>
     </div>
+      </div>
   );
 }
 function Field({ label, required, error, children }) {
@@ -2430,13 +2431,9 @@ function ValueMyCar({ allListings, log }) {
   };
 
   return (
-    <div style={{ maxWidth: 640, margin: "0 auto", padding: "48px 20px 70px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 4 }}>
-        <DollarSign size={26} color={C.ink} />
-        <h2 style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 6vw, 34px)", color: C.ink, margin: 0, textTransform: "uppercase", letterSpacing: 0.5 }}>What's Your Car Worth?</h2>
-      </div>
-      <p style={{ color: C.steel, fontSize: 14, marginBottom: 24, textAlign: "center" }}>Fill in your car's details to get an estimate.</p>
-
+    <div>
+      <GuideHero big eyebrow="HIGHWAYLOT" title="What's Your Car Worth?" subtitle="Fill in your car's details for a real estimate — same depreciation math and comp data wikiLOT's price guides use, personalized to your actual car." />
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "36px 20px 70px" }}>
       <VinDecoder
         vin={form.vin}
         onVinChange={(v) => setForm((prev) => ({ ...prev, vin: v }))}
@@ -2591,6 +2588,7 @@ function ValueMyCar({ allListings, log }) {
           } } })} style={{ marginTop: 16, background: "transparent", border: `1px solid ${C.line}`, borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, cursor: "pointer", color: C.ink }}>List this car</button>
         </div>
       )}
+      </div>
     </div>
   );
 }
