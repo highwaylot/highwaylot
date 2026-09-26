@@ -3988,16 +3988,37 @@ function GuideHeroStat({ label, value, range }) {
   );
 }
 
-function GuideHero({ eyebrow, title, subtitle, make }) {
+// Splits a title at "wikiLOT" so that word alone renders in the brand
+// yellow — the rest of the sentence stays white. Falls back to plain white
+// text if the title doesn't contain it (e.g. "Ford Price Guide").
+function renderHeroTitle(title) {
+  if (typeof title !== "string" || !title.includes("wikiLOT")) return title;
+  const [before, after] = title.split("wikiLOT");
+  return <>{before}<span style={{ color: C.yellow }}>wikiLOT</span>{after}</>;
+}
+
+function GuideHero({ eyebrow, title, subtitle, make, big }) {
   return (
-    <div style={{ background: C.ink, borderBottom: `4px solid ${C.yellow}` }}>
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 20px 32px" }}>
-        {eyebrow && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>{eyebrow}</div>}
+    <div
+      className="hl-hero-fade"
+      style={{
+        background: C.ink,
+        borderBottom: `4px solid ${C.yellow}`,
+        position: "relative",
+        overflow: "hidden",
+        // Repeating diagonal dashes — the same lane-line motif as the
+        // HIGHWAYLOT logo's dashed center line, done as a pure CSS gradient
+        // so it costs nothing and needs no image asset.
+        backgroundImage: "repeating-linear-gradient(-45deg, rgba(245,183,0,0.07) 0px, rgba(245,183,0,0.07) 3px, transparent 3px, transparent 34px)",
+      }}
+    >
+      <div style={{ maxWidth: 1000, margin: "0 auto", padding: big ? "64px 20px 52px" : "40px 20px 32px", position: "relative" }}>
+        {eyebrow && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 8, letterSpacing: 0.4 }}>{eyebrow}</div>}
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           {make && <BrandBadge make={make} size={44} />}
           <div>
-            <h1 style={{ fontFamily: FONT_HEAD, fontSize: "clamp(24px, 4vw, 34px)", color: "#fff", margin: 0, marginBottom: 8 }}>{title}</h1>
-            {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 14.5, lineHeight: 1.6, maxWidth: 640, margin: 0 }}>{subtitle}</p>}
+            <h1 style={{ fontFamily: FONT_HEAD, fontSize: big ? "clamp(34px, 7vw, 56px)" : "clamp(24px, 4vw, 34px)", color: "#fff", margin: 0, marginBottom: 8, lineHeight: 1.05 }}>{renderHeroTitle(title)}</h1>
+            {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: big ? 16 : 14.5, lineHeight: 1.6, maxWidth: 640, margin: 0 }}>{subtitle}</p>}
           </div>
         </div>
       </div>
@@ -4019,6 +4040,7 @@ function GuideIndex() {
         path="/guide"
       />
       <GuideHero
+        big
         eyebrow="HIGHWAYLOT"
         title="wikiLOT: the Car Price Guide"
         subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data. Pick a make to start."
