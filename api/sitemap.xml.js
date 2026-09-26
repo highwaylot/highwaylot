@@ -1,19 +1,18 @@
-// Dynamic sitemap — listings and category pages come from live Supabase
-// data, so a static file would go stale immediately. Regenerated fresh on
-// every request rather than cached, since inventory changes constantly and
-// this is cheap (a couple of small selects).
+// Dynamic sitemap — the wikiLOT guide's model coverage comes from a live
+// NHTSA classification pass, so a static file would go stale immediately.
+// Regenerated fresh on every request rather than cached (the 6hr CDN
+// cache below absorbs repeats).
 //
-// Uses the same public anon key as the frontend (src/lib/supabaseClient.js)
-// — read-only, same RLS as any visitor already gets in their browser.
+// The marketplace (listings/category pages) is dormant on main right now
+// — only the valuation tool and wikiLOT guide are live — so this doesn't
+// query Supabase or emit /listing or /category URLs. Restore that block
+// (see git history) once /post and browsing are live here again.
 
-const SUPABASE_URL = "https://tssjnvyqvzocqntvssco.supabase.co";
-const SUPABASE_KEY = "sb_publishable_eVlH-_ITZKhNNOsKB890cQ_Nacto5eW";
 const SITE_URL = "https://www.highwaylot.com";
 
-const BODY_SLUGS = { Sedan: "sedan", Coupe: "coupe", Hatchback: "hatchback", SUV: "suv", Truck: "truck", "Van/Minivan": "van-minivan", Convertible: "convertible" };
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-const STATIC_ROUTES = ["/", "/post", "/value", "/terms", "/privacy", "/guide"];
+const STATIC_ROUTES = ["/value", "/terms", "/privacy", "/guide"];
 
 // Mirrors MAKE_BASE_PRICE / GUIDE_CATALOG in src/App.jsx (GuideMake/GuidePage
 // routes) — kept in sync by hand since this file can't import from the SPA
@@ -83,12 +82,6 @@ async function classifiedModelsForMake(make, curatedSet) {
 
 export default async function handler(req, res) {
   try {
-    const listingsRes = await fetch(
-      `${SUPABASE_URL}/rest/v1/listings?select=id,make,state,body,updated_at,created_at&status=eq.active&deleted_at=is.null`,
-      { headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` } }
-    );
-    const listings = listingsRes.ok ? await listingsRes.json() : [];
-
     const urls = new Map(); // path -> lastmod, dedupes category combos automatically
 
     for (const route of STATIC_ROUTES) urls.set(route, null);
@@ -106,17 +99,6 @@ export default async function handler(req, res) {
     GUIDE_MAKES.forEach((make, i) => {
       for (const model of classifiedByMake[i]) urls.set(`/guide/${slugify(make)}/${slugify(model)}`, null);
     });
-
-    for (const l of listings) {
-      const lastmod = l.updated_at || l.created_at || null;
-      urls.set(`/listing/${l.id}`, lastmod);
-
-      if (l.state) {
-        const stateSlug = slugify(l.state);
-        if (l.make) urls.set(`/category/make/${slugify(l.make)}/${stateSlug}`, lastmod);
-        if (l.body) urls.set(`/category/body/${BODY_SLUGS[l.body] || slugify(l.body)}/${stateSlug}`, lastmod);
-      }
-    }
 
     const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls.entries()]
       .map(([path, lastmod]) => `  <url>\n    <loc>${xmlEscape(SITE_URL + path)}</loc>${lastmod ? `\n    <lastmod>${new Date(lastmod).toISOString().slice(0, 10)}</lastmod>` : ""}\n  </url>`)
