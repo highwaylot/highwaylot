@@ -4190,21 +4190,21 @@ function LandingHome() {
               faking bold with a text-stroke just read as a fuzzy halo.
               Anton is a real heavy display face built for exactly this —
               one true weight, no hacks needed to get density. */}
-          <div style={{ fontFamily: "'Anton', sans-serif", fontSize: "clamp(44px, 10vw, 96px)", color: C.ink, letterSpacing: "0.5px", lineHeight: 0.95 }}>
+          <div style={{ fontFamily: "'Anton', sans-serif", fontSize: "clamp(56px, 13vw, 128px)", color: C.ink, letterSpacing: "0px", lineHeight: 0.95 }}>
             HIGHWAYLOT
           </div>
           <p style={{ color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 18 }}>A car marketplace, built one honest tool at a time — buying and selling are next.</p>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
-          <Link to="/value" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 10, padding: "28px 26px", display: "block" }}>
-            <DollarSign size={24} color={C.yellow} />
-            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 24, marginTop: 14 }}>Value my car</div>
-            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 6 }}>Free instant estimate</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, maxWidth: 480, margin: "0 auto" }}>
+          <Link to="/value" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 8, padding: "18px 20px", display: "block" }}>
+            <DollarSign size={18} color={C.yellow} />
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, marginTop: 10 }}>Value my car</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>Free instant estimate</div>
           </Link>
-          <Link to="/wikilot" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 10, padding: "28px 26px", display: "block" }}>
-            <BookOpen size={24} color={C.yellow} />
-            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 24, marginTop: 14 }}>wikiLOT</div>
-            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 6 }}>${avg.toLocaleString()} avg. new price</div>
+          <Link to="/wikilot" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 8, padding: "18px 20px", display: "block" }}>
+            <BookOpen size={18} color={C.yellow} />
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, marginTop: 10 }}>wikiLOT</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>${avg.toLocaleString()} avg. new price</div>
           </Link>
         </div>
       </div>
