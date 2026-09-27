@@ -12,7 +12,7 @@ const SITE_URL = "https://www.highwaylot.com";
 
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-const STATIC_ROUTES = ["/value", "/terms", "/privacy", "/wikilot"];
+const STATIC_ROUTES = ["/", "/value", "/terms", "/privacy", "/wikilot"];
 
 // Mirrors MAKE_BASE_PRICE / GUIDE_CATALOG in src/App.jsx (GuideMake/GuidePage
 // routes) — kept in sync by hand since this file can't import from the SPA

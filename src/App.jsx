@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Search, MapPin, Gauge, Fuel, Calendar, X, Plus, ChevronLeft, ChevronRight,
   ShieldCheck, Phone, SlidersHorizontal, Car as CarIcon, Check, Star,
-  TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign, Info
+  TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign, Info, BookOpen
 } from "lucide-react";
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
@@ -4149,6 +4149,46 @@ function GuideRedirect() {
   return <Navigate to={model ? `/wikilot/${make}/${model}` : `/wikilot/${make}`} replace />;
 }
 
+// ---------- Landing homepage ----------
+// All-yellow field, two ink cards for the two live tools, one short line
+// about what's still coming. No hero-band trick, no diagonal split — the
+// yellow itself carries the brand, the cards do the work.
+function LandingHome() {
+  return (
+    <div style={{ background: C.yellow, minHeight: "calc(100vh - 100px)", display: "flex", alignItems: "center", padding: "60px 20px" }}>
+      <style>{`
+        .hl-land-card { transition: transform 160ms ease, box-shadow 160ms ease; box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
+        .hl-land-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(10,13,18,0.28); }
+        .hl-land-card:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
+      `}</style>
+      <div className="hl-hero-fade" style={{ maxWidth: 900, margin: "0 auto", width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: 44 }}>
+          {/* Oswald has no true heavy weight, so stretching it huge and
+              faking bold with a text-stroke just read as a fuzzy halo.
+              Anton is a real heavy display face built for exactly this —
+              one true weight, no hacks needed to get density. */}
+          <div style={{ fontFamily: "'Anton', sans-serif", fontSize: "clamp(56px, 13vw, 128px)", color: C.ink, letterSpacing: "0px", lineHeight: 0.95 }}>
+            HIGHWAYLOT
+          </div>
+          <p style={{ color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 18 }}>A car marketplace, built one honest tool at a time — buying and selling are next.</p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, maxWidth: 480, margin: "0 auto" }}>
+          <Link to="/value" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 8, padding: "18px 20px", display: "block" }}>
+            <DollarSign size={18} color={C.yellow} />
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, marginTop: 10 }}>Value my car</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>Free instant estimate</div>
+          </Link>
+          <Link to="/wikilot" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 8, padding: "18px 20px", display: "block" }}>
+            <BookOpen size={18} color={C.yellow} />
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, marginTop: 10 }}>wikiLOT</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>The car price guide</div>
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GuideIndex() {
   const byMake = {};
   for (const { make, modelKey, label } of GUIDE_CATALOG) {
@@ -4720,7 +4760,7 @@ export default function App() {
   return (
     <div style={{ fontFamily: FONT_BODY, background: C.paper, minHeight: "100%" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Anton&family=Inter:wght@400;500;600&display=swap');
         .hl-detail-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 32px; }
         .hl-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .hl-spec-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 18px; }
@@ -4737,13 +4777,13 @@ export default function App() {
         .hl-listing-card:hover img { transform: scale(1.04); }
       `}</style>
       <ScrollToTop />
-      <TopBar />
+      {location.pathname !== "/" && <TopBar />}
       {/* Marketplace (browse/post/listings/manage) is dormant on main while
           it's rebuilt on the preview branch — only the valuation tool and
           wikiLOT price guide are live here. Those routes redirect instead
           of 404ing since old links/bookmarks may still point at them. */}
       <Routes>
-        <Route path="/" element={<Navigate to="/wikilot" replace />} />
+        <Route path="/" element={<LandingHome />} />
         <Route path="/listing/:id" element={<Navigate to="/wikilot" replace />} />
         <Route path="/category/:kind/:value/:state" element={<Navigate to="/wikilot" replace />} />
         <Route path="/post" element={<Navigate to="/value" replace />} />
