@@ -4,7 +4,7 @@ import {
   ShieldCheck, Phone, SlidersHorizontal, Car as CarIcon, Check, Star,
   TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign, Info
 } from "lucide-react";
-import { Routes, Route, useNavigate, useParams, useLocation, useSearchParams, Link } from "react-router-dom";
+import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "./lib/supabaseClient";
 
@@ -720,7 +720,7 @@ function TopBar({ onPost }) {
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             <NavLink label="Browse" to="/" active={pathname === "/" || pathname.startsWith("/listing") || pathname.startsWith("/category")} />
             <NavLink label="Value my car" to="/value" active={pathname === "/value"} />
-            <NavLink label="wikiLOT" to="/guide" active={pathname.startsWith("/guide")} />
+            <NavLink label="wikiLOT" to="/wikilot" active={pathname.startsWith("/wikilot")} />
           </div>
         </div>
         <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 16px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
@@ -4164,6 +4164,13 @@ function GuideHero({ eyebrow, title, subtitle, make, big }) {
   );
 }
 
+// Preserves the make/model params when redirecting an old /guide/... URL
+// to its /wikilot/... equivalent, instead of dropping them at /wikilot.
+function GuideRedirect() {
+  const { make, model } = useParams();
+  return <Navigate to={model ? `/wikilot/${make}/${model}` : `/wikilot/${make}`} replace />;
+}
+
 function GuideIndex() {
   const byMake = {};
   for (const { make, modelKey, label } of GUIDE_CATALOG) {
@@ -4175,7 +4182,7 @@ function GuideIndex() {
       <SEOHead
         title="wikiLOT — Car Price Guide | HIGHWAYLOT"
         description="Real depreciation-based price guides by make and model — what a car should cost at 3, 5, 8, and 10 years old, so you know if an asking price is fair."
-        path="/guide"
+        path="/wikilot"
       />
       <SplitHero subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data." />
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
@@ -4196,7 +4203,7 @@ function GuideIndex() {
             const models = byMake[make];
             const anchor = MAKE_BASE_PRICE[make];
             return (
-              <Link key={make} to={`/guide/${slugify(make)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "16px 18px", textDecoration: "none", display: "block" }}>
+              <Link key={make} to={`/wikilot/${slugify(make)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "16px 18px", textDecoration: "none", display: "block" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                   <BrandBadge make={make} />
                   <div>
@@ -4270,11 +4277,11 @@ function GuideMake({ allListings }) {
       <SEOHead
         title={`${make} Price Guide — What ${make}s Actually Cost | wikiLOT`}
         description={`What a ${make} should cost by age and mileage, plus resale strength vs. other brands — a reasoned reference, not a sticker price.`}
-        path={`/guide/${makeSlug}`}
+        path={`/wikilot/${makeSlug}`}
       />
       <GuideHero
         make={make}
-        eyebrow={<><Link to="/guide" style={{ color: "inherit", textDecoration: "underline" }}>Price Guide</Link> / {make}</>}
+        eyebrow={<><Link to="/wikilot" style={{ color: "inherit", textDecoration: "underline" }}>Price Guide</Link> / {make}</>}
         title={`${make} Price Guide`}
         subtitle={`A new ${make} starts around $${anchor.toLocaleString()} and depreciates from there. See specific models below for age-by-age numbers, or use the full valuation tool for your exact car.`}
       />
@@ -4301,7 +4308,7 @@ function GuideMake({ allListings }) {
               {models.map(({ modelKey, label }) => {
                 const p5 = guidePriceAtAge(make, modelKey, 5);
                 return (
-                  <Link key={modelKey} to={`/guide/${makeSlug}/${slugify(modelKey)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "12px 14px", textDecoration: "none", display: "block" }}>
+                  <Link key={modelKey} to={`/wikilot/${makeSlug}/${slugify(modelKey)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "12px 14px", textDecoration: "none", display: "block" }}>
                     <div style={{ fontFamily: FONT_HEAD, fontSize: 14.5, color: C.ink, marginBottom: 3 }}>{make} {label}</div>
                     <div style={{ fontSize: 12, color: C.steel }}>~${p5.toLocaleString()} at 5 years old</div>
                   </Link>
@@ -4321,7 +4328,7 @@ function GuideMake({ allListings }) {
               {classifiedModels.map((name) => {
                 const p5 = guidePriceAtAge(make, name.toLowerCase(), 5, bodyByModel[name]);
                 return (
-                  <Link key={name} to={`/guide/${makeSlug}/${slugify(name)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "12px 14px", textDecoration: "none", display: "block" }}>
+                  <Link key={name} to={`/wikilot/${makeSlug}/${slugify(name)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "12px 14px", textDecoration: "none", display: "block" }}>
                     <div style={{ fontFamily: FONT_HEAD, fontSize: 14.5, color: C.ink, marginBottom: 3 }}>{make} {name}</div>
                     <div style={{ fontSize: 12, color: C.steel }}>~${p5.toLocaleString()} at 5 years old ({bodyByModel[name]})</div>
                   </Link>
@@ -4410,11 +4417,11 @@ function GuidePage({ allListings }) {
       <SEOHead
         title={`${make} ${label} Price Guide — What Should It Cost? | wikiLOT`}
         description={`What a used ${make} ${label} should cost at 3, 5, 8, and 10 years old — a depreciation-based reference so you know if an asking price is fair.`}
-        path={`/guide/${makeSlug}/${modelSlug}`}
+        path={`/wikilot/${makeSlug}/${modelSlug}`}
       />
       <GuideHero
         make={make}
-        eyebrow={<><Link to="/guide" style={{ color: "inherit", textDecoration: "underline" }}>Price Guide</Link> / <Link to={`/guide/${makeSlug}`} style={{ color: "inherit", textDecoration: "underline" }}>{make}</Link> / {label}</>}
+        eyebrow={<><Link to="/wikilot" style={{ color: "inherit", textDecoration: "underline" }}>Price Guide</Link> / <Link to={`/wikilot/${makeSlug}`} style={{ color: "inherit", textDecoration: "underline" }}>{make}</Link> / {label}</>}
         title={`${make} ${label} Price Guide`}
         subtitle={`What a ${make} ${label} should actually cost, by age — a reference range, not a personalized estimate.`}
       />
@@ -4564,7 +4571,7 @@ function Footer() {
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "26px 20px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12.5 }}>HIGHWAYLOT — buy and sell cars nationwide.</div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          <Link to="/guide" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Price Guide</Link>
+          <Link to="/wikilot" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Price Guide</Link>
           <Link to="/terms" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Terms</Link>
           <Link to="/privacy" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Privacy</Link>
           <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>United States only, for now.</div>
@@ -4772,9 +4779,14 @@ export default function App() {
         <Route path="/post" element={<PostAd onSubmit={handlePostSubmit} existingListings={listings} log={log} />} />
         <Route path="/post/success" element={<Success />} />
         <Route path="/value" element={<ValueMyCar allListings={listings} log={log} />} />
-        <Route path="/guide" element={<GuideIndex />} />
-        <Route path="/guide/:make" element={<GuideMake allListings={visibleListings} />} />
-        <Route path="/guide/:make/:model" element={<GuidePage allListings={visibleListings} />} />
+        <Route path="/wikilot" element={<GuideIndex />} />
+        <Route path="/wikilot/:make" element={<GuideMake allListings={visibleListings} />} />
+        <Route path="/wikilot/:make/:model" element={<GuidePage allListings={visibleListings} />} />
+        {/* Old /guide URLs — redirect rather than 404 for anything already
+            indexed or bookmarked. */}
+        <Route path="/guide" element={<Navigate to="/wikilot" replace />} />
+        <Route path="/guide/:make" element={<GuideRedirect />} />
+        <Route path="/guide/:make/:model" element={<GuideRedirect />} />
         <Route path="/manage/:id/:token" element={<ManagePage />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
