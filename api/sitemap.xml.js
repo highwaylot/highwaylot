@@ -12,7 +12,7 @@ const SITE_URL = "https://www.highwaylot.com";
 
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 
-const STATIC_ROUTES = ["/value", "/terms", "/privacy", "/guide"];
+const STATIC_ROUTES = ["/value", "/terms", "/privacy", "/wikilot"];
 
 // Mirrors MAKE_BASE_PRICE / GUIDE_CATALOG in src/App.jsx (GuideMake/GuidePage
 // routes) — kept in sync by hand since this file can't import from the SPA
@@ -87,8 +87,8 @@ export default async function handler(req, res) {
     for (const route of STATIC_ROUTES) urls.set(route, null);
 
     for (const make of GUIDE_MAKES) {
-      urls.set(`/guide/${slugify(make)}`, null);
-      for (const model of GUIDE_MODELS[make] || []) urls.set(`/guide/${slugify(make)}/${slugify(model)}`, null);
+      urls.set(`/wikilot/${slugify(make)}`, null);
+      for (const model of GUIDE_MODELS[make] || []) urls.set(`/wikilot/${slugify(make)}/${slugify(model)}`, null);
     }
     // Run all 25 makes' classification fetches concurrently rather than one
     // at a time — sequential would be ~150 fetches in series, too slow for
@@ -97,7 +97,7 @@ export default async function handler(req, res) {
       GUIDE_MAKES.map((make) => classifiedModelsForMake(make, new Set((GUIDE_MODELS[make] || []).map((m) => m.toLowerCase()))))
     );
     GUIDE_MAKES.forEach((make, i) => {
-      for (const model of classifiedByMake[i]) urls.set(`/guide/${slugify(make)}/${slugify(model)}`, null);
+      for (const model of classifiedByMake[i]) urls.set(`/wikilot/${slugify(make)}/${slugify(model)}`, null);
     });
 
     const body = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...urls.entries()]
