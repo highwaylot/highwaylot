@@ -4155,35 +4155,46 @@ function GuideRedirect() {
 // yellow itself carries the brand, the cards do the work.
 function LandingHome() {
   return (
-    <div style={{ background: C.yellow, minHeight: "calc(100vh - 100px)", display: "flex", alignItems: "center", padding: "60px 20px" }}>
+    <div style={{ background: C.yellow, minHeight: "calc(100vh - 100px)", display: "flex", flexDirection: "column" }}>
       <style>{`
         .hl-land-card { transition: transform 160ms ease, box-shadow 160ms ease; box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
         .hl-land-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(10,13,18,0.28); }
         .hl-land-card:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
+        .hl-land-footer-link { color: rgba(27,36,49,0.65); text-decoration: underline; }
+        .hl-land-footer-link:hover { color: ${C.ink}; }
       `}</style>
-      <div className="hl-hero-fade" style={{ maxWidth: 900, margin: "0 auto", width: "100%" }}>
-        <div style={{ textAlign: "center", marginBottom: 44 }}>
-          {/* Oswald has no true heavy weight, so stretching it huge and
-              faking bold with a text-stroke just read as a fuzzy halo.
-              Anton is a real heavy display face built for exactly this —
-              one true weight, no hacks needed to get density. */}
-          <div style={{ fontFamily: "'Anton', sans-serif", fontSize: "clamp(56px, 13vw, 128px)", color: C.ink, letterSpacing: "0px", lineHeight: 0.95 }}>
-            HIGHWAYLOT
+      <div className="hl-hero-fade" style={{ flex: 1, display: "flex", alignItems: "center", padding: "60px 20px 20px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", width: "100%" }}>
+          <div style={{ textAlign: "center", marginBottom: 44 }}>
+            {/* Oswald has no true heavy weight, so stretching it huge and
+                faking bold with a text-stroke just read as a fuzzy halo.
+                Anton is a real heavy display face built for exactly this —
+                one true weight, no hacks needed to get density. */}
+            <div style={{ fontFamily: "'Anton', sans-serif", fontSize: "clamp(56px, 13vw, 128px)", color: C.ink, letterSpacing: "0px", lineHeight: 0.95 }}>
+              HIGHWAYLOT
+            </div>
+            <p style={{ color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 18 }}>A car marketplace, built one honest tool at a time — buying and selling are next.</p>
           </div>
-          <p style={{ color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 18 }}>A car marketplace, built one honest tool at a time — buying and selling are next.</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, maxWidth: 480, margin: "0 auto" }}>
+            <Link to="/value" className="hl-land-card" style={{ background: C.ink, color: "#fff", textDecoration: "none", borderRadius: 8, padding: "18px 20px", display: "block" }}>
+              <DollarSign size={18} color={C.yellow} />
+              <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, marginTop: 10 }}>Value my car</div>
+              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>Free instant estimate</div>
+            </Link>
+            <Link to="/wikilot" className="hl-land-card" style={{ background: C.ink, color: "#fff", textDecoration: "none", borderRadius: 8, padding: "18px 20px", display: "block" }}>
+              <BookOpen size={18} color={C.yellow} />
+              <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, marginTop: 10 }}>wikiLOT</div>
+              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>The car price guide</div>
+            </Link>
+          </div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, maxWidth: 480, margin: "0 auto" }}>
-          <Link to="/value" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 8, padding: "18px 20px", display: "block" }}>
-            <DollarSign size={18} color={C.yellow} />
-            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, marginTop: 10 }}>Value my car</div>
-            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>Free instant estimate</div>
-          </Link>
-          <Link to="/wikilot" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 8, padding: "18px 20px", display: "block" }}>
-            <BookOpen size={18} color={C.yellow} />
-            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, marginTop: 10 }}>wikiLOT</div>
-            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>The car price guide</div>
-          </Link>
-        </div>
+      </div>
+      {/* Footer links live inside the yellow field on this page instead of
+          the site's usual dark bar — a hard color break right under the
+          landing killed the effect the yellow was going for. */}
+      <div style={{ textAlign: "center", padding: "0 20px 28px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap" }}>
+        <Link to="/terms" className="hl-land-footer-link" style={{ fontSize: 12.5 }}>Terms</Link>
+        <Link to="/privacy" className="hl-land-footer-link" style={{ fontSize: 12.5 }}>Privacy</Link>
       </div>
     </div>
   );
@@ -4803,7 +4814,7 @@ export default function App() {
         <Route path="/admin/:secret" element={<AdminPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
-      <Footer />
+      {location.pathname !== "/" && <Footer />}
     </div>
   );
 }
