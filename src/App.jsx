@@ -4176,7 +4176,6 @@ function GuideRedirect() {
 // about what's still coming. No hero-band trick, no diagonal split — the
 // yellow itself carries the brand, the cards do the work.
 function LandingHome() {
-  const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
   return (
     <div style={{ background: C.yellow, minHeight: "calc(100vh - 100px)", display: "flex", alignItems: "center", padding: "60px 20px" }}>
       <style>{`
@@ -4204,7 +4203,7 @@ function LandingHome() {
           <Link to="/wikilot" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 8, padding: "18px 20px", display: "block" }}>
             <BookOpen size={18} color={C.yellow} />
             <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, marginTop: 10 }}>wikiLOT</div>
-            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>${avg.toLocaleString()} avg. new price</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>The car price guide</div>
           </Link>
         </div>
       </div>
