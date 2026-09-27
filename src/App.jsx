@@ -4193,7 +4193,13 @@ function LandingHome() {
               tracking pulled in is what actually reads as confident rather
               than a plain label (2026 wordmark research: bold type +
               tight, deliberate spacing over generic letterforms). */}
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(48px, 12vw, 108px)", color: C.ink, letterSpacing: "-3px", lineHeight: 0.92 }}>HIGHWAYLOT</div>
+          {/* Oswald tops out at weight 700/800 — no true 900 exists — so
+              "LOT" gets a text-stroke on top of the fill to read heavier
+              than "HIGHWAY" instead, echoing the emphasis the shield mark
+              already gives the brand's second half. */}
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(48px, 12vw, 108px)", color: C.ink, letterSpacing: "-3px", lineHeight: 0.92 }}>
+            HIGHWAY<span style={{ WebkitTextStroke: `2px ${C.ink}` }}>LOT</span>
+          </div>
           {/* Dashed lane-line motif from the logo mark, reused here as the
               wordmark's underline instead of a plain rule — ties the huge
               type back to the highway concept instead of just being big
