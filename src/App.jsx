@@ -4183,28 +4183,16 @@ function LandingHome() {
         .hl-land-card { transition: transform 160ms ease, box-shadow 160ms ease; box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
         .hl-land-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(10,13,18,0.28); }
         .hl-land-card:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
-        .hl-land-dash { animation: hl-land-dash-move 1.6s linear infinite; }
-        @keyframes hl-land-dash-move { from { background-position: 0 0; } to { background-position: 34px 0; } }
       `}</style>
       <div className="hl-hero-fade" style={{ maxWidth: 900, margin: "0 auto", width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: 44 }}>
-          {/* Oversized, tight negative tracking — a flat "HIGHWAYLOT" at
-              normal size read as inert; a display wordmark this big with
-              tracking pulled in is what actually reads as confident rather
-              than a plain label (2026 wordmark research: bold type +
-              tight, deliberate spacing over generic letterforms). */}
-          {/* Oswald tops out at weight 700/800 — no true 900 exists — so
-              "LOT" gets a text-stroke on top of the fill to read heavier
-              than "HIGHWAY" instead, echoing the emphasis the shield mark
-              already gives the brand's second half. */}
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(48px, 12vw, 108px)", color: C.ink, letterSpacing: "-3px", lineHeight: 0.92 }}>
-            HIGHWAY<span style={{ WebkitTextStroke: `2px ${C.ink}` }}>LOT</span>
+          {/* Oswald has no true heavy weight, so stretching it huge and
+              faking bold with a text-stroke just read as a fuzzy halo.
+              Anton is a real heavy display face built for exactly this —
+              one true weight, no hacks needed to get density. */}
+          <div style={{ fontFamily: "'Anton', sans-serif", fontSize: "clamp(44px, 10vw, 96px)", color: C.ink, letterSpacing: "0.5px", lineHeight: 0.95 }}>
+            HIGHWAYLOT
           </div>
-          {/* Dashed lane-line motif from the logo mark, reused here as the
-              wordmark's underline instead of a plain rule — ties the huge
-              type back to the highway concept instead of just being big
-              for its own sake. */}
-          <div className="hl-land-dash" style={{ width: 120, height: 4, margin: "18px auto 0", backgroundImage: `repeating-linear-gradient(90deg, ${C.ink} 0px, ${C.ink} 16px, transparent 16px, transparent 34px)` }} />
           <p style={{ color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 18 }}>A car marketplace, built one honest tool at a time — buying and selling are next.</p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
@@ -4816,7 +4804,7 @@ export default function App() {
   return (
     <div style={{ fontFamily: FONT_BODY, background: C.paper, minHeight: "100%" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Anton&family=Inter:wght@400;500;600&display=swap');
         .hl-detail-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 32px; }
         .hl-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
         .hl-spec-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 18px; }
