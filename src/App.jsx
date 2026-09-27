@@ -4180,9 +4180,9 @@ function LandingHome() {
   return (
     <div style={{ background: C.yellow, minHeight: "calc(100vh - 100px)", display: "flex", alignItems: "center", padding: "60px 20px" }}>
       <style>{`
-        .hl-land-card { transition: transform 160ms ease, box-shadow 160ms ease; box-shadow: 0 2px 0 rgba(27,36,49,0.9); }
-        .hl-land-card:hover { transform: translateY(-3px); box-shadow: 0 10px 0 rgba(27,36,49,0.9); }
-        .hl-land-card:active { transform: translateY(-1px); box-shadow: 0 4px 0 rgba(27,36,49,0.9); }
+        .hl-land-card { transition: transform 160ms ease, box-shadow 160ms ease; box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
+        .hl-land-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(10,13,18,0.28); }
+        .hl-land-card:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
       `}</style>
       <div className="hl-hero-fade" style={{ maxWidth: 900, margin: "0 auto", width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: 44 }}>
@@ -4190,12 +4190,12 @@ function LandingHome() {
           <p style={{ color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 10 }}>A car marketplace, built one honest tool at a time — buying and selling are next.</p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
-          <Link to="/value" className="hl-land-card" style={{ background: C.ink, color: "#fff", textDecoration: "none", borderRadius: 10, padding: "28px 26px", display: "block" }}>
+          <Link to="/value" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 10, padding: "28px 26px", display: "block" }}>
             <DollarSign size={24} color={C.yellow} />
             <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 24, marginTop: 14 }}>Value my car</div>
             <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 6 }}>Free instant estimate</div>
           </Link>
-          <Link to="/wikilot" className="hl-land-card" style={{ background: C.ink, color: "#fff", textDecoration: "none", borderRadius: 10, padding: "28px 26px", display: "block" }}>
+          <Link to="/wikilot" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 10, padding: "28px 26px", display: "block" }}>
             <BookOpen size={24} color={C.yellow} />
             <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 24, marginTop: 14 }}>wikiLOT</div>
             <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 6 }}>${avg.toLocaleString()} avg. new price</div>
@@ -4815,7 +4815,7 @@ export default function App() {
         .hl-listing-card:hover img { transform: scale(1.04); }
       `}</style>
       <ScrollToTop />
-      <TopBar onPost={() => navigate("/post")} />
+      {location.pathname !== "/home-options" && <TopBar onPost={() => navigate("/post")} />}
       <Routes>
         <Route path="/" element={<Home allListings={visibleListings} recentlySold={recentlySold} log={log} openListing={openListing} />} />
         <Route path="/listing/:id" element={<ListingDetail allListings={enrichedListings} log={log} />} />
