@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Search, MapPin, Gauge, Fuel, Calendar, X, Plus, ChevronLeft, ChevronRight,
   ShieldCheck, Phone, SlidersHorizontal, Car as CarIcon, Check, Star,
-  TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign, Info
+  TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign, Info, BookOpen
 } from "lucide-react";
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
@@ -4171,6 +4171,64 @@ function GuideRedirect() {
   return <Navigate to={model ? `/wikilot/${make}/${model}` : `/wikilot/${make}`} replace />;
 }
 
+// ---------- Homepage option 2: two-card split ----------
+// Full-bleed left/right panels, one per tool, each with its own real stat
+// teaser instead of marketing copy — comparison-only for now.
+function TwoCardHome() {
+  const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", minHeight: "calc(100vh - 100px)" }}>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: "clamp(22px, 5vw, 30px)", color: "#fff", position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)", letterSpacing: 0.5, zIndex: 2 }}>
+        HIGHWAY<span style={{ color: C.yellow }}>LOT</span>
+      </div>
+      <Link to="/value" style={{ flex: "1 1 320px", background: C.ink, color: "#fff", textDecoration: "none", display: "flex", flexDirection: "column", justifyContent: "center", padding: "80px 40px 40px", position: "relative", overflow: "hidden" }} className="hl-hero-fade">
+        <DollarSign size={28} color={C.yellow} style={{ marginBottom: 14 }} />
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 4.5vw, 40px)", lineHeight: 1.1 }}>Value my car</div>
+        <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, marginTop: 10, maxWidth: 340 }}>Free instant estimate — enter your car's details for a real, data-backed range.</p>
+        <div style={{ marginTop: 20, fontFamily: FONT_HEAD, fontSize: 14, color: C.yellow, display: "flex", alignItems: "center", gap: 6 }}>Get my estimate <ChevronRight size={16} /></div>
+      </Link>
+      <Link to="/wikilot" style={{ flex: "1 1 320px", background: C.yellow, color: C.ink, textDecoration: "none", display: "flex", flexDirection: "column", justifyContent: "center", padding: "80px 40px 40px", position: "relative", overflow: "hidden" }} className="hl-hero-fade">
+        <BookOpen size={28} color={C.ink} style={{ marginBottom: 14 }} />
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 4.5vw, 40px)", lineHeight: 1.1 }}>wikiLOT</div>
+        <p style={{ color: "rgba(27,36,49,0.7)", fontSize: 14, marginTop: 10, maxWidth: 340 }}>The car price guide — what a car should actually cost by age, make, and model.</p>
+        <div style={{ marginTop: 20, fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, display: "flex", alignItems: "center", gap: 6 }}>${avg.toLocaleString()} avg. new price <ChevronRight size={16} /></div>
+      </Link>
+    </div>
+  );
+}
+
+// ---------- Homepage option 4: single bold statement ----------
+// One line, minimal nav below it — matches the "less text, just simplicity"
+// direction that won out on /value and /post's heroes.
+function StatementHome() {
+  return (
+    <div style={{ background: C.ink, minHeight: "calc(100vh - 100px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 20px" }} className="hl-hero-fade">
+      <div style={{ maxWidth: 620, textAlign: "center" }}>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", letterSpacing: 1.5, marginBottom: 16 }}>HIGHWAYLOT</div>
+        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(28px, 6vw, 46px)", color: "#fff", lineHeight: 1.2 }}>
+          Know what it's <span style={{ color: C.yellow }}>worth</span>. Know what to <span style={{ color: C.yellow }}>pay</span>.
+        </div>
+        <div style={{ display: "flex", gap: 28, justifyContent: "center", marginTop: 34 }}>
+          <Link to="/value" style={{ color: "#fff", fontFamily: FONT_HEAD, fontSize: 15, textDecoration: "none", borderBottom: `2px solid ${C.yellow}`, paddingBottom: 4 }}>Value my car</Link>
+          <Link to="/wikilot" style={{ color: "#fff", fontFamily: FONT_HEAD, fontSize: 15, textDecoration: "none", borderBottom: `2px solid ${C.yellow}`, paddingBottom: 4 }}>wikiLOT</Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HomeOptionsPage() {
+  return (
+    <div>
+      <SEOHead title="Homepage options" path="/home-options" noindex />
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, padding: "16px 20px 0" }}>Option 2 — Two-card split</div>
+      <TwoCardHome />
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, padding: "24px 20px 0" }}>Option 4 — Single bold statement</div>
+      <StatementHome />
+    </div>
+  );
+}
+
 function GuideIndex() {
   const byMake = {};
   for (const { make, modelKey, label } of GUIDE_CATALOG) {
@@ -4791,6 +4849,7 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/admin/:secret" element={<AdminPage />} />
+        <Route path="/home-options" element={<HomeOptionsPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       <Footer />
