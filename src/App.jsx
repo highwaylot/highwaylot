@@ -4171,46 +4171,35 @@ function GuideRedirect() {
   return <Navigate to={model ? `/wikilot/${make}/${model}` : `/wikilot/${make}`} replace />;
 }
 
-// ---------- Homepage option 2: two-card split ----------
-// Full-bleed left/right panels, one per tool, each with its own real stat
-// teaser instead of marketing copy — comparison-only for now.
-function TwoCardHome() {
+// ---------- Landing homepage ----------
+// All-yellow field, two ink cards for the two live tools, one short line
+// about what's still coming. No hero-band trick, no diagonal split — the
+// yellow itself carries the brand, the cards do the work.
+function LandingHome() {
   const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
   return (
-    <div style={{ display: "flex", flexWrap: "wrap", minHeight: "calc(100vh - 100px)" }}>
-      <div style={{ fontFamily: FONT_HEAD, fontSize: "clamp(22px, 5vw, 30px)", color: "#fff", position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)", letterSpacing: 0.5, zIndex: 2 }}>
-        HIGHWAY<span style={{ color: C.yellow }}>LOT</span>
-      </div>
-      <Link to="/value" style={{ flex: "1 1 320px", background: C.ink, color: "#fff", textDecoration: "none", display: "flex", flexDirection: "column", justifyContent: "center", padding: "80px 40px 40px", position: "relative", overflow: "hidden" }} className="hl-hero-fade">
-        <DollarSign size={28} color={C.yellow} style={{ marginBottom: 14 }} />
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 4.5vw, 40px)", lineHeight: 1.1 }}>Value my car</div>
-        <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 14, marginTop: 10, maxWidth: 340 }}>Free instant estimate — enter your car's details for a real, data-backed range.</p>
-        <div style={{ marginTop: 20, fontFamily: FONT_HEAD, fontSize: 14, color: C.yellow, display: "flex", alignItems: "center", gap: 6 }}>Get my estimate <ChevronRight size={16} /></div>
-      </Link>
-      <Link to="/wikilot" style={{ flex: "1 1 320px", background: C.yellow, color: C.ink, textDecoration: "none", display: "flex", flexDirection: "column", justifyContent: "center", padding: "80px 40px 40px", position: "relative", overflow: "hidden" }} className="hl-hero-fade">
-        <BookOpen size={28} color={C.ink} style={{ marginBottom: 14 }} />
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 4.5vw, 40px)", lineHeight: 1.1 }}>wikiLOT</div>
-        <p style={{ color: "rgba(27,36,49,0.7)", fontSize: 14, marginTop: 10, maxWidth: 340 }}>The car price guide — what a car should actually cost by age, make, and model.</p>
-        <div style={{ marginTop: 20, fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, display: "flex", alignItems: "center", gap: 6 }}>${avg.toLocaleString()} avg. new price <ChevronRight size={16} /></div>
-      </Link>
-    </div>
-  );
-}
-
-// ---------- Homepage option 4: single bold statement ----------
-// One line, minimal nav below it — matches the "less text, just simplicity"
-// direction that won out on /value and /post's heroes.
-function StatementHome() {
-  return (
-    <div style={{ background: C.ink, minHeight: "calc(100vh - 100px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 20px" }} className="hl-hero-fade">
-      <div style={{ maxWidth: 620, textAlign: "center" }}>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", letterSpacing: 1.5, marginBottom: 16 }}>HIGHWAYLOT</div>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(28px, 6vw, 46px)", color: "#fff", lineHeight: 1.2 }}>
-          Know what it's <span style={{ color: C.yellow }}>worth</span>. Know what to <span style={{ color: C.yellow }}>pay</span>.
+    <div style={{ background: C.yellow, minHeight: "calc(100vh - 100px)", display: "flex", alignItems: "center", padding: "60px 20px" }}>
+      <style>{`
+        .hl-land-card { transition: transform 160ms ease, box-shadow 160ms ease; box-shadow: 0 2px 0 rgba(27,36,49,0.9); }
+        .hl-land-card:hover { transform: translateY(-3px); box-shadow: 0 10px 0 rgba(27,36,49,0.9); }
+        .hl-land-card:active { transform: translateY(-1px); box-shadow: 0 4px 0 rgba(27,36,49,0.9); }
+      `}</style>
+      <div className="hl-hero-fade" style={{ maxWidth: 900, margin: "0 auto", width: "100%" }}>
+        <div style={{ textAlign: "center", marginBottom: 44 }}>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(30px, 6vw, 48px)", color: C.ink, letterSpacing: -0.5, lineHeight: 1 }}>HIGHWAYLOT</div>
+          <p style={{ color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 10 }}>A car marketplace, built one honest tool at a time — buying and selling are next.</p>
         </div>
-        <div style={{ display: "flex", gap: 28, justifyContent: "center", marginTop: 34 }}>
-          <Link to="/value" style={{ color: "#fff", fontFamily: FONT_HEAD, fontSize: 15, textDecoration: "none", borderBottom: `2px solid ${C.yellow}`, paddingBottom: 4 }}>Value my car</Link>
-          <Link to="/wikilot" style={{ color: "#fff", fontFamily: FONT_HEAD, fontSize: 15, textDecoration: "none", borderBottom: `2px solid ${C.yellow}`, paddingBottom: 4 }}>wikiLOT</Link>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
+          <Link to="/value" className="hl-land-card" style={{ background: C.ink, color: "#fff", textDecoration: "none", borderRadius: 10, padding: "28px 26px", display: "block" }}>
+            <DollarSign size={24} color={C.yellow} />
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 24, marginTop: 14 }}>Value my car</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 6 }}>Free instant estimate</div>
+          </Link>
+          <Link to="/wikilot" className="hl-land-card" style={{ background: C.ink, color: "#fff", textDecoration: "none", borderRadius: 10, padding: "28px 26px", display: "block" }}>
+            <BookOpen size={24} color={C.yellow} />
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 24, marginTop: 14 }}>wikiLOT</div>
+            <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 13, marginTop: 6 }}>${avg.toLocaleString()} avg. new price</div>
+          </Link>
         </div>
       </div>
     </div>
@@ -4220,11 +4209,8 @@ function StatementHome() {
 function HomeOptionsPage() {
   return (
     <div>
-      <SEOHead title="Homepage options" path="/home-options" noindex />
-      <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, padding: "16px 20px 0" }}>Option 2 — Two-card split</div>
-      <TwoCardHome />
-      <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.ink, padding: "24px 20px 0" }}>Option 4 — Single bold statement</div>
-      <StatementHome />
+      <SEOHead title="Homepage" path="/home-options" noindex />
+      <LandingHome />
     </div>
   );
 }
