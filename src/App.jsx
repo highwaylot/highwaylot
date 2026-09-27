@@ -4183,11 +4183,23 @@ function LandingHome() {
         .hl-land-card { transition: transform 160ms ease, box-shadow 160ms ease; box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
         .hl-land-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(10,13,18,0.28); }
         .hl-land-card:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
+        .hl-land-dash { animation: hl-land-dash-move 1.6s linear infinite; }
+        @keyframes hl-land-dash-move { from { background-position: 0 0; } to { background-position: 34px 0; } }
       `}</style>
       <div className="hl-hero-fade" style={{ maxWidth: 900, margin: "0 auto", width: "100%" }}>
         <div style={{ textAlign: "center", marginBottom: 44 }}>
-          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(30px, 6vw, 48px)", color: C.ink, letterSpacing: -0.5, lineHeight: 1 }}>HIGHWAYLOT</div>
-          <p style={{ color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 10 }}>A car marketplace, built one honest tool at a time — buying and selling are next.</p>
+          {/* Oversized, tight negative tracking — a flat "HIGHWAYLOT" at
+              normal size read as inert; a display wordmark this big with
+              tracking pulled in is what actually reads as confident rather
+              than a plain label (2026 wordmark research: bold type +
+              tight, deliberate spacing over generic letterforms). */}
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(48px, 12vw, 108px)", color: C.ink, letterSpacing: "-3px", lineHeight: 0.92 }}>HIGHWAYLOT</div>
+          {/* Dashed lane-line motif from the logo mark, reused here as the
+              wordmark's underline instead of a plain rule — ties the huge
+              type back to the highway concept instead of just being big
+              for its own sake. */}
+          <div className="hl-land-dash" style={{ width: 120, height: 4, margin: "18px auto 0", backgroundImage: `repeating-linear-gradient(90deg, ${C.ink} 0px, ${C.ink} 16px, transparent 16px, transparent 34px)` }} />
+          <p style={{ color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 18 }}>A car marketplace, built one honest tool at a time — buying and selling are next.</p>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
           <Link to="/value" className="hl-land-card" style={{ background: "#12181F", color: "#fff", textDecoration: "none", borderRadius: 10, padding: "28px 26px", display: "block" }}>
