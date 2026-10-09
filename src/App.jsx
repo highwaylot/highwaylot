@@ -2466,6 +2466,11 @@ function ValueMyCar({ allListings, log }) {
 
   return (
     <div style={{ background: C.ink }}>
+      <SEOHead
+        title="Value My Car — Free Car Valuation | HIGHWAYLOT"
+        description="A free, honest car value estimate — built for people who don't know cars. No dealer jargon, no sales pitch, just a real depreciation-based number."
+        path="/value"
+      />
       <PriceTagHero />
       <style>{`
         @media (max-width: 900px) {
@@ -4130,7 +4135,7 @@ function LandingHome() {
         <div className="hl-land-rise" style={{ animationDelay: "40ms", fontFamily: "'Anton', sans-serif", fontSize: "clamp(56px, 13vw, 128px)", color: C.ink, letterSpacing: "0px", lineHeight: 0.95 }}>
           HIGHWAYLOT
         </div>
-        <p className="hl-land-rise" style={{ animationDelay: "160ms", color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 18 }}>A car marketplace, built one honest tool at a time — buying and selling are next.</p>
+        <p className="hl-land-rise" style={{ animationDelay: "160ms", color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 18 }}>Free, honest car knowledge — no dealer jargon, no sales pitch.</p>
       </div>
       {/* The lane line starts here (below the wordmark/tagline, never under
           them) and runs between the two cards down to the bottom of the
@@ -4494,7 +4499,7 @@ function Terms() {
       </div>
       <p style={{ color: C.steel, fontSize: 13, marginBottom: 20 }}>By using HIGHWAYLOT, you agree to the following terms.</p>
       {[
-        ["What's live right now.", "HIGHWAYLOT currently offers a car valuation tool and wikiLOT, a price guide by make and model. The full buy/sell listing marketplace is in development and isn't live yet — no listings can be posted or browsed on this site at this time."],
+        ["What HIGHWAYLOT is.", "HIGHWAYLOT is a free car knowledge resource — a car valuation tool and wikiLOT, a price guide by make and model — built for people who don't know cars. HIGHWAYLOT does not host a buy/sell marketplace; no listings can be posted or browsed on this site."],
         ["Estimates and guide prices aren't guarantees.", "Valuation estimates and wikiLOT's price-guide figures are formula-based references built from depreciation modeling and public data. They are not appraisals, and we don't guarantee any car would actually sell for the range shown."],
         ["No ID or account required.", "You don't need to submit identification or create an account to use the valuation tool or price guide."],
         ["Data collection and use.", "Using HIGHWAYLOT means you consent to the data collection and use described in our Privacy Policy, including analytics, research, and the potential licensing or sharing of aggregated or anonymized usage data."],
@@ -4549,7 +4554,7 @@ function Footer() {
   return (
     <div style={{ background: C.ink, borderTop: `1px solid ${C.hair}` }}>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "26px 20px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div style={{ color: C.note, fontSize: 14 }}>HIGHWAYLOT — free car valuation and price guide.</div>
+        <div style={{ color: C.note, fontSize: 14 }}>HIGHWAYLOT — free car knowledge, no dealer jargon.</div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
           <Link to="/value" style={{ color: C.note, fontFamily: FONT_HEAD, fontSize: 14 }}>Value my car</Link>
           <Link to="/wikilot" style={{ color: C.note, fontFamily: FONT_HEAD, fontSize: 14 }}>Price Guide</Link>
