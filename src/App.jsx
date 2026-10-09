@@ -49,6 +49,11 @@ function generateToken() {
 const C = {
   ink: "#1B2431", paper: "#FAFAF6", yellow: "#F5B700", yellowDark: "#8A6600",
   steel: "#5B6472", line: "#DEDBD1", green: "#2F6B4F", greenBg: "#E7F0EA", card: "#FFFFFF",
+  // "The Highway" design tokens — steel fails contrast on ink (~2.6:1), so
+  // ink surfaces use paper at reduced opacity instead for secondary text,
+  // borders, and panel fills. Never use C.steel on C.ink.
+  note: "rgba(250,250,246,0.72)", dim: "rgba(250,250,246,0.56)",
+  hair: "rgba(250,250,246,0.14)", field: "rgba(250,250,246,0.22)", panel: "rgba(250,250,246,0.045)",
 };
 const FONT_HEAD = "'Oswald', 'Arial Narrow', sans-serif";
 const FONT_BODY = "'Inter', system-ui, sans-serif";
@@ -607,8 +612,8 @@ function RecentlySold({ listings, onOpen }) {
   if (!listings || listings.length === 0) return null;
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px 0" }}>
-      <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.steel, letterSpacing: 0.5, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-        <Check size={14} color={C.green} /> RECENTLY SOLD
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.steel, letterSpacing: 0.5, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}>
+        <MileMarker n={1} dark /> RECENTLY SOLD
       </div>
       <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}>
         {listings.map((c) => (
@@ -652,7 +657,7 @@ function PopularSearches({ listings, onOpenCategory }) {
 
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "28px 20px 0" }}>
-      <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.steel, letterSpacing: 0.5, marginBottom: 10 }}>POPULAR SEARCHES</div>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 14, color: C.steel, letterSpacing: 0.5, marginBottom: 10, display: "flex", alignItems: "center", gap: 8 }}><MileMarker n={2} dark /> POPULAR SEARCHES</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
         {combos.map((c, i) => (
           <button key={i} onClick={() => onOpenCategory(c)} style={{ border: `1px solid ${C.line}`, background: "#fff", borderRadius: 20, padding: "8px 14px", fontSize: 13, color: C.ink, cursor: "pointer" }}>
@@ -702,20 +707,91 @@ function CategoryPage({ listings, openListing }) {
 }
 
 // ---------- Top nav ----------
+// The lane line — a dashed vertical rule, the spine of every hero on the
+// site and, at low opacity, decorative texture elsewhere. One motif
+// carrying the "highway" idea instead of several unrelated tricks.
+function LaneLine({ color = C.yellow, opacity = 1, vertical = true }) {
+  return (
+    <div style={vertical
+      ? { position: "absolute", left: "50%", top: 0, bottom: 0, width: 2, marginLeft: -1, opacity, backgroundImage: `repeating-linear-gradient(to bottom, ${color} 0px, ${color} 14px, transparent 14px, transparent 24px)` }
+      : { position: "absolute", top: "50%", left: 0, right: 0, height: 2, marginTop: -1, opacity, backgroundImage: `repeating-linear-gradient(to right, ${color} 0px, ${color} 14px, transparent 14px, transparent 24px)` }}
+    />
+  );
+}
+
+// Shared hero grammar: headline left of the lane line, a real number right
+// of it. Used on every top-level page.
+function LaneHero({ left, value, note, right }) {
+  return (
+    <div className="hl-hero-fade" style={{ background: C.ink, position: "relative", overflow: "hidden" }}>
+      <style>{`
+        @media (max-width: 680px) {
+          .hl-lane-hero { grid-template-columns: 1fr !important; text-align: left !important; gap: 18px !important; }
+          .hl-lane-hero .hl-lane-left { text-align: left !important; padding-right: 0 !important; }
+          .hl-lane-hero .hl-lane-line { display: none; }
+        }
+      `}</style>
+      <div className="hl-lane-hero" style={{ maxWidth: 1280, margin: "0 auto", padding: "clamp(28px, 5vw, 56px) clamp(20px, 6vw, 80px)", position: "relative", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 44, alignItems: "center" }}>
+        <div className="hl-lane-line"><LaneLine /></div>
+        <div className="hl-lane-left" style={{ textAlign: "right", paddingRight: 22 }}>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 600, fontSize: "clamp(24px, 3.6vw, 40px)", color: C.paper, lineHeight: 1.15 }}>{left}</div>
+        </div>
+        <div style={{ paddingLeft: 22 }}>
+          {right || <>
+            <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(30px, 5vw, 56px)", color: C.yellow, lineHeight: 1 }}>{value}</div>
+            {note && <div style={{ fontFamily: FONT_BODY, fontSize: 17, color: C.note, marginTop: 6 }}>{note}</div>}
+          </>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Reflective highway-exit-sign chip — green, white text, slightly
+// condensed — for category/body-style filter pills. A second accent color
+// used sparingly and only for this one "pick a road to take" interaction,
+// not spread across the site.
+function ExitChip({ children, active, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      fontFamily: FONT_HEAD, fontSize: 13, fontWeight: 500, letterSpacing: 0.3, textTransform: "uppercase",
+      background: active ? "#2F6B4F" : "transparent", color: active ? "#fff" : C.green,
+      border: `1.5px solid ${C.green}`, borderRadius: 3, padding: "6px 12px", cursor: "pointer",
+      display: "inline-flex", alignItems: "center", gap: 6, transition: "background 120ms ease",
+    }}>
+      <span style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor", flexShrink: 0 }} />
+      {children}
+    </button>
+  );
+}
+
+// Mile-marker badge — a small circular post-marker numeral, used to
+// section long pages the way highway mile markers count distance instead
+// of a plain "01." label. `dark` for use on paper backgrounds.
+function MileMarker({ n, dark }) {
+  const color = dark ? C.ink : C.yellow;
+  return (
+    <div style={{
+      width: 22, height: 22, borderRadius: "50%", border: `1.5px solid ${color}`, color,
+      display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_HEAD, fontSize: 11, flexShrink: 0,
+    }}>{n}</div>
+  );
+}
+
 function TopBar({ onPost }) {
   const { pathname } = useLocation();
   return (
-    <div style={{ background: C.ink, borderBottom: `4px solid ${C.yellow}` }}>
-      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 20, minHeight: 40 }}>
+    <div style={{ background: C.ink, borderBottom: `1px solid ${C.hair}`, height: 64, display: "flex", alignItems: "center" }}>
+      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "0 20px", width: "100%", display: "flex", alignItems: "center", flexWrap: "wrap", rowGap: 10, columnGap: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
           <Link to="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-            <div style={{ width: 32, height: 34, position: "relative", flexShrink: 0 }}>
+            <div style={{ width: 28, height: 30, position: "relative", flexShrink: 0 }}>
               <svg viewBox="0 0 32 34" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
                 <path d="M 16 1 L 30 6.5 L 30 17 Q 30 27 16 33 Q 2 27 2 17 L 2 6.5 Z" fill={C.yellow} stroke={C.ink} strokeWidth={2} />
                 <path d="M 16 6 L 16 28" stroke={C.ink} strokeWidth={1.5} strokeDasharray="4,3" opacity={0.5} />
               </svg>
             </div>
-            <span style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(15px, 4vw, 20px)", letterSpacing: 0.5, color: "#fff", whiteSpace: "nowrap" }}>HIGHWAYLOT</span>
+            <span style={{ fontFamily: FONT_HEAD, fontWeight: 600, fontSize: 22, color: C.paper, whiteSpace: "nowrap" }}>HIGHWAYLOT</span>
           </Link>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
             <NavLink label="Browse" to="/" active={pathname === "/" || pathname.startsWith("/listing") || pathname.startsWith("/category")} />
@@ -723,7 +799,7 @@ function TopBar({ onPost }) {
             <NavLink label="wikiLOT" to="/wikilot" active={pathname.startsWith("/wikilot")} />
           </div>
         </div>
-        <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 16px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+        <button onClick={onPost} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 6, padding: "9px 16px", fontFamily: FONT_HEAD, fontWeight: 500, fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
           <Plus size={16} strokeWidth={2.5} /> Post an ad
         </button>
       </div>
@@ -731,7 +807,7 @@ function TopBar({ onPost }) {
   );
 }
 function NavLink({ label, to, active }) {
-  return <Link to={to} style={{ textDecoration: "none", color: active ? "#fff" : "rgba(255,255,255,0.65)", fontSize: 13.5, fontWeight: 500, display: "flex", alignItems: "center", padding: "4px 0", borderBottom: active ? `2px solid ${C.yellow}` : "2px solid transparent", whiteSpace: "nowrap" }}>{label}</Link>;
+  return <Link to={to} style={{ textDecoration: "none", color: active ? C.paper : C.note, fontFamily: FONT_HEAD, fontWeight: 500, fontSize: 16, display: "flex", alignItems: "center", padding: "4px 0", borderBottom: active ? `2px solid ${C.yellow}` : "2px solid transparent", whiteSpace: "nowrap" }}>{label}</Link>;
 }
 
 // ---------- Hero + filters ----------
@@ -747,8 +823,11 @@ function Hero({ filters, setFilters, log }) {
     if (filters.query) log("search", { query: filters.query });
     document.getElementById("hl-results")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  // Quick-filter shortcuts styled as reflective highway exit signs — pick
+  // a road to take instead of typing. Sets the body filter directly.
+  const quickBodies = ["Sedan", "SUV", "Truck", "Coupe"];
   return (
-    <div style={{ background: C.ink }}>
+    <div style={{ background: C.ink, position: "relative", overflow: "hidden" }}>
       <style>{`
         .hl-hero-fade { animation: hl-hero-fade-in 480ms ease both; }
         @keyframes hl-hero-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -757,10 +836,11 @@ function Hero({ filters, setFilters, log }) {
         .hl-search-btn { transition: transform 120ms ease, background 120ms ease; }
         .hl-search-btn:hover { transform: translateY(-1px); background: #ffc61a; }
       `}</style>
-      <div className="hl-hero-fade" style={{ maxWidth: 1120, margin: "0 auto", padding: "44px 20px 24px" }}>
+      <div style={{ position: "absolute", inset: 0, opacity: 0.1 }}><LaneLine /></div>
+      <div className="hl-hero-fade" style={{ maxWidth: 1120, margin: "0 auto", padding: "44px 20px 24px", position: "relative" }}>
         <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
-          <h1 style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 6vw, 38px)", color: "#fff", margin: "0 auto", lineHeight: 1.1 }}>Buy and sell cars, coast to coast.</h1>
-          <p style={{ color: "rgba(255,255,255,0.65)", fontSize: 15, marginTop: 10 }}>{seed.length.toLocaleString()}+ listings from private sellers and dealers across the United States.</p>
+          <h1 style={{ fontFamily: FONT_HEAD, fontWeight: 600, fontSize: "clamp(26px, 6vw, 38px)", color: C.paper, margin: "0 auto", lineHeight: 1.1 }}>Buy and sell cars, coast to coast.</h1>
+          <p style={{ color: C.note, fontSize: 15, marginTop: 10 }}>{seed.length.toLocaleString()}+ listings from private sellers and dealers across the United States.</p>
           <div className="hl-search-bar" style={{ background: "#fff", borderRadius: 6, marginTop: 22, padding: 12, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", textAlign: "left" }}>
             <div style={{ flex: "2 1 220px", display: "flex", alignItems: "center", gap: 8, borderRight: `1px solid ${C.line}`, paddingRight: 10 }}>
               <Search size={16} color={C.steel} />
@@ -776,7 +856,12 @@ function Hero({ filters, setFilters, log }) {
             </select>
             <button className="hl-search-btn" onClick={scrollToResults} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "10px 22px", fontFamily: FONT_HEAD, fontSize: 14.5, cursor: "pointer" }}>Search</button>
           </div>
-          <div style={{ marginTop: 10, fontSize: 12.5, color: "rgba(255,255,255,0.5)" }}>Available in the United States only.</div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16, flexWrap: "wrap" }}>
+            {quickBodies.map((b) => (
+              <ExitChip key={b} active={filters.body === b} onClick={() => { const next = filters.body === b ? "" : b; setFilters({ ...filters, body: next }); log("filter_body", { body: next }); scrollToResults(); }}>{b}</ExitChip>
+            ))}
+          </div>
+          <div style={{ marginTop: 14, fontSize: 12.5, color: C.dim }}>Available in the United States only.</div>
         </div>
       </div>
     </div>
@@ -826,8 +911,8 @@ function FilterBar({ filters, setFilters, count, sort, setSort, log }) {
           <option value="7">Last 7 days</option>
           <option value="30">Last 30 days</option>
         </select>
-        {(filters.query || filters.state || filters.make || filters.price || filters.mileage || filters.seller || filters.age) && (
-          <button onClick={() => setFilters({ query: "", state: "", make: "", price: "", mileage: "", seller: "", age: "" })} style={{ ...selectStyle, cursor: "pointer", color: C.steel, display: "flex", alignItems: "center", gap: 4 }}><X size={13} /> Clear</button>
+        {(filters.query || filters.state || filters.make || filters.price || filters.mileage || filters.seller || filters.age || filters.body) && (
+          <button onClick={() => setFilters({ query: "", state: "", make: "", price: "", mileage: "", seller: "", age: "", body: "" })} style={{ ...selectStyle, cursor: "pointer", color: C.steel, display: "flex", alignItems: "center", gap: 4 }}><X size={13} /> Clear</button>
         )}
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 13, color: C.steel }}>{count} results</span>
@@ -843,13 +928,14 @@ function FilterBar({ filters, setFilters, count, sort, setSort, log }) {
 // ---------- Home ----------
 function Home({ allListings, recentlySold, log, openListing }) {
   const navigate = useNavigate();
-  const [filters, setFilters] = useState({ query: "", state: "", make: "", price: "", mileage: "", seller: "", age: "" });
+  const [filters, setFilters] = useState({ query: "", state: "", make: "", price: "", mileage: "", seller: "", age: "", body: "" });
   const [sort, setSort] = useState("new");
   const filtered = useMemo(() => {
     let list = allListings.filter((c) => {
       if (filters.query && !(`${c.make} ${c.model} ${c.trim}`.toLowerCase().includes(filters.query.toLowerCase()))) return false;
       if (filters.state && c.state !== filters.state) return false;
       if (filters.make && c.make !== filters.make) return false;
+      if (filters.body && c.body !== filters.body) return false;
       if (filters.price && c.price > Number(filters.price)) return false;
       if (filters.mileage && c.mileage > Number(filters.mileage)) return false;
       if (filters.seller && c.seller !== filters.seller) return false;
@@ -868,7 +954,7 @@ function Home({ allListings, recentlySold, log, openListing }) {
   // popular-searches are noise between them and their actual results — real
   // reported behavior: searching "honda" still showed an unrelated featured
   // Kia before any real matches. Hide all three while a search is active.
-  const hasActiveFilters = Boolean(filters.query || filters.state || filters.make || filters.price || filters.mileage || filters.seller || filters.age);
+  const hasActiveFilters = Boolean(filters.query || filters.state || filters.make || filters.price || filters.mileage || filters.seller || filters.age || filters.body);
 
   return (
     <div>
@@ -3933,27 +4019,12 @@ function guideAges() { return [0, 3, 5, 8, 10]; }
 // is a real legal exposure, not a style call, so guide pages get a colored
 // monogram badge instead. Colors are just a deterministic hash of the make
 // name, not brand colors (we don't have rights to those either).
-function brandBadgeColor(make) {
-  let hash = 0;
-  for (let i = 0; i < make.length; i++) hash = (hash * 31 + make.charCodeAt(i)) % 360;
-  return `hsl(${hash}, 42%, 40%)`;
-}
-function BrandBadge({ make, size = 36 }) {
-  return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: brandBadgeColor(make), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_HEAD, fontSize: size * 0.42, flexShrink: 0 }}>
-      {make.replace("-", "").slice(0, 2).toUpperCase()}
-    </div>
-  );
-}
-
-// Bold typographic tag instead of an attempted car icon — hand-drawn
-// vehicle silhouettes never read as intentional at this size, so this
-// leans on the same FONT_HEAD/yellow-accent treatment the rest of the site
-// already uses for visual weight instead.
+// Colored initial avatars are retired (the Highway redesign) — a make's
+// name in plain Oswald carries enough identity on its own.
 function BodyStyleTag({ body }) {
   return (
-    <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", border: `2px solid ${C.ink}`, borderRadius: 4, padding: "6px 10px" }}>
-      <span style={{ fontFamily: FONT_HEAD, fontSize: 15, letterSpacing: 0.3, color: C.ink, textTransform: "uppercase" }}>{body}</span>
+    <div style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", border: `1px solid ${C.field}`, borderRadius: 4, padding: "6px 10px" }}>
+      <span style={{ fontFamily: FONT_HEAD, fontSize: 15, letterSpacing: 0.3, color: C.paper, textTransform: "uppercase" }}>{body}</span>
     </div>
   );
 }
@@ -3962,26 +4033,23 @@ function BodyStyleTag({ body }) {
 // consistent "here's one real fact" unit instead of a paragraph of prose.
 function GuideStat({ icon, label, value, note }) {
   return (
-    <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 6, padding: "14px 16px", flex: "1 1 180px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, color: C.steel, fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 6 }}>
+    <div style={{ background: C.panel, border: `1px solid ${C.hair}`, borderRadius: 8, padding: "14px 16px", flex: "1 1 180px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, color: C.dim, fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 6 }}>
         {icon}{label}
       </div>
-      <div style={{ fontFamily: FONT_HEAD, fontSize: 20, color: C.ink }}>{value}</div>
-      {note && <div style={{ fontSize: 12, color: C.steel, marginTop: 2 }}>{note}</div>}
+      <div style={{ fontFamily: FONT_HEAD, fontSize: 20, color: C.yellow }}>{value}</div>
+      {note && <div style={{ fontSize: 12, color: C.note, marginTop: 2 }}>{note}</div>}
     </div>
   );
 }
 
-// The one number a visitor came for, given the same boxed-and-bordered
-// treatment JD Power's "Average Price Paid" callout uses — big, bordered,
-// impossible to miss — but in HIGHWAYLOT's own yellow/ink palette instead
-// of copying their layout wholesale.
+// The one number a visitor came for — a yellow-bordered panel on ink.
 function GuideHeroStat({ label, value, range }) {
   return (
-    <div style={{ border: `2px solid ${C.yellow}`, borderRadius: 8, padding: "18px 22px", marginBottom: 20, background: "#FFFBEF" }}>
-      <div style={{ fontSize: 12, color: C.yellowDark, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontFamily: FONT_HEAD, fontSize: "clamp(32px, 6vw, 44px)", color: C.ink, lineHeight: 1 }}>{value}</div>
-      {range && <div style={{ fontSize: 13, color: C.steel, marginTop: 6 }}>{range}</div>}
+    <div style={{ border: `1px solid ${C.yellow}`, borderRadius: 8, padding: "18px 22px", marginBottom: 20, background: C.panel }}>
+      <div style={{ fontSize: 12, color: C.dim, textTransform: "uppercase", letterSpacing: 0.5, fontWeight: 600, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontFamily: FONT_HEAD, fontSize: "clamp(32px, 6vw, 44px)", color: C.yellow, lineHeight: 1 }}>{value}</div>
+      {range && <div style={{ fontSize: 13, color: C.note, marginTop: 6 }}>{range}</div>}
     </div>
   );
 }
@@ -4015,149 +4083,58 @@ function useCountUp(target, duration = 900) {
   return value;
 }
 
-// Real stat-pair generators for the split hero's widget — each pulls from
-// data already used elsewhere in the app (MAKE_BASE_PRICE, resale/repair
-// tables, curated model pricing), nothing invented for decoration. One is
-// picked at random per page load so repeat visitors and different pages
-// see different real content instead of the same static pair forever.
-const HERO_STAT_WIDGETS = [
-  () => {
-    const entries = Object.entries(MAKE_BASE_PRICE);
-    const cheapest = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
-    const priciest = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
-    return { label: "Range, new", top: { value: `$${cheapest[1].toLocaleString()}`, name: cheapest[0] }, bottom: { value: `$${priciest[1].toLocaleString()}`, name: priciest[0] } };
-  },
-  () => {
-    const entries = Object.entries(BRAND_RESALE_MULTIPLIER);
-    const best = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
-    const worst = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
-    return { label: "Resale strength", top: { value: `+${Math.round((best[1] - 1) * 100)}%`, name: best[0] }, bottom: { value: `${Math.round((worst[1] - 1) * 100)}%`, name: worst[0] } };
-  },
-  () => {
-    const entries = Object.entries(BRAND_REPAIR_COST);
-    const lowest = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
-    const highest = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
-    return { label: "Avg. annual repairs", top: { value: `$${lowest[1].toLocaleString()}`, name: lowest[0] }, bottom: { value: `$${highest[1].toLocaleString()}`, name: highest[0] } };
-  },
-  () => {
-    const entries = Object.entries(TYPICAL_NEW_PRICE_BY_BODY);
-    const cheapest = entries.reduce((a, b) => (b[1] < a[1] ? b : a));
-    const priciest = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
-    return { label: "By body style, new", top: { value: `$${cheapest[1].toLocaleString()}`, name: cheapest[0] }, bottom: { value: `$${priciest[1].toLocaleString()}`, name: priciest[0] } };
-  },
-  () => {
-    const priced = GUIDE_CATALOG.map((g) => ({ ...g, price: guidePriceAtAge(g.make, g.modelKey, 5) }));
-    const cheapest = priced.reduce((a, b) => (b.price < a.price ? b : a));
-    const priciest = priced.reduce((a, b) => (b.price > a.price ? b : a));
-    return { label: "At 5 years old", top: { value: `$${cheapest.price.toLocaleString()}`, name: `${cheapest.make} ${cheapest.label}` }, bottom: { value: `$${priciest.price.toLocaleString()}`, name: `${priciest.make} ${priciest.label}` } };
-  },
-];
-
-function HeroStatWidget({ compact }) {
-  const [widget] = useState(() => HERO_STAT_WIDGETS[Math.floor(Math.random() * HERO_STAT_WIDGETS.length)]());
-  const valueSize = compact ? 16 : 22;
+// wikiLOT's hero — the diagonal split is retired; same lane-hero grammar
+// as every other tool page. Right side is a fixed "at 5 years old"
+// cheapest/priciest stat (real data, not a random rotating widget).
+function SplitHero() {
+  const priced = GUIDE_CATALOG.map((g) => ({ ...g, price: guidePriceAtAge(g.make, g.modelKey, 5) }));
+  const cheapest = priced.reduce((a, b) => (b.price < a.price ? b : a));
+  const priciest = priced.reduce((a, b) => (b.price > a.price ? b : a));
   return (
-    <div style={{ background: C.ink, borderRadius: 8, padding: compact ? "10px 16px" : "20px 26px", boxShadow: "0 12px 28px rgba(0,0,0,0.35)" }}>
-      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: compact ? 4 : 8 }}>{widget.label}</div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span style={{ fontFamily: FONT_HEAD, fontSize: valueSize, color: "#fff" }}>{widget.top.value}</span>
-        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{widget.top.name}</span>
-      </div>
-      <div style={{ height: 1, background: "rgba(255,255,255,0.15)", margin: compact ? "5px 0" : "10px 0" }} />
-      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-        <span style={{ fontFamily: FONT_HEAD, fontSize: valueSize, color: "#fff" }}>{widget.bottom.value}</span>
-        <span style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>{widget.bottom.name}</span>
-      </div>
-    </div>
-  );
-}
-
-
-// The real hero, chosen from the 3 concepts — diagonal two-tone split with
-// a real rotating stat widget. Used on every top-level landing page
-// (wikiLOT index, /value, /post) so they share one bold identity instead
-// of each having its own header treatment. Compact GuideHero (below) stays
-// on make/model detail pages, where a breadcrumb + brand badge fits better
-// than a full diagonal split.
-function SplitHero({ subtitle, showWidget = true }) {
-  return (
-    <div className="hl-hero-fade" style={{ position: "relative", overflow: "hidden", background: C.ink }}>
-      <div style={{ position: "absolute", inset: 0, background: C.yellow, clipPath: "polygon(72% 0, 100% 0, 100% 100%, 48% 100%)" }} />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "26px 20px", position: "relative", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ maxWidth: 500 }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginBottom: 4, letterSpacing: 1 }}>HIGHWAYLOT</div>
-          <h1 style={{ margin: 0, lineHeight: 0.95, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-            <span style={{ fontFamily: FONT_HEAD, fontWeight: 800, fontSize: "clamp(28px, 5vw, 38px)", color: C.yellow, letterSpacing: -0.5 }}>wikiLOT</span>
-            <span style={{ fontFamily: FONT_HEAD, fontSize: "clamp(16px, 2.6vw, 20px)", color: "#fff" }}>the Car Price Guide</span>
-          </h1>
-          {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 6, marginBottom: 0, maxWidth: 460 }}>{subtitle}</p>}
+    <LaneHero
+      left={<>wikiLOT <span style={{ color: C.note, fontWeight: 400 }}>· the car price guide</span></>}
+      right={
+        <div>
+          <div style={{ fontSize: 13, color: C.dim, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>At 5 years old</div>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(22px, 3.4vw, 32px)", color: C.yellow }}>${cheapest.price.toLocaleString()} <span style={{ color: C.note, fontFamily: FONT_BODY, fontWeight: 400, fontSize: 15 }}>{cheapest.make} {cheapest.label}</span></div>
+          <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(22px, 3.4vw, 32px)", color: C.yellow, marginTop: 6 }}>${priciest.price.toLocaleString()} <span style={{ color: C.note, fontFamily: FONT_BODY, fontWeight: 400, fontSize: 15 }}>{priciest.make} {priciest.label}</span></div>
         </div>
-        {showWidget && (
-          <div style={{ marginRight: 20 }}>
-            <HeroStatWidget compact />
-          </div>
-        )}
-      </div>
-    </div>
+      }
+    />
   );
 }
 
-// /value's hero — a literal price-tag shape (notched corner + punch hole),
-// distinct from wikiLOT's diagonal split. The real avg-new-price figure
-// lives inside the tag itself instead of a separate stat card.
-// One line, one real number, no subtitle paragraph. "Less text, just
-// simplicity" — no shape/metaphor tricks, no separate stat block.
+// /value's hero — the shared lane-hero grammar: "What's your car worth?"
+// left of the line, the real avg-new-price figure right of it.
 function PriceTagHero() {
   const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
   const count = useCountUp(avg);
-  return (
-    <div className="hl-hero-fade" style={{ background: C.ink, padding: "40px 20px" }}>
-      <div style={{ maxWidth: 700, margin: "0 auto" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 10 }}>HIGHWAYLOT</div>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(24px, 4.5vw, 36px)", color: "#fff", lineHeight: 1.25 }}>
-          What's your car worth? <span style={{ color: C.yellow }}>${count.toLocaleString()} avg.</span>
-        </div>
-      </div>
-    </div>
-  );
+  return <LaneHero left="What's your car worth?" value={`$${count.toLocaleString()}`} note="avg. new, all brands" />;
 }
 
 function ForSaleSignHero() {
-  return (
-    <div className="hl-hero-fade" style={{ background: C.ink, padding: "40px 20px" }}>
-      <div style={{ maxWidth: 700, margin: "0 auto" }}>
-        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.5)", letterSpacing: 1, marginBottom: 10 }}>HIGHWAYLOT</div>
-        <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(24px, 4.5vw, 36px)", color: "#fff", lineHeight: 1.25 }}>
-          Post your car for sale. <span style={{ color: C.yellow }}>$0 fees.</span>
-        </div>
-      </div>
-    </div>
-  );
+  return <LaneHero left="Post your car for sale." value="$0" note="listing fees" />;
 }
 
-function GuideHero({ eyebrow, title, subtitle, make, big }) {
+// Make/model detail pages follow the same hero grammar as every other
+// tool page — the lane line as the spine, a real number in yellow.
+function GuideHero({ eyebrow, title, subtitle, big, stat }) {
   return (
-    <div
-      className="hl-hero-fade"
-      style={{
-        background: C.ink,
-        borderBottom: `4px solid ${C.yellow}`,
-        position: "relative",
-        overflow: "hidden",
-        // Repeating diagonal dashes — the same lane-line motif as the
-        // HIGHWAYLOT logo's dashed center line, done as a pure CSS gradient
-        // so it costs nothing and needs no image asset.
-        backgroundImage: "repeating-linear-gradient(-45deg, rgba(245,183,0,0.07) 0px, rgba(245,183,0,0.07) 3px, transparent 3px, transparent 34px)",
-      }}
-    >
+    <div className="hl-hero-fade" style={{ background: C.ink, position: "relative", overflow: "hidden" }}>
+      <div style={{ position: "absolute", inset: 0, opacity: 0.12 }}><LaneLine /></div>
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: big ? "64px 20px 52px" : "40px 20px 32px", position: "relative" }}>
-        {eyebrow && <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginBottom: 8, letterSpacing: 0.4 }}>{eyebrow}</div>}
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          {make && <BrandBadge make={make} size={44} />}
+        {eyebrow && <div style={{ fontSize: 12, color: C.note, marginBottom: 8, letterSpacing: 0.4 }}>{eyebrow}</div>}
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ fontFamily: FONT_HEAD, fontSize: big ? "clamp(34px, 7vw, 56px)" : "clamp(24px, 4vw, 34px)", color: "#fff", margin: 0, marginBottom: 8, lineHeight: 1.05 }}>{renderHeroTitle(title)}</h1>
-            {subtitle && <p style={{ color: "rgba(255,255,255,0.7)", fontSize: big ? 16 : 14.5, lineHeight: 1.6, maxWidth: 640, margin: 0 }}>{subtitle}</p>}
+            <h1 style={{ fontFamily: FONT_HEAD, fontWeight: 600, fontSize: big ? "clamp(34px, 7vw, 56px)" : "clamp(24px, 4vw, 34px)", color: C.paper, margin: 0, marginBottom: 8, lineHeight: 1.05 }}>{renderHeroTitle(title)}</h1>
+            {subtitle && <p style={{ color: C.note, fontSize: big ? 16 : 14.5, lineHeight: 1.6, maxWidth: 640, margin: 0 }}>{subtitle}</p>}
           </div>
+          {stat && (
+            <div style={{ flexShrink: 0 }}>
+              <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(28px, 5vw, 44px)", color: C.yellow, lineHeight: 1 }}>{stat.value}</div>
+              <div style={{ fontSize: 14, color: C.note, marginTop: 4 }}>{stat.note}</div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -4184,43 +4161,44 @@ function GuideIndex() {
         description="Real depreciation-based price guides by make and model — what a car should cost at 3, 5, 8, and 10 years old, so you know if an asking price is fair."
         path="/wikilot"
       />
-      <SplitHero subtitle="What a car should actually cost at different ages — not a sticker price, a reasoned range built from real depreciation curves, brand resale strength, and repair-cost data." />
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 4 }}>Pricing by body style</div>
-        <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 14 }}>Typical new price by body style — a starting anchor before brand and model narrow it down.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10, marginBottom: 36 }}>
-          {Object.entries(TYPICAL_NEW_PRICE_BY_BODY).map(([body, price]) => (
-            <Link key={body} to={`/value?body=${encodeURIComponent(body)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "16px 10px", textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 8 }}>
-              <BodyStyleTag body={body} />
-              <div style={{ fontSize: 11.5, color: C.steel }}>~${price.toLocaleString()} new</div>
-            </Link>
-          ))}
-        </div>
-
-        <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink, marginBottom: 14 }}>Browse by make</div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 14 }}>
-          {allMakes.map((make) => {
-            const models = byMake[make];
-            const anchor = MAKE_BASE_PRICE[make];
-            return (
-              <Link key={make} to={`/wikilot/${slugify(make)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "16px 18px", textDecoration: "none", display: "block" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                  <BrandBadge make={make} />
-                  <div>
-                    <div style={{ fontFamily: FONT_HEAD, fontSize: 17, color: C.ink }}>{make}</div>
-                    <div style={{ fontSize: 12, color: C.steel }}>New starting around ${anchor.toLocaleString()}</div>
-                  </div>
-                </div>
-                {models && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-                    {models.map(({ modelKey, label }) => (
-                      <span key={label} style={{ fontSize: 11.5, color: C.steel, background: "#F0EEE5", borderRadius: 3, padding: "3px 7px" }}>{label} · ${guidePriceAtAge(make, modelKey, 5).toLocaleString()}</span>
-                    ))}
-                  </div>
-                )}
+      <SplitHero />
+      <div style={{ background: C.ink, minHeight: "calc(100vh - 64px)" }}>
+        <div style={{ maxWidth: 1000, margin: "0 auto", padding: "32px 20px 70px" }}>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.paper, marginBottom: 4 }}>Pricing by body style</div>
+          <p style={{ fontSize: 12.5, color: C.note, marginBottom: 14 }}>Typical new price by body style — a starting anchor before brand and model narrow it down.</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 10, marginBottom: 36 }}>
+            {Object.entries(TYPICAL_NEW_PRICE_BY_BODY).map(([body, price]) => (
+              <Link key={body} to={`/value?body=${encodeURIComponent(body)}`} className="hl-listing-card" style={{ background: C.panel, border: `1px solid ${C.hair}`, borderRadius: 8, padding: "16px 10px", textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 8 }}>
+                <div style={{ fontFamily: FONT_HEAD, fontSize: 12, color: C.dim, textTransform: "uppercase", letterSpacing: 0.4 }}>{body}</div>
+                <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 17, color: C.yellow }}>${price.toLocaleString()}</div>
+                <div style={{ fontSize: 11.5, color: C.note }}>new</div>
               </Link>
-            );
-          })}
+            ))}
+          </div>
+
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.paper, marginBottom: 14 }}>Browse by make</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 14 }}>
+            {allMakes.map((make) => {
+              const models = byMake[make];
+              const anchor = MAKE_BASE_PRICE[make];
+              return (
+                <Link key={make} to={`/wikilot/${slugify(make)}`} className="hl-listing-card" style={{ background: C.panel, border: `1px solid ${C.hair}`, borderRadius: 8, padding: "16px 18px", textDecoration: "none", display: "block" }}>
+                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
+                    <div style={{ fontFamily: FONT_HEAD, fontWeight: 500, fontSize: 17, color: C.paper }}>{make}</div>
+                    <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 28, color: C.yellow, flexShrink: 0 }}>${anchor.toLocaleString()}</div>
+                  </div>
+                  <div style={{ fontSize: 12, color: C.note, marginTop: 2 }}>New, starting around</div>
+                  {models && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+                      {models.map(({ modelKey, label }) => (
+                        <span key={label} style={{ fontSize: 13, color: C.note, background: "rgba(250,250,246,0.07)", border: `1px solid ${C.hair}`, borderRadius: 5, padding: "4px 9px" }}>{label} · <span style={{ color: C.paper, fontWeight: 500 }}>${guidePriceAtAge(make, modelKey, 5).toLocaleString()}</span></span>
+                      ))}
+                    </div>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
@@ -4280,80 +4258,81 @@ function GuideMake({ allListings }) {
         path={`/wikilot/${makeSlug}`}
       />
       <GuideHero
-        make={make}
         eyebrow={<><Link to="/wikilot" style={{ color: "inherit", textDecoration: "underline" }}>Price Guide</Link> / {make}</>}
         title={`${make} Price Guide`}
-        subtitle={`A new ${make} starts around $${anchor.toLocaleString()} and depreciates from there. See specific models below for age-by-age numbers, or use the full valuation tool for your exact car.`}
+        subtitle="See specific models below for age-by-age numbers, or use the full valuation tool for your exact car."
+        stat={{ value: `$${anchor.toLocaleString()}`, note: `${make}, new` }}
       />
-      <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
-        <GuideHeroStat label={`${make}, new — typical price`} value={`$${anchor.toLocaleString()}`} range={`Depreciates from there — see specific models below for age-by-age numbers.`} />
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
-          <GuideStat icon={brandMult >= 1 ? <TrendingUp size={13} /> : <TrendingDown size={13} />} label="Resale strength" value={resaleLabel} note="vs. other brands" />
-          {BRAND_REPAIR_COST[make] && (
-            <GuideStat icon={<ShieldCheck size={13} />} label="Avg. annual repairs" value={`$${BRAND_REPAIR_COST[make].toLocaleString()}`} note={BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? `below $${ALL_BRAND_AVG_REPAIR_COST} avg` : `above $${ALL_BRAND_AVG_REPAIR_COST} avg`} />
+      <div style={{ background: C.ink, minHeight: "calc(100vh - 64px)" }}>
+        <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
+            <GuideStat icon={brandMult >= 1 ? <TrendingUp size={13} /> : <TrendingDown size={13} />} label="Resale strength" value={resaleLabel} note="vs. other brands" />
+            {BRAND_REPAIR_COST[make] && (
+              <GuideStat icon={<ShieldCheck size={13} />} label="Avg. annual repairs" value={`$${BRAND_REPAIR_COST[make].toLocaleString()}`} note={BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? `below $${ALL_BRAND_AVG_REPAIR_COST} avg` : `above $${ALL_BRAND_AVG_REPAIR_COST} avg`} />
+            )}
+          </div>
+
+          {BRAND_COMMON_NOTES[make] && (
+            <div style={{ marginBottom: 28, background: C.panel, border: `1px solid ${C.hair}`, borderRadius: 8, padding: "14px 18px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_HEAD, fontSize: 15, color: C.paper, marginBottom: 6 }}><ShieldCheck size={15} /> What to check before buying</div>
+              <p style={{ fontSize: 13.5, color: C.note, lineHeight: 1.6, margin: 0 }}>{BRAND_COMMON_NOTES[make]} This reflects general owner-reported reputation, not a defect claim about any specific car — always verify with a pre-purchase inspection and the vehicle's actual service history.</p>
+            </div>
           )}
+
+          {models.length > 0 && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.paper, marginBottom: 10 }}>Models with detailed guides</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+                {models.map(({ modelKey, label }) => {
+                  const p5 = guidePriceAtAge(make, modelKey, 5);
+                  return (
+                    <Link key={modelKey} to={`/wikilot/${makeSlug}/${slugify(modelKey)}`} className="hl-listing-card" style={{ background: C.panel, border: `1px solid ${C.hair}`, borderRadius: 8, padding: "12px 14px", textDecoration: "none", display: "block" }}>
+                      <div style={{ fontFamily: FONT_HEAD, fontSize: 14.5, color: C.paper, marginBottom: 3 }}>{make} {label}</div>
+                      <div style={{ fontSize: 12, color: C.yellow, fontWeight: 600 }}>${p5.toLocaleString()} <span style={{ color: C.note, fontWeight: 400 }}>at 5 years old</span></div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {classifiedModels.length > 0 && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.paper, marginBottom: 4 }}>More {make} models</div>
+              <p style={{ fontSize: 12.5, color: C.note, marginBottom: 10 }}>
+                Pulled live from NHTSA, with a real body type (so a truck depreciates like a truck, not a sedan) but not yet a model-specific base price — these use the {make} brand anchor with the correct depreciation curve.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+                {classifiedModels.map((name) => {
+                  const p5 = guidePriceAtAge(make, name.toLowerCase(), 5, bodyByModel[name]);
+                  return (
+                    <Link key={name} to={`/wikilot/${makeSlug}/${slugify(name)}`} className="hl-listing-card" style={{ background: C.panel, border: `1px solid ${C.hair}`, borderRadius: 8, padding: "12px 14px", textDecoration: "none", display: "block" }}>
+                      <div style={{ fontFamily: FONT_HEAD, fontSize: 14.5, color: C.paper, marginBottom: 3 }}>{make} {name}</div>
+                      <div style={{ fontSize: 12, color: C.yellow, fontWeight: 600 }}>${p5.toLocaleString()} <span style={{ color: C.note, fontWeight: 400 }}>at 5 years old ({bodyByModel[name]})</span></div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {unclassifiedModels.length > 0 && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.paper, marginBottom: 4 }}>Every other {make} model</div>
+              <p style={{ fontSize: 12.5, color: C.note, marginBottom: 10 }}>
+                We couldn't classify these enough to price them honestly, so each links straight to the real valuation tool with the model pre-filled instead of guessing.
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {unclassifiedModels.map((name) => (
+                  <Link key={name} to={`/value?make=${encodeURIComponent(make)}&model=${encodeURIComponent(name)}`} style={{ fontSize: 13, color: C.note, background: "rgba(250,250,246,0.07)", border: `1px solid ${C.hair}`, borderRadius: 5, padding: "5px 10px", textDecoration: "none" }}>{name}</Link>
+                ))}
+              </div>
+            </div>
+          )}
+          {loadingModels && <p style={{ fontSize: 12.5, color: C.note, marginBottom: 20 }}>Loading full model list…</p>}
+
+          <Link to="/value" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: C.yellow, color: C.ink, borderRadius: 6, padding: "13px 22px", fontFamily: FONT_HEAD, fontWeight: 500, textDecoration: "none" }}>Get a real estimate for your {make} →</Link>
         </div>
-
-        {BRAND_COMMON_NOTES[make] && (
-          <div style={{ marginBottom: 28, background: "#FAFAF7", border: `1px solid ${C.line}`, borderRadius: 6, padding: "14px 18px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}><ShieldCheck size={15} /> What to check before buying</div>
-            <p style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>{BRAND_COMMON_NOTES[make]} This reflects general owner-reported reputation, not a defect claim about any specific car — always verify with a pre-purchase inspection and the vehicle's actual service history.</p>
-          </div>
-        )}
-
-        {models.length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 10 }}>Models with detailed guides</div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-              {models.map(({ modelKey, label }) => {
-                const p5 = guidePriceAtAge(make, modelKey, 5);
-                return (
-                  <Link key={modelKey} to={`/wikilot/${makeSlug}/${slugify(modelKey)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "12px 14px", textDecoration: "none", display: "block" }}>
-                    <div style={{ fontFamily: FONT_HEAD, fontSize: 14.5, color: C.ink, marginBottom: 3 }}>{make} {label}</div>
-                    <div style={{ fontSize: 12, color: C.steel }}>~${p5.toLocaleString()} at 5 years old</div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {classifiedModels.length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 4 }}>More {make} models</div>
-            <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>
-              Pulled live from NHTSA, with a real body type (so a truck depreciates like a truck, not a sedan) but not yet a model-specific base price — these use the {make} brand anchor with the correct depreciation curve.
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-              {classifiedModels.map((name) => {
-                const p5 = guidePriceAtAge(make, name.toLowerCase(), 5, bodyByModel[name]);
-                return (
-                  <Link key={name} to={`/wikilot/${makeSlug}/${slugify(name)}`} className="hl-listing-card" style={{ background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "12px 14px", textDecoration: "none", display: "block" }}>
-                    <div style={{ fontFamily: FONT_HEAD, fontSize: 14.5, color: C.ink, marginBottom: 3 }}>{make} {name}</div>
-                    <div style={{ fontSize: 12, color: C.steel }}>~${p5.toLocaleString()} at 5 years old ({bodyByModel[name]})</div>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {unclassifiedModels.length > 0 && (
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 4 }}>Every other {make} model</div>
-            <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>
-              We couldn't classify these enough to price them honestly, so each links straight to the real valuation tool with the model pre-filled instead of guessing.
-            </p>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {unclassifiedModels.map((name) => (
-                <Link key={name} to={`/value?make=${encodeURIComponent(make)}&model=${encodeURIComponent(name)}`} style={{ fontSize: 12.5, color: C.steel, background: "#F0EEE5", borderRadius: 3, padding: "5px 10px", textDecoration: "none" }}>{name}</Link>
-              ))}
-            </div>
-          </div>
-        )}
-        {loadingModels && <p style={{ fontSize: 12.5, color: C.steel, marginBottom: 20 }}>Loading full model list…</p>}
-
-        <Link to="/value" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: C.ink, color: "#fff", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Get a real estimate for your {make} →</Link>
       </div>
     </div>
   );
@@ -4420,74 +4399,71 @@ function GuidePage({ allListings }) {
         path={`/wikilot/${makeSlug}/${modelSlug}`}
       />
       <GuideHero
-        make={make}
         eyebrow={<><Link to="/wikilot" style={{ color: "inherit", textDecoration: "underline" }}>Price Guide</Link> / <Link to={`/wikilot/${makeSlug}`} style={{ color: "inherit", textDecoration: "underline" }}>{make}</Link> / {label}</>}
         title={`${make} ${label} Price Guide`}
-        subtitle={`What a ${make} ${label} should actually cost, by age — a reference range, not a personalized estimate.`}
+        subtitle="A reference range, not a personalized estimate."
+        stat={{ value: `$${prices.find((p) => p.age === 5).price.toLocaleString()}`, note: "at 5 years old" }}
       />
-      <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
-        {bodyOverride && (
-          <div style={{ marginBottom: 20, background: "#FFF3D6", border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 8 }}>
-            <Info size={15} color={C.yellowDark} style={{ flexShrink: 0, marginTop: 1 }} />
-            <p style={{ fontSize: 13, color: C.yellowDark, margin: 0, lineHeight: 1.5 }}>We don't have {make} {label}-specific pricing yet — this uses the {make} brand price with a real {bodyOverride.toLowerCase()} depreciation curve (via NHTSA), not a model-specific one.</p>
-          </div>
-        )}
-        <GuideHeroStat
-          label={`${make} ${label} — typical price at 5 years old`}
-          value={`$${prices.find((p) => p.age === 5).price.toLocaleString()}`}
-          range={`New: $${maxPrice.toLocaleString()} · At 10 years: $${prices.find((p) => p.age === 10).price.toLocaleString()}`}
-        />
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
-          <GuideStat icon={<DollarSign size={13} />} label="New, typical" value={`$${maxPrice.toLocaleString()}`} />
-          {BRAND_REPAIR_COST[make] && (
-            <GuideStat icon={<ShieldCheck size={13} />} label="Avg. annual repairs" value={`$${BRAND_REPAIR_COST[make].toLocaleString()}`} note={BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? `below $${ALL_BRAND_AVG_REPAIR_COST} avg` : `above $${ALL_BRAND_AVG_REPAIR_COST} avg`} />
+      <div style={{ background: C.ink, minHeight: "calc(100vh - 64px)" }}>
+        <div style={{ maxWidth: 780, margin: "0 auto", padding: "32px 20px 70px" }}>
+          {bodyOverride && (
+            <div style={{ marginBottom: 20, background: C.panel, border: `1px solid ${C.hair}`, borderRadius: 8, padding: "12px 16px", display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <Info size={15} color={C.yellow} style={{ flexShrink: 0, marginTop: 1 }} />
+              <p style={{ fontSize: 13, color: C.note, margin: 0, lineHeight: 1.5 }}>We don't have {make} {label}-specific pricing yet — this uses the {make} brand price with a real {bodyOverride.toLowerCase()} depreciation curve (via NHTSA), not a model-specific one.</p>
+            </div>
           )}
-        </div>
-
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 10 }}>Price by age</div>
-          <div style={{ background: C.card, border: `1px solid ${C.line}`, borderRadius: 6, overflow: "hidden" }}>
-            {prices.map(({ age, price }, i) => (
-              <div key={age} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderTop: i === 0 ? "none" : `1px solid ${C.line}` }}>
-                <span style={{ fontSize: 13, color: C.steel, width: 150, flexShrink: 0 }}>{age === 0 ? "New" : `${age} yrs old (~${currentYear - age})`}</span>
-                <div style={{ flex: 1, height: 8, background: "#F0EEE5", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ width: `${Math.max((price / maxPrice) * 100, 4)}%`, height: "100%", background: C.yellow, borderRadius: 4 }} />
-                </div>
-                <span style={{ fontSize: 14, fontWeight: 600, color: C.ink, width: 80, textAlign: "right", flexShrink: 0 }}>${price.toLocaleString()}</span>
-              </div>
-            ))}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 28 }}>
+            <GuideStat icon={<DollarSign size={13} />} label="New, typical" value={`$${maxPrice.toLocaleString()}`} />
+            {BRAND_REPAIR_COST[make] && (
+              <GuideStat icon={<ShieldCheck size={13} />} label="Avg. annual repairs" value={`$${BRAND_REPAIR_COST[make].toLocaleString()}`} note={BRAND_REPAIR_COST[make] < ALL_BRAND_AVG_REPAIR_COST ? `below $${ALL_BRAND_AVG_REPAIR_COST} avg` : `above $${ALL_BRAND_AVG_REPAIR_COST} avg`} />
+            )}
           </div>
-        </div>
 
-        {buyingNote && (
-          <div style={{ marginBottom: 28, background: "#FAFAF7", border: `1px solid ${C.line}`, borderRadius: 6, padding: "14px 18px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}><ShieldCheck size={15} /> What to check before buying</div>
-            <p style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>{buyingNote} This reflects general owner-reported reputation, not a confirmed defect in this specific {label} — always verify with a pre-purchase inspection and the vehicle's actual service history.</p>
-          </div>
-        )}
-
-        <div style={{ marginBottom: 28, background: "#FAFAF7", border: `1px solid ${C.line}`, borderRadius: 6, padding: "14px 18px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 6 }}><Info size={15} /> Is your asking price fair?</div>
-          <p style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>
-            These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and — where available — recent local sales, use the <Link to="/value" style={{ color: C.ink, fontWeight: 600 }}>full valuation tool</Link> instead of this reference table.
-          </p>
-        </div>
-
-        {activeComps.length > 0 && (
           <div style={{ marginBottom: 28 }}>
-            <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 10 }}>Currently listed on HIGHWAYLOT</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {activeComps.map((c) => (
-                <Link key={c.id} to={`/listing/${c.id}`} className="hl-listing-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, color: C.ink, textDecoration: "none", background: C.card, border: `1.5px solid ${C.line}`, borderRadius: 6, padding: "12px 14px" }}>
-                  <span>{c.year} {c.make} {c.model}{c.mileage ? ` · ${c.mileage.toLocaleString()} mi` : ""}</span>
-                  <span style={{ fontFamily: FONT_HEAD, fontWeight: 600 }}>${(c.price || 0).toLocaleString()}</span>
-                </Link>
+            <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.paper, marginBottom: 10 }}>Price by age</div>
+            <div style={{ background: C.panel, border: `1px solid ${C.hair}`, borderRadius: 8, overflow: "hidden" }}>
+              {prices.map(({ age, price }, i) => (
+                <div key={age} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderTop: i === 0 ? "none" : `1px solid ${C.hair}` }}>
+                  <span style={{ fontSize: 13, color: C.note, width: 150, flexShrink: 0 }}>{age === 0 ? "New" : `${age} yrs old (~${currentYear - age})`}</span>
+                  <div style={{ flex: 1, height: 8, background: "rgba(250,250,246,0.08)", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ width: `${Math.max((price / maxPrice) * 100, 4)}%`, height: "100%", background: C.yellow, borderRadius: 4 }} />
+                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: C.paper, width: 80, textAlign: "right", flexShrink: 0 }}>${price.toLocaleString()}</span>
+                </div>
               ))}
             </div>
           </div>
-        )}
 
-        <Link to="/value" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: C.ink, color: "#fff", borderRadius: 4, padding: "11px 22px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Get my {make} {label}'s real value →</Link>
+          {buyingNote && (
+            <div style={{ marginBottom: 28, background: C.panel, border: `1px solid ${C.hair}`, borderRadius: 8, padding: "14px 18px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_HEAD, fontSize: 15, color: C.paper, marginBottom: 6 }}><ShieldCheck size={15} /> What to check before buying</div>
+              <p style={{ fontSize: 13.5, color: C.note, lineHeight: 1.6, margin: 0 }}>{buyingNote} This reflects general owner-reported reputation, not a confirmed defect in this specific {label} — always verify with a pre-purchase inspection and the vehicle's actual service history.</p>
+            </div>
+          )}
+
+          <div style={{ marginBottom: 28, background: C.panel, border: `1px solid ${C.hair}`, borderRadius: 8, padding: "14px 18px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: FONT_HEAD, fontSize: 15, color: C.paper, marginBottom: 6 }}><Info size={15} /> Is your asking price fair?</div>
+            <p style={{ fontSize: 13.5, color: C.note, lineHeight: 1.6, margin: 0 }}>
+              These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and — where available — recent local sales, use the <Link to="/value" style={{ color: C.yellow, fontWeight: 600 }}>full valuation tool</Link> instead of this reference table.
+            </p>
+          </div>
+
+          {activeComps.length > 0 && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.paper, marginBottom: 10 }}>Currently listed on HIGHWAYLOT</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {activeComps.map((c) => (
+                  <Link key={c.id} to={`/listing/${c.id}`} className="hl-listing-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13.5, color: C.paper, textDecoration: "none", background: C.panel, border: `1px solid ${C.hair}`, borderRadius: 8, padding: "12px 14px" }}>
+                    <span>{c.year} {c.make} {c.model}{c.mileage ? ` · ${c.mileage.toLocaleString()} mi` : ""}</span>
+                    <span style={{ fontFamily: FONT_HEAD, fontWeight: 600, color: C.yellow }}>${(c.price || 0).toLocaleString()}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <Link to="/value" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: C.yellow, color: C.ink, borderRadius: 6, padding: "13px 22px", fontFamily: FONT_HEAD, fontWeight: 500, textDecoration: "none" }}>Get my {make} {label}'s real value →</Link>
+        </div>
       </div>
     </div>
   );
@@ -4567,14 +4543,15 @@ function PrivacyPolicy() {
 // ---------- Footer ----------
 function Footer() {
   return (
-    <div style={{ background: C.ink, borderTop: `4px solid ${C.yellow}`, marginTop: 40 }}>
+    <div style={{ background: C.ink, position: "relative", marginTop: 40 }}>
+      <div style={{ position: "relative", height: 2 }}><LaneLine vertical={false} opacity={0.5} /></div>
       <div style={{ maxWidth: 1120, margin: "0 auto", padding: "26px 20px", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12.5 }}>HIGHWAYLOT — buy and sell cars nationwide.</div>
+        <div style={{ color: C.note, fontSize: 14 }}>HIGHWAYLOT — buy and sell cars nationwide.</div>
         <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
-          <Link to="/wikilot" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Price Guide</Link>
-          <Link to="/terms" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Terms</Link>
-          <Link to="/privacy" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "underline" }}>Privacy</Link>
-          <div style={{ color: "rgba(255,255,255,0.4)", fontSize: 12 }}>United States only, for now.</div>
+          <Link to="/wikilot" style={{ color: C.note, fontFamily: FONT_HEAD, fontSize: 14 }}>Price Guide</Link>
+          <Link to="/terms" style={{ color: C.note, fontFamily: FONT_HEAD, fontSize: 14 }}>Terms</Link>
+          <Link to="/privacy" style={{ color: C.note, fontFamily: FONT_HEAD, fontSize: 14 }}>Privacy</Link>
+          <div style={{ color: C.dim, fontSize: 13 }}>United States only, for now.</div>
         </div>
       </div>
     </div>
