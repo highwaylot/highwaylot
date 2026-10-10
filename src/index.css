@@ -33,6 +33,7 @@
     --color-secondary: var(--secondary);
     --color-primary-foreground: var(--primary-foreground);
     --color-primary: var(--primary);
+    --color-primary-text: var(--primary-text);
     --color-popover-foreground: var(--popover-foreground);
     --color-popover: var(--popover);
     --color-card-foreground: var(--card-foreground);
@@ -60,6 +61,11 @@
        custom-invented values. */
     --primary: oklch(0.81 0.17 78);
     --primary-foreground: oklch(0.145 0 0);
+    /* Same brand hue, darkened for use as TEXT on a light background —
+       --primary itself is only ~1.8:1 contrast against white (fine as a
+       button fill with dark text on top, unreadable as text itself). This
+       is the color every "text-primary" headline number actually uses. */
+    --primary-text: oklch(0.55 0.15 70);
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);

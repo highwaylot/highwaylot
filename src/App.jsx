@@ -723,7 +723,7 @@ function LaneHero({ left, value, note, right }) {
         <div className="font-heading text-2xl font-semibold leading-tight text-foreground sm:text-4xl">{left}</div>
         <div className="sm:text-right">
           {right || <>
-            <div className="font-heading text-3xl font-bold text-primary sm:text-5xl">{value}</div>
+            <div className="font-heading text-3xl font-bold text-primary-text sm:text-5xl">{value}</div>
             {note && <div className="mt-2 text-muted-foreground">{note}</div>}
           </>}
         </div>
@@ -2528,7 +2528,7 @@ function ValueMyCar({ allListings, log }) {
           {/* Range, not a flat number — jev-tested (0.79): avoids exposing
               exact formula output while still reading as sharper/more
               confident than the live preview's wider range. */}
-          <div className="my-2 font-heading text-3xl font-bold text-primary sm:text-4xl">{fmtPrice(result.rangeLow)}–{fmtPrice(result.rangeHigh)}</div>
+          <div className="my-2 font-heading text-3xl font-bold text-primary-text sm:text-4xl">{fmtPrice(result.rangeLow)}–{fmtPrice(result.rangeHigh)}</div>
           <div className="inline-flex items-center gap-1.5">
             {result.compCount > 0
               ? <Badge tone={result.confidence === "High" ? "verified" : result.confidence === "Medium" ? "yellow" : "neutral"}>{result.confidence} confidence</Badge>
@@ -2550,7 +2550,7 @@ function ValueMyCar({ allListings, log }) {
           {form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance && (
             <div className="mt-4.5 border-t pt-4">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Estimated equity</div>
-              <div className={cn("mt-1 font-heading text-2xl font-bold", (result.estimate - Number(form.loan_balance)) < 0 ? "text-[#E26B6B]" : "text-primary")}>
+              <div className={cn("mt-1 font-heading text-2xl font-bold", (result.estimate - Number(form.loan_balance)) < 0 ? "text-[#E26B6B]" : "text-primary-text")}>
                 {fmtPrice(result.estimate - Number(form.loan_balance))}
               </div>
               <div className="mt-1.5 text-[11.5px] text-muted-foreground">
@@ -2625,10 +2625,10 @@ function ValueMyCar({ allListings, log }) {
         <div className="rounded-lg border bg-card p-5">
           <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Live estimate</div>
           {requiredFilled ? (
-            <div className="font-heading text-5xl font-bold leading-none text-primary">{fmtPrice(liveEstimate.estimate)}</div>
+            <div className="font-heading text-5xl font-bold leading-none text-primary-text">{fmtPrice(liveEstimate.estimate)}</div>
           ) : (
             <>
-              <div className="font-heading text-5xl font-bold leading-none text-primary">$ —</div>
+              <div className="font-heading text-5xl font-bold leading-none text-primary-text">$ —</div>
               <div className="mt-2 text-sm text-muted-foreground">Shows a dollar range as year, make and model are filled in.</div>
             </>
           )}
@@ -3970,7 +3970,7 @@ function GuideStat({ icon, label, value, note }) {
       <div className="mb-1.5 flex items-center gap-1.5 text-[11.5px] uppercase tracking-wide text-muted-foreground">
         {icon}{label}
       </div>
-      <div className="font-heading text-xl text-primary">{value}</div>
+      <div className="font-heading text-xl text-primary-text">{value}</div>
       {note && <div className="mt-0.5 text-xs text-muted-foreground">{note}</div>}
     </div>
   );
@@ -3982,7 +3982,7 @@ function GuideHeroStat({ label, value, range }) {
   return (
     <div className="mb-5 rounded-lg border border-primary bg-card p-5">
       <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="font-heading text-3xl leading-none text-primary sm:text-4xl">{value}</div>
+      <div className="font-heading text-3xl leading-none text-primary-text sm:text-4xl">{value}</div>
       {range && <div className="mt-1.5 text-sm text-muted-foreground">{range}</div>}
     </div>
   );
@@ -3994,7 +3994,7 @@ function GuideHeroStat({ label, value, range }) {
 function renderHeroTitle(title) {
   if (typeof title !== "string" || !title.includes("wikiLOT")) return title;
   const [before, after] = title.split("wikiLOT");
-  return <>{before}<span className="text-primary">wikiLOT</span>{after}</>;
+  return <>{before}<span className="text-primary-text">wikiLOT</span>{after}</>;
 }
 
 // Counts a number up from 0 on mount — used by the hero concepts below to
@@ -4033,8 +4033,8 @@ function SplitHero() {
       right={
         <div>
           <div className="mb-2 text-sm uppercase tracking-wide text-muted-foreground">At 5 years old</div>
-          <div className="font-heading text-2xl font-bold text-primary sm:text-3xl">${cheapest.price.toLocaleString()} <span className="font-sans text-base font-normal text-muted-foreground">{cheapest.make} {cheapest.label}</span></div>
-          <div className="mt-1.5 font-heading text-2xl font-bold text-primary sm:text-3xl">${priciest.price.toLocaleString()} <span className="font-sans text-base font-normal text-muted-foreground">{priciest.make} {priciest.label}</span></div>
+          <div className="font-heading text-2xl font-bold text-primary-text sm:text-3xl">${cheapest.price.toLocaleString()} <span className="font-sans text-base font-normal text-muted-foreground">{cheapest.make} {cheapest.label}</span></div>
+          <div className="mt-1.5 font-heading text-2xl font-bold text-primary-text sm:text-3xl">${priciest.price.toLocaleString()} <span className="font-sans text-base font-normal text-muted-foreground">{priciest.make} {priciest.label}</span></div>
         </div>
       }
     />
@@ -4076,7 +4076,7 @@ function GuideHero({ eyebrow, title, subtitle, big, stat }) {
           </div>
           {stat && (
             <div className="shrink-0">
-              <div className="font-heading text-3xl font-bold leading-none text-primary sm:text-4xl">{stat.value}</div>
+              <div className="font-heading text-3xl font-bold leading-none text-primary-text sm:text-4xl">{stat.value}</div>
               <div className="mt-1 text-sm text-muted-foreground">{stat.note}</div>
             </div>
           )}
@@ -4107,7 +4107,7 @@ function LandingHome() {
       <div className="mx-auto flex max-w-xl flex-col items-center text-center">
         <UiBadge variant="secondary" className="mb-5">Free · No account needed</UiBadge>
         <h1 className="font-heading text-5xl font-semibold tracking-tight text-foreground sm:text-6xl">
-          HIGHWAY<span className="text-primary">LOT</span>
+          HIGHWAY<span className="text-primary-text">LOT</span>
         </h1>
         <p className="mt-4 max-w-md text-balance text-muted-foreground">
           Free, honest car knowledge — no dealer jargon, no sales pitch.
@@ -4117,7 +4117,7 @@ function LandingHome() {
       <div className="mt-12 grid w-full max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
         <Card className="transition-shadow hover:shadow-md">
           <CardHeader>
-            <DollarSign className="size-5 text-primary" />
+            <DollarSign className="size-5 text-primary-text" />
             <CardTitle className="mt-2 text-lg">Value my car</CardTitle>
             <CardDescription>Free instant estimate</CardDescription>
           </CardHeader>
@@ -4129,7 +4129,7 @@ function LandingHome() {
         </Card>
         <Card className="transition-shadow hover:shadow-md">
           <CardHeader>
-            <BookOpen className="size-5 text-primary" />
+            <BookOpen className="size-5 text-primary-text" />
             <CardTitle className="mt-2 text-lg">wikiLOT</CardTitle>
             <CardDescription>The car price guide</CardDescription>
           </CardHeader>
@@ -4171,7 +4171,7 @@ function GuideIndex() {
             {Object.entries(TYPICAL_NEW_PRICE_BY_BODY).map(([body, price]) => (
               <Link key={body} to={`/value?body=${encodeURIComponent(body)}`} className="hl-listing-card flex flex-col items-center gap-2 rounded-lg border bg-card p-4 text-center no-underline">
                 <div className="font-heading text-xs uppercase tracking-wide text-muted-foreground">{body}</div>
-                <div className="font-heading text-lg font-bold text-primary">${price.toLocaleString()}</div>
+                <div className="font-heading text-lg font-bold text-primary-text">${price.toLocaleString()}</div>
                 <div className="text-[11.5px] text-muted-foreground">new</div>
               </Link>
             ))}
@@ -4186,7 +4186,7 @@ function GuideIndex() {
                 <Link key={make} to={`/wikilot/${slugify(make)}`} className="hl-listing-card block rounded-lg border bg-card p-4 no-underline">
                   <div className="flex items-baseline justify-between gap-2.5">
                     <div className="font-heading text-[17px] font-medium text-foreground">{make}</div>
-                    <div className="shrink-0 font-heading text-[28px] font-bold text-primary">${anchor.toLocaleString()}</div>
+                    <div className="shrink-0 font-heading text-[28px] font-bold text-primary-text">${anchor.toLocaleString()}</div>
                   </div>
                   <div className="mt-0.5 text-xs text-muted-foreground">New, starting around</div>
                   {models && (
@@ -4289,7 +4289,7 @@ function GuideMake({ allListings }) {
                   return (
                     <Link key={modelKey} to={`/wikilot/${makeSlug}/${slugify(modelKey)}`} className="hl-listing-card block rounded-lg border bg-card p-3.5 no-underline">
                       <div className="mb-0.5 font-heading text-sm text-foreground">{make} {label}</div>
-                      <div className="text-xs font-semibold text-primary">${p5.toLocaleString()} <span className="font-normal text-muted-foreground">at 5 years old</span></div>
+                      <div className="text-xs font-semibold text-primary-text">${p5.toLocaleString()} <span className="font-normal text-muted-foreground">at 5 years old</span></div>
                     </Link>
                   );
                 })}
@@ -4309,7 +4309,7 @@ function GuideMake({ allListings }) {
                   return (
                     <Link key={name} to={`/wikilot/${makeSlug}/${slugify(name)}`} className="hl-listing-card block rounded-lg border bg-card p-3.5 no-underline">
                       <div className="mb-0.5 font-heading text-sm text-foreground">{make} {name}</div>
-                      <div className="text-xs font-semibold text-primary">${p5.toLocaleString()} <span className="font-normal text-muted-foreground">at 5 years old ({bodyByModel[name]})</span></div>
+                      <div className="text-xs font-semibold text-primary-text">${p5.toLocaleString()} <span className="font-normal text-muted-foreground">at 5 years old ({bodyByModel[name]})</span></div>
                     </Link>
                   );
                 })}
@@ -4409,7 +4409,7 @@ function GuidePage({ allListings }) {
         <div className="mx-auto max-w-3xl px-5 py-10">
           {bodyOverride && (
             <div className="mb-5 flex items-start gap-2 rounded-lg border bg-card p-3.5">
-              <Info size={15} className="mt-0.5 shrink-0 text-primary" />
+              <Info size={15} className="mt-0.5 shrink-0 text-primary-text" />
               <p className="text-sm leading-relaxed text-muted-foreground">We don't have {make} {label}-specific pricing yet — this uses the {make} brand price with a real {bodyOverride.toLowerCase()} depreciation curve (via NHTSA), not a model-specific one.</p>
             </div>
           )}
@@ -4445,7 +4445,7 @@ function GuidePage({ allListings }) {
           <div className="mb-7 rounded-lg border bg-card p-4">
             <div className="mb-1.5 flex items-center gap-1.5 font-heading text-[15px] text-foreground"><Info size={15} /> Is your asking price fair?</div>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and — where available — recent local sales, use the <Link to="/value" className="font-semibold text-primary">full valuation tool</Link> instead of this reference table.
+              These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and — where available — recent local sales, use the <Link to="/value" className="font-semibold text-primary-text">full valuation tool</Link> instead of this reference table.
             </p>
           </div>
 
@@ -4456,7 +4456,7 @@ function GuidePage({ allListings }) {
                 {activeComps.map((c) => (
                   <Link key={c.id} to={`/listing/${c.id}`} className="hl-listing-card flex items-center justify-between rounded-lg border bg-card p-3.5 text-sm text-foreground no-underline">
                     <span>{c.year} {c.make} {c.model}{c.mileage ? ` · ${c.mileage.toLocaleString()} mi` : ""}</span>
-                    <span className="font-heading font-semibold text-primary">${(c.price || 0).toLocaleString()}</span>
+                    <span className="font-heading font-semibold text-primary-text">${(c.price || 0).toLocaleString()}</span>
                   </Link>
                 ))}
               </div>
