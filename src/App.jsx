@@ -7,6 +7,10 @@ import {
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "./lib/supabaseClient";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Badge as UiBadge } from "@/components/ui/badge";
+import { cn } from "cn";
 
 // Category URL slugs — explicit map for body types (not naive lowercasing,
 // since "Van/Minivan" has a slash that isn't a valid URL path segment on its
@@ -4115,55 +4119,53 @@ function GuideRedirect() {
 // All-yellow field, two ink cards for the two live tools, one short line
 // about what's still coming. No hero-band trick, no diagonal split — the
 // yellow itself carries the brand, the cards do the work.
+// Rebuilt on shadcn's Nova system (real component library, real spacing
+// scale, real type system) instead of hand-invented styling — the brand
+// yellow shows up only as the one accent (badge, CTA), not as a full-bleed
+// background. See CLAUDE.md / MARKETPLACE_AUDIT.md for why.
 function LandingHome() {
   return (
-    <div style={{ background: C.yellow, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <style>{`
-        .hl-land-card { transition: transform 160ms ease, box-shadow 160ms ease; box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
-        .hl-land-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(10,13,18,0.28); }
-        .hl-land-card:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(10,13,18,0.18); }
-        .hl-land-footer-link { color: rgba(27,36,49,0.65); text-decoration: underline; }
-        .hl-land-footer-link:hover { color: ${C.ink}; }
-        @keyframes hl-land-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
-        .hl-land-rise { opacity: 0; animation: hl-land-rise 520ms ease both; }
-      `}</style>
-      <div style={{ textAlign: "center", padding: "60px 20px 0" }}>
-        {/* Oswald has no true heavy weight, so stretching it huge and
-            faking bold with a text-stroke just read as a fuzzy halo.
-            Anton is a real heavy display face built for exactly this —
-            one true weight, no hacks needed to get density. */}
-        <div className="hl-land-rise" style={{ animationDelay: "40ms", fontFamily: "'Anton', sans-serif", fontSize: "clamp(56px, 13vw, 128px)", color: C.ink, letterSpacing: "0px", lineHeight: 0.95 }}>
-          HIGHWAYLOT
-        </div>
-        <p className="hl-land-rise" style={{ animationDelay: "160ms", color: "rgba(27,36,49,0.65)", fontSize: 14, marginTop: 18 }}>Free, honest car knowledge — no dealer jargon, no sales pitch.</p>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-24">
+      <div className="mx-auto flex max-w-xl flex-col items-center text-center">
+        <UiBadge variant="secondary" className="mb-5">Free · No account needed</UiBadge>
+        <h1 className="font-heading text-5xl font-semibold tracking-tight text-foreground sm:text-6xl">
+          HIGHWAY<span className="text-primary">LOT</span>
+        </h1>
+        <p className="mt-4 max-w-md text-balance text-muted-foreground">
+          Free, honest car knowledge — no dealer jargon, no sales pitch.
+        </p>
       </div>
-      {/* The lane line starts here (below the wordmark/tagline, never under
-          them) and runs between the two cards down to the bottom of the
-          field, in ink at low opacity — the same motif as every tool-page
-          hero, here as texture rather than structure. */}
-      <div style={{ flex: 1, position: "relative", display: "flex", flexDirection: "column" }}>
-        <div style={{ position: "absolute", inset: 0 }}><LaneLine color={C.ink} opacity={0.32} /></div>
-        <div style={{ flex: 1, display: "flex", alignItems: "center", padding: "24px 20px 20px", position: "relative" }}>
-          <div className="hl-land-rise" style={{ animationDelay: "280ms", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, maxWidth: 480, margin: "0 auto", width: "100%" }}>
-            <Link to="/value" className="hl-land-card" style={{ background: C.ink, color: "#fff", textDecoration: "none", borderRadius: 8, padding: "18px 20px", display: "block" }}>
-              <DollarSign size={18} color={C.yellow} />
-              <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, marginTop: 10 }}>Value my car</div>
-              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>Free instant estimate</div>
+
+      <div className="mt-12 grid w-full max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card className="transition-shadow hover:shadow-md">
+          <CardHeader>
+            <DollarSign className="size-5 text-primary" />
+            <CardTitle className="mt-2 text-lg">Value my car</CardTitle>
+            <CardDescription>Free instant estimate</CardDescription>
+          </CardHeader>
+          <CardFooter className="bg-transparent p-4 pt-0 border-t-0">
+            <Link to="/value" className={cn(buttonVariants({ variant: "default" }), "w-full")}>
+              Get my estimate
             </Link>
-            <Link to="/wikilot" className="hl-land-card" style={{ background: C.ink, color: "#fff", textDecoration: "none", borderRadius: 8, padding: "18px 20px", display: "block" }}>
-              <BookOpen size={18} color={C.yellow} />
-              <div style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: 18, marginTop: 10 }}>wikiLOT</div>
-              <div style={{ color: "rgba(255,255,255,0.6)", fontSize: 12, marginTop: 4 }}>The car price guide</div>
+          </CardFooter>
+        </Card>
+        <Card className="transition-shadow hover:shadow-md">
+          <CardHeader>
+            <BookOpen className="size-5 text-primary" />
+            <CardTitle className="mt-2 text-lg">wikiLOT</CardTitle>
+            <CardDescription>The car price guide</CardDescription>
+          </CardHeader>
+          <CardFooter className="bg-transparent p-4 pt-0 border-t-0">
+            <Link to="/wikilot" className={cn(buttonVariants({ variant: "outline" }), "w-full")}>
+              Browse prices
             </Link>
-          </div>
-        </div>
-        {/* Footer links live inside the yellow field on this page instead of
-            the site's usual dark bar — a hard color break right under the
-            landing killed the effect the yellow was going for. */}
-        <div className="hl-land-rise" style={{ animationDelay: "380ms", textAlign: "center", padding: "0 20px 28px", display: "flex", gap: 18, justifyContent: "center", flexWrap: "wrap", position: "relative" }}>
-          <Link to="/terms" className="hl-land-footer-link" style={{ fontSize: 12.5 }}>Terms</Link>
-          <Link to="/privacy" className="hl-land-footer-link" style={{ fontSize: 12.5 }}>Privacy</Link>
-        </div>
+          </CardFooter>
+        </Card>
+      </div>
+
+      <div className="mt-14 flex items-center gap-5 text-sm text-muted-foreground">
+        <Link to="/terms" className="hover:text-foreground hover:underline">Terms</Link>
+        <Link to="/privacy" className="hover:text-foreground hover:underline">Privacy</Link>
       </div>
     </div>
   );
