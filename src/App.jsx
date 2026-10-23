@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
+import { Analytics } from "@vercel/analytics/react";
 import { supabase } from "./lib/supabaseClient";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
@@ -4766,6 +4767,7 @@ export default function App() {
         <Route path="/admin/:secret" element={<AdminPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      <Analytics />
       {location.pathname !== "/" && <Footer />}
     </div>
   );
