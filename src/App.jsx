@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Search, MapPin, Gauge, Fuel, Calendar, X, Plus, ChevronLeft, ChevronRight,
   ShieldCheck, Phone, SlidersHorizontal, Car as CarIcon, Check, Star,
-  TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, FileText, DollarSign, Info, BookOpen
+  TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, LockOpen, RotateCcw, FileText, DollarSign, Info, BookOpen
 } from "lucide-react";
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
@@ -2376,8 +2376,69 @@ function estimateValue(input, allListings, issues = {}) {
   };
 }
 
-function ValueMyCar({ allListings, log }) {
-  const navigate = useNavigate();
+function prefersReducedMotion() {
+  try { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
+}
+
+const CONFETTI_COLORS = ["#fcb100", "#a75d00", "#1B2431", "#2F6B4F", "#E4DFCF"];
+function ConfettiBurst() {
+  const pieces = useMemo(() => Array.from({ length: 30 }, (_, i) => {
+    const angle = (Math.PI * 2 * i) / 30 + (Math.random() - 0.5) * 0.5;
+    const dist = 80 + Math.random() * 120;
+    const size = 6 + Math.random() * 4;
+    return {
+      dx: Math.cos(angle) * dist * 1.4, dy: Math.sin(angle) * dist * 0.6 - 50,
+      rot: Math.random() * 720 - 360, delay: Math.random() * 120,
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length], size, round: i % 3 === 0,
+    };
+  }), []);
+  return (
+    <div aria-hidden="true" className="hl-confetti">
+      {pieces.map((p, i) => (
+        <span key={i} style={{
+          "--dx": `${p.dx}px`, "--dy": `${p.dy}px`, "--rot": `${p.rot}deg`,
+          background: p.color, width: p.size, height: p.round ? p.size : p.size * 0.45,
+          borderRadius: p.round ? "50%" : 1, animationDelay: `${p.delay}ms`,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function RevealedRange({ low, high }) {
+  const reduced = prefersReducedMotion();
+  const lo = useCountUp(low, reduced ? 1 : 1100);
+  const hi = useCountUp(high, reduced ? 1 : 1300);
+  return <div className="my-2 whitespace-nowrap font-heading text-[clamp(1.6rem,8vw,3rem)] font-bold tabular-nums text-primary-text">{fmtPrice(lo)}–{fmtPrice(hi)}</div>;
+}
+
+const REVEAL_CSS = `
+  .hl-unlock-ready { position: relative; overflow: hidden; animation: hl-glow 2.2s ease-in-out infinite; }
+  .hl-unlock-ready::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(110deg, transparent 35%, rgba(255,255,255,0.6) 50%, transparent 65%);
+    transform: translateX(-100%); animation: hl-shine 2.6s ease-in-out infinite; }
+  @keyframes hl-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(252,177,0,0.5); } 50% { box-shadow: 0 0 0 7px rgba(252,177,0,0); } }
+  @keyframes hl-shine { 0% { transform: translateX(-100%); } 55%, 100% { transform: translateX(100%); } }
+  .hl-reveal-card { animation: hl-card-in 520ms cubic-bezier(.2,.9,.3,1.2) both; }
+  @keyframes hl-card-in { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: none; } }
+  .hl-reveal-item { animation: hl-item-in 420ms ease-out both; }
+  @keyframes hl-item-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .hl-pop { animation: hl-pop 560ms cubic-bezier(.2,1.6,.4,1) 120ms both; }
+  @keyframes hl-pop { from { opacity: 0; transform: scale(0.3) rotate(-20deg); } to { opacity: 1; transform: none; } }
+  .hl-confetti { position: absolute; left: 50%; top: 44px; width: 0; height: 0; pointer-events: none; z-index: 1; }
+  .hl-confetti span { position: absolute; left: 0; top: 0; opacity: 0; animation: hl-confetti 1300ms cubic-bezier(.15,.7,.4,1) forwards; }
+  @keyframes hl-confetti {
+    0% { opacity: 1; transform: translate(0, 0) rotate(0) scale(0.6); }
+    60% { opacity: 1; transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(1); }
+    100% { opacity: 0; transform: translate(var(--dx), calc(var(--dy) + 70px)) rotate(var(--rot)) scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hl-unlock-ready, .hl-unlock-ready::after, .hl-reveal-card, .hl-reveal-item, .hl-pop { animation: none !important; }
+    .hl-confetti { display: none; }
+  }
+`;
+
+function ValueMyCar({ log }) {
   // Prefilled from a Price Guide link (/value?make=BMW&model=633csi) for a
   // model we don't have detailed guide pricing for — sends the visitor
   // straight into a real personalized estimate instead of a guide page that
@@ -2386,6 +2447,7 @@ function ValueMyCar({ allListings, log }) {
   const [form, setForm] = useState({ year: "", make: initialParams.get("make") || "", model: initialParams.get("model") || "", mileage: "", condition: "Good", originalPrice: "", body: initialParams.get("body") || "Sedan", state: "", loan_status: "Paid off", loan_balance: "", vin: "" });
   const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
+  const resultRef = useRef(null);
   const [saveError, setSaveError] = useState(null);
   const [errors, setErrors] = useState({});
   const [captchaToken, setCaptchaToken] = useState(null);
@@ -2417,8 +2479,13 @@ function ValueMyCar({ allListings, log }) {
   const liveEstimate = useMemo(() => {
     if (!requiredFilled) return null;
     const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice), body: form.body, regionalMultiplier };
-    return estimateValue(input, allListings, issues);
-  }, [requiredFilled, form.year, form.make, form.model, form.mileage, form.condition, form.originalPrice, form.body, regionalMultiplier, allListings, issues]);
+    return estimateValue(input, [], issues);
+  }, [requiredFilled, form.year, form.make, form.model, form.mileage, form.condition, form.originalPrice, form.body, regionalMultiplier, issues]);
+
+  useEffect(() => {
+    if (!result) return;
+    resultRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+  }, [result?.revealId]);
 
   const submit = async () => {
     const req = ["year", "make", "model", "mileage"]; // originalPrice is optional now — estimateValue() falls back to a typical-price-by-body-style anchor when it's blank
@@ -2432,8 +2499,13 @@ function ValueMyCar({ allListings, log }) {
     }
 
     const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice), body: form.body, regionalMultiplier };
-    const res = estimateValue(input, allListings, issues);
-    setResult({ ...res, stateUsed: form.state, hasStateData });
+    const res = estimateValue(input, [], issues);
+    const boosters = [
+      { label: "Original price", done: Number(form.originalPrice) > 0 },
+      { label: "Your state", done: Boolean(form.state) },
+      { label: "Known issues", done: Object.keys(issues).length > 0 },
+    ];
+    setResult({ ...res, stateUsed: form.state, hasStateData, boosters, revealId: Date.now() });
     const loanBalance = form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance ? Number(form.loan_balance) : null;
     log("valuation_submitted", { ...input, issues, body: form.body, loan_balance: loanBalance, state: form.state });
     const { regionalMultiplier: _rm, ...inputForDb } = input; // regionalMultiplier is calculation-only, no matching column
@@ -2459,6 +2531,7 @@ function ValueMyCar({ allListings, log }) {
         path="/value"
       />
       <PriceTagHero />
+      <style>{REVEAL_CSS}</style>
       <style>{`
         @media (max-width: 900px) {
           .hl-value-grid { grid-template-columns: 1fr !important; }
@@ -2510,47 +2583,64 @@ function ValueMyCar({ allListings, log }) {
         <div className="mb-1.5 text-[11.5px] text-muted-foreground">Quick check before we save this</div>
         <TurnstileWidget onVerify={setCaptchaToken} onExpire={() => setCaptchaToken(null)} size="compact" />
       </div>
-      <Button onClick={submit} disabled={!!TURNSTILE_SITE_KEY && !captchaToken} className="mt-3 w-full" size="lg">
-        {liveEstimate ? <><Lock size={14} /> Unlock my full breakdown</> : "Get my estimate"}
+      <Button onClick={submit} disabled={!!TURNSTILE_SITE_KEY && !captchaToken} className={cn("mt-3 w-full", liveEstimate && !result && "hl-unlock-ready")} size="lg">
+        {result ? <><RotateCcw size={14} /> Update my breakdown</> : liveEstimate ? <><Lock size={14} /> Unlock my full breakdown</> : "Get my estimate"}
       </Button>
       {saveError && !result && (
         <div className="mt-3 rounded-md bg-[#FBE4E3] px-3 py-2 text-xs text-[#A32D2D]">{saveError}</div>
       )}
 
       {result && (
-        <div className="mt-7 rounded-lg border bg-card p-6 text-center">
+        <div key={result.revealId} ref={resultRef} className="hl-reveal-card relative mt-7 scroll-mt-6 rounded-lg border border-primary/60 bg-card p-6 text-center shadow-[0_10px_30px_-12px_rgba(167,93,0,0.35)]">
+          <ConfettiBurst />
           {saveError && (
             <div className="mb-3.5 rounded-md bg-[#FBE4E3] px-3 py-2 text-left text-xs text-[#A32D2D]">
               Your estimate above is accurate, but this submission couldn't be saved on our end ({saveError}).
             </div>
           )}
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">Estimated value</div>
+          <div className="hl-pop mx-auto mb-3 flex size-11 items-center justify-center rounded-full bg-primary text-primary-foreground">
+            <LockOpen size={20} />
+          </div>
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">Breakdown unlocked · estimated value</div>
           {/* Range, not a flat number — jev-tested (0.79): avoids exposing
               exact formula output while still reading as sharper/more
               confident than the live preview's wider range. */}
-          <div className="my-2 font-heading text-3xl font-bold text-primary-text sm:text-4xl">{fmtPrice(result.rangeLow)}–{fmtPrice(result.rangeHigh)}</div>
-          <div className="inline-flex items-center gap-1.5">
-            {result.compCount > 0
-              ? <Badge tone={result.confidence === "High" ? "verified" : result.confidence === "Medium" ? "yellow" : "neutral"}>{result.confidence} confidence</Badge>
-              /* No real comps yet — this is a formula estimate, full stop. A colored
-                 "confidence" badge here would read as more data-backed than it
-                 actually is (jev-tested, 0.82 noul), so this stays plain text. */
-              : <span className="text-xs text-muted-foreground">Formula-based estimate — no comparable listings yet to confirm it against</span>}
+          <RevealedRange low={result.rangeLow} high={result.rangeHigh} />
+
+          <div className="hl-reveal-item mt-4 rounded-md bg-muted/60 px-4 py-3" style={{ animationDelay: "500ms" }}>
+            <div className="mb-2 text-xs font-medium text-foreground">
+              Accuracy boost · {result.boosters.filter((b) => b.done).length} of {result.boosters.length}
+            </div>
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {result.boosters.map((b, i) => (
+                <span
+                  key={b.label}
+                  className={cn("hl-reveal-item inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs", b.done ? "border-[#2F6B4F]/25 bg-[#E7F0EA] text-[#2F6B4F]" : "border-dashed bg-background text-muted-foreground")}
+                  style={{ animationDelay: `${650 + i * 120}ms` }}
+                >
+                  {b.done ? <Check size={12} /> : <Plus size={12} />}{b.label}
+                </span>
+              ))}
+            </div>
+            <div className="mt-2 text-[11.5px] text-muted-foreground">
+              {result.boosters.every((b) => b.done)
+                ? "You filled in everything — this is the tightest range we can give."
+                : "Add the missing ones above and hit update for a tighter range."}
+            </div>
           </div>
-          <div className="mt-3 text-xs leading-relaxed text-muted-foreground">
-            {result.compCount > 0
-              ? `Based on depreciation modeling plus ${result.compCount} similar ${result.compCount === 1 ? "listing" : "listings"} currently on HIGHWAYLOT.`
-              : "Based on depreciation modeling only — no similar listings on HIGHWAYLOT yet to compare against. Estimates get sharper as more real cars get listed."}
+
+          <div className="hl-reveal-item mt-3 text-xs leading-relaxed text-muted-foreground" style={{ animationDelay: "800ms" }}>
+            Based on real depreciation curves for this body style, adjusted for age, mileage and condition.
             {!result.usedOriginalPrice && (() => {
               const anchorDesc = result.anchorTier === "model" ? `a typical price for the ${form.make} ${form.model}` : result.anchorTier === "make" ? `a typical price for ${form.make} vehicles` : "a typical price for this body style";
-              return ` You didn't enter what you paid, so this starts from ${anchorDesc} rather than your car's actual purchase price — add it above for a tighter number.`;
+              return ` You didn't enter what you paid, so this starts from ${anchorDesc} rather than your car's actual purchase price.`;
             })()}
           </div>
 
           {form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance && (
-            <div className="mt-4.5 border-t pt-4">
+            <div className="hl-reveal-item mt-4.5 border-t pt-4" style={{ animationDelay: "950ms" }}>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Estimated equity</div>
-              <div className={cn("mt-1 font-heading text-2xl font-bold", (result.estimate - Number(form.loan_balance)) < 0 ? "text-[#E26B6B]" : "text-primary-text")}>
+              <div className={cn("mt-1 font-heading text-2xl font-bold", (result.estimate - Number(form.loan_balance)) < 0 ? "text-[#C0392B]" : "text-primary-text")}>
                 {fmtPrice(result.estimate - Number(form.loan_balance))}
               </div>
               <div className="mt-1.5 text-[11.5px] text-muted-foreground">
@@ -2569,35 +2659,28 @@ function ValueMyCar({ allListings, log }) {
               biggest number — that's also why the headline above is a
               range, not one flat exposed figure. */}
           <div className="mt-4.5 border-t pt-4 text-left">
-            <div className="mb-2 text-center text-xs uppercase tracking-wide text-muted-foreground">How we got this range</div>
-            <div className="py-0.5 text-xs text-muted-foreground">
-              Starting point: {result.usedOriginalPrice ? "what you paid" : result.anchorTier === "model" ? `typical pricing for the ${form.make} ${form.model}` : result.anchorTier === "make" ? `typical pricing for ${form.make}` : "typical pricing for this body style"}.
-            </div>
-            <div className="py-0.5 text-xs text-muted-foreground">
-              Age: {result.calcBreakdown.ageYears} {result.calcBreakdown.ageYears === 1 ? "year" : "years"} old — factored into expected depreciation.
-            </div>
-            <div className="py-0.5 text-xs text-muted-foreground">
-              Mileage: {result.calcBreakdown.mileageDirection} average for the car's age{result.calcBreakdown.mileageDirection !== "about" ? ` — pushes the range ${result.calcBreakdown.mileageDirection === "below" ? "up" : "down"}` : ""}.
-            </div>
-            <div className="py-0.5 text-xs text-muted-foreground">
-              Condition ({form.condition}): {result.calcBreakdown.conditionEffect} the range.
-            </div>
-            {result.compCount > 0 && (
-              <div className="py-0.5 text-xs text-muted-foreground">
-                Blended with {result.compCount} real {result.compCount === 1 ? "comp" : "comps"} on HIGHWAYLOT — narrows the range.
+            <div className="hl-reveal-item mb-2 text-center text-xs uppercase tracking-wide text-muted-foreground" style={{ animationDelay: "1050ms" }}>How we got this range</div>
+            {[
+              `Starting point: ${result.usedOriginalPrice ? "what you paid" : result.anchorTier === "model" ? `typical pricing for the ${form.make} ${form.model}` : result.anchorTier === "make" ? `typical pricing for ${form.make}` : "typical pricing for this body style"}.`,
+              `Age: ${result.calcBreakdown.ageYears} ${result.calcBreakdown.ageYears === 1 ? "year" : "years"} old — factored into expected depreciation.`,
+              `Mileage: ${result.calcBreakdown.mileageDirection} average for the car's age${result.calcBreakdown.mileageDirection !== "about" ? ` — pushes the range ${result.calcBreakdown.mileageDirection === "below" ? "up" : "down"}` : ""}.`,
+              `Condition (${form.condition}): ${result.calcBreakdown.conditionEffect} the range.`,
+            ].map((line, i) => (
+              <div key={i} className="hl-reveal-item flex gap-2 py-0.5 text-xs text-muted-foreground" style={{ animationDelay: `${1150 + i * 110}ms` }}>
+                <Check size={13} className="mt-px shrink-0 text-primary-text" />{line}
               </div>
-            )}
+            ))}
           </div>
 
           {result.mechanicalDeduction > 0 && (
-            <div className="mt-4.5 border-t pt-4 text-left">
+            <div className="hl-reveal-item mt-4.5 border-t pt-4 text-left" style={{ animationDelay: "1650ms" }}>
               <div className="mb-2 text-center text-xs text-muted-foreground">
-                <strong className="text-[#E26B6B]">-{fmtPrice(result.mechanicalDeduction)}</strong> knocked off for known issues
+                <strong className="text-[#C0392B]">-{fmtPrice(result.mechanicalDeduction)}</strong> knocked off for known issues
               </div>
               {result.breakdown.filter((b) => b.deduction > 0).map((b, i) => (
                 <div key={i} className="flex justify-between py-0.5 text-xs text-muted-foreground">
                   <span>{b.label} — {b.status === "Broken" ? "not working" : b.status === "Ongoing" ? "ongoing issue" : b.status}</span>
-                  <span className="text-[#E26B6B]">-{fmtPrice(b.deduction)}</span>
+                  <span className="text-[#C0392B]">-{fmtPrice(b.deduction)}</span>
                 </div>
               ))}
               <div className="mt-2 text-[11px] text-muted-foreground">
@@ -2611,12 +2694,11 @@ function ValueMyCar({ allListings, log }) {
             </div>
           )}
 
-          <Button variant="outline" className="mt-4" onClick={() => navigate("/post", { state: { prefill: {
-            year: String(form.year), make: form.make, model: form.model, mileage: String(form.mileage),
-            condition: form.condition, body: form.body, state: form.state,
-            loan_status: form.loan_status, loan_balance: form.loan_balance,
-            price: result ? String(result.estimate) : "",
-          } } })}>List this car</Button>
+          {MAKE_BASE_PRICE[form.make] && (
+            <Link to={`/wikilot/${slugify(form.make)}`} className={cn(buttonVariants({ variant: "outline" }), "hl-reveal-item mt-5")} style={{ animationDelay: "1750ms" }}>
+              <BookOpen size={14} /> See the {form.make} price guide
+            </Link>
+          )}
         </div>
       )}
       </div>
@@ -2636,7 +2718,7 @@ function ValueMyCar({ allListings, log }) {
         <div className="rounded-lg border bg-card p-5">
           <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">So far</div>
           <div className="text-sm text-foreground">{soFarParts.length ? soFarParts.join(" · ") : "Fill in the form to see it summarized here."}</div>
-          <div className="mt-2.5 text-xs text-muted-foreground">How it's worked out: Depreciation curves blended with comparable listings.</div>
+          <div className="mt-2.5 text-xs text-muted-foreground">How it's worked out: real depreciation curves by body style, adjusted for age, mileage, condition and known issues.</div>
         </div>
       </div>
       </div>
@@ -4206,7 +4288,7 @@ function GuideIndex() {
   );
 }
 
-function GuideMake({ allListings }) {
+function GuideMake() {
   const { make: makeSlug } = useParams();
   const make = Object.keys(MAKE_BASE_PRICE).find((m) => slugify(m) === makeSlug);
   const models = make ? GUIDE_CATALOG.filter((g) => g.make === make) : [];
@@ -4339,7 +4421,7 @@ function GuideMake({ allListings }) {
   );
 }
 
-function GuidePage({ allListings }) {
+function GuidePage() {
   const { make: makeSlug, model: modelSlug } = useParams();
   const navigate = useNavigate();
   const entry = GUIDE_CATALOG.find((g) => slugify(g.make) === makeSlug && slugify(g.modelKey) === modelSlug);
@@ -4384,8 +4466,6 @@ function GuidePage({ allListings }) {
   const bodyOverride = entry ? undefined : fallbackState.body;
   const ages = guideAges();
   const prices = ages.map((age) => ({ age, price: guidePriceAtAge(make, modelKey, age, bodyOverride) }));
-  const comps = (allListings || []).filter((c) => c.make?.toLowerCase() === make.toLowerCase() && (c.model?.toLowerCase().includes(modelKey.replace(/-/g, "")) || c.model?.toLowerCase().includes(modelKey)));
-  const activeComps = comps.filter((c) => c.status !== "sold").slice(0, 6);
   const currentYear = new Date().getFullYear();
   const maxPrice = prices[0].price;
   // Model-specific claim takes priority over the brand-wide one — a model
@@ -4445,23 +4525,9 @@ function GuidePage({ allListings }) {
           <div className="mb-7 rounded-lg border bg-card p-4">
             <div className="mb-1.5 flex items-center gap-1.5 font-heading text-[15px] text-foreground"><Info size={15} /> Is your asking price fair?</div>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and — where available — recent local sales, use the <Link to="/value" className="font-semibold text-primary-text">full valuation tool</Link> instead of this reference table.
+              These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and any known issues, use the <Link to="/value" className="font-semibold text-primary-text">full valuation tool</Link> instead of this reference table.
             </p>
           </div>
-
-          {activeComps.length > 0 && (
-            <div className="mb-7">
-              <div className="mb-2.5 font-heading text-base text-foreground">Currently listed on HIGHWAYLOT</div>
-              <div className="flex flex-col gap-2">
-                {activeComps.map((c) => (
-                  <Link key={c.id} to={`/listing/${c.id}`} className="hl-listing-card flex items-center justify-between rounded-lg border bg-card p-3.5 text-sm text-foreground no-underline">
-                    <span>{c.year} {c.make} {c.model}{c.mileage ? ` · ${c.mileage.toLocaleString()} mi` : ""}</span>
-                    <span className="font-heading font-semibold text-primary-text">${(c.price || 0).toLocaleString()}</span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          )}
 
           <Link to="/value" className={cn(buttonVariants({ variant: "default" }))}>Get my {make} {label}'s real value →</Link>
         </div>
@@ -4576,6 +4642,7 @@ function exactDateTime(iso) {
 // the app uses `desc`. This maps between the two at the boundary.
 const rowToListing = (row) => ({ ...row, desc: row.description, posted: timeAgo(row.created_at) });
 
+
 // 90-day expiry, computed on read rather than stored — a listing "expires"
 // the moment 90 days pass since its last real price change (price_updated_at),
 // not since it was first posted. No scheduled job needed: this just gets
@@ -4588,36 +4655,6 @@ function getExpiryInfo(listing) {
   const daysLeft = Math.ceil((expiresAt - Date.now()) / 86400000);
   return { expired: daysLeft <= 0, daysLeft };
 }
-// jev-tested (0.69): a shimmer skeleton reads as "alive/responsive" in a way
-// abrupt content-just-appearing doesn't. Mimics the homepage's actual shape
-// (hero bar + card grid) rather than a generic spinner, so the transition to
-// real content doesn't jump around once it loads.
-function LoadingSkeleton() {
-  return (
-    <div style={{ minHeight: "100vh" }}>
-      {/* Self-contained style tag — this renders before App's own shared
-          <style> block mounts (it's an early return, ahead of that JSX). */}
-      <style>{`
-        .hl-skeleton { background: linear-gradient(90deg, #EFEDE4 25%, #E4E1D5 37%, #EFEDE4 63%); background-size: 400% 100%; animation: hl-shimmer 1.4s ease infinite; }
-        @keyframes hl-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
-      `}</style>
-      <div style={{ height: 220, background: C.ink }} />
-      <div style={{ maxWidth: 1120, margin: "0 auto", padding: "24px 20px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} style={{ border: `1.5px solid ${C.line}`, borderRadius: 6, overflow: "hidden" }}>
-              <div className="hl-skeleton" style={{ height: 200 }} />
-              <div style={{ padding: 14 }}>
-                <div className="hl-skeleton" style={{ height: 16, width: "70%", borderRadius: 3, marginBottom: 8 }} />
-                <div className="hl-skeleton" style={{ height: 22, width: "45%", borderRadius: 3 }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function isVisibleOnBrowse(listing) {
   if (listing.status === "sold") return false;
@@ -4627,9 +4664,6 @@ function isVisibleOnBrowse(listing) {
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [listings, setListings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [fetchError, setFetchError] = useState(null);
   const { log } = useAnalytics();
 
   // Capture QR/flyer attribution once, on first load of any page. Fires a
@@ -4641,48 +4675,6 @@ export default function App() {
     const { isNew } = captureAttribution();
     if (isNew) log("qr_landing", {});
   }, []);
-
-  useEffect(() => {
-    if (location.pathname.startsWith("/manage/") || location.pathname.startsWith("/admin/") || location.pathname === "/") { setLoading(false); return; } // these routes fetch their own data (or, for "/", need none at all)
-    (async () => {
-      const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).is("deleted_at", null).order("created_at", { ascending: false });
-      if (error) { console.error("fetch listings failed:", error.message); setFetchError(error.message); setLoading(false); return; }
-      setListings(data.map(rowToListing));
-      setLoading(false);
-    })();
-  }, [location.pathname.startsWith("/manage/"), location.pathname.startsWith("/admin/")]);
-
-  const openListing = (id) => { log("listing_view", { listingId: id }); navigate(`/listing/${id}`); };
-
-  const enrichedListings = useMemo(() => {
-    const withFairness = listings.map((l) => ({ ...l, fairness: estimateFairness(l, listings) }));
-    return withFairness.map((l) => ({ ...l, credibility: computeCredibility(l, withFairness) }));
-  }, [listings]);
-  // Sold/expired listings still exist for anyone with a direct link
-  // (ListingDetail uses the full enrichedListings above), but shouldn't show
-  // up in browse/category/quiz-match contexts — this is the filtered view
-  // for those.
-  const visibleListings = useMemo(() => enrichedListings.filter(isVisibleOnBrowse), [enrichedListings]);
-  // Homepage subfeed only — capped at 10 no matter what, and never shows
-  // sold_price (which is private anyway, never even fetched into this
-  // array). The cap is deliberate: this should look identical whether the
-  // site has sold 12 cars or 12,000, so nobody can infer real volume from it.
-  const recentlySold = useMemo(() =>
-    enrichedListings.filter((l) => l.status === "sold").sort((a, b) => new Date(b.sold_at || 0) - new Date(a.sold_at || 0)).slice(0, 10)
-  , [enrichedListings]);
-
-  const handlePostSubmit = async (data) => {
-    const { desc, ...rest } = data;
-    const manage_token = generateToken();
-    const { data: inserted, error } = await supabase.from("listings").insert({ ...rest, description: desc, manage_token, ...getAttribution() }).select(LISTING_COLUMNS).single();
-    if (error) { console.error("post listing failed:", error.message); return error.message; }
-    const newListing = rowToListing(inserted);
-    setListings([newListing, ...listings]);
-    const manageLink = `${window.location.origin}/manage/${newListing.id}/${manage_token}`;
-    log("listing_created", { listingId: newListing.id });
-    navigate("/post/success", { state: { listingId: newListing.id, manageLink } });
-    return null;
-  };
 
   // handleBoost removed in v15, shelved — see shelved-boost-feature.jsx
 
@@ -4698,27 +4690,6 @@ export default function App() {
     log("quiz_complete", answers);
     navigate("/quiz/results", { state: { answers } });
   };
-
-  // The landing page needs no listings data at all, same as /manage and
-  // /admin — skip the fetch-gated shell entirely instead of ever flashing
-  // the marketplace's loading skeleton (which visually IS the old
-  // marketplace homepage) in front of it.
-  const isManageRoute = location.pathname.startsWith("/manage/") || location.pathname.startsWith("/admin/") || location.pathname === "/";
-
-  if (!isManageRoute && loading) {
-    return <LoadingSkeleton />;
-  }
-  if (!isManageRoute && fetchError) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: FONT_BODY, padding: 20 }}>
-        <div style={{ maxWidth: 440, textAlign: "center" }}>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 20, color: "#A32D2D", marginBottom: 8 }}>Couldn't load listings</div>
-          <div style={{ fontSize: 13, color: C.steel, marginBottom: 4 }}>{fetchError}</div>
-          <div style={{ fontSize: 12, color: C.steel }}>This is usually a database schema mismatch — check that the latest schema.sql has been run in Supabase.</div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div style={{ fontFamily: FONT_BODY, background: C.paper, minHeight: "100%" }}>
@@ -4752,10 +4723,10 @@ export default function App() {
         <Route path="/post" element={<Navigate to="/value" replace />} />
         <Route path="/post/success" element={<Navigate to="/value" replace />} />
         <Route path="/manage/:id/:token" element={<Navigate to="/wikilot" replace />} />
-        <Route path="/value" element={<ValueMyCar allListings={listings} log={log} />} />
+        <Route path="/value" element={<ValueMyCar log={log} />} />
         <Route path="/wikilot" element={<GuideIndex />} />
-        <Route path="/wikilot/:make" element={<GuideMake allListings={visibleListings} />} />
-        <Route path="/wikilot/:make/:model" element={<GuidePage allListings={visibleListings} />} />
+        <Route path="/wikilot/:make" element={<GuideMake />} />
+        <Route path="/wikilot/:make/:model" element={<GuidePage />} />
         {/* Old /guide URLs — redirect rather than 404 for anything already
             indexed or bookmarked. */}
         <Route path="/guide" element={<Navigate to="/wikilot" replace />} />
