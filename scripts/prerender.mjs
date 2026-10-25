@@ -13,10 +13,23 @@ const dist = path.join(root, "dist");
 const ssr = await import(pathToFileURL(path.join(root, "dist-ssr/entry-server.js")).href);
 const { render, GUIDE_CATALOG, MAKE_BASE_PRICE, slugify, isGuideCarModel, classifyGuideBodyTypes } = ssr;
 
-// NHTSA is a public API that occasionally stalls; a slow make shouldn't hang
-// or fail the deploy, it just ships without its long-tail model pages.
+// NHTSA is a public API that stalls and throttles bursts (on Vercel's build
+// machines it started refusing requests partway through), so every request
+// gets a timeout plus retries with backoff. A make that still fails ships
+// without its long-tail model pages rather than failing the deploy.
 const realFetch = globalThis.fetch;
-globalThis.fetch = (url, opts = {}) => realFetch(url, { ...opts, signal: AbortSignal.timeout(20000) });
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+globalThis.fetch = async (url, opts = {}) => {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await realFetch(url, { ...opts, signal: AbortSignal.timeout(20000) });
+      if (res.ok || attempt === 4) return res;
+    } catch (e) {
+      if (attempt === 4) throw e;
+    }
+    await sleep(1000 * 2 ** attempt);
+  }
+};
 
 async function fetchMakeData(make) {
   try {
@@ -42,7 +55,7 @@ async function mapLimited(items, limit, fn) {
 }
 
 const makes = Object.keys(MAKE_BASE_PRICE);
-const makeData = Object.fromEntries((await mapLimited(makes, 5, fetchMakeData)).map((d, i) => [makes[i], d]));
+const makeData = Object.fromEntries((await mapLimited(makes, 2, fetchMakeData)).map((d, i) => [makes[i], d]));
 
 const pages = ["/", "/value", "/wikilot", "/terms", "/privacy"].map((url) => ({ url, data: {} }));
 for (const make of makes) {
@@ -95,4 +108,5 @@ ${pages.map(({ url }) => `  <url><loc>${SITE_URL}${url === "/" ? "/" : url}</loc
 fs.writeFileSync(path.join(dist, "sitemap.xml"), sitemap);
 
 fs.rmSync(path.join(root, "dist-ssr"), { recursive: true, force: true });
-console.log(`prerender: wrote ${pages.length} pages`);
+const perMake = makes.map((m) => `${m} ${pages.filter((p) => p.url.startsWith(`/wikilot/${slugify(m)}/`)).length}`).join(", ");
+console.log(`prerender: wrote ${pages.length} pages (model pages per make: ${perMake})`);
