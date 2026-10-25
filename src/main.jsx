@@ -5,12 +5,18 @@ import { HelmetProvider } from 'react-helmet-async'
 import App from './App.jsx'
 import './index.css'
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const app = (
   <React.StrictMode>
     <HelmetProvider>
       <BrowserRouter>
         <App />
       </BrowserRouter>
     </HelmetProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 )
+
+// Prerendered pages ship real HTML in #root (scripts/prerender.mjs) — hydrate
+// it; the plain SPA shell (unknown URLs) has an empty root, so render fresh.
+const rootEl = document.getElementById('root')
+if (rootEl.hasChildNodes()) ReactDOM.hydrateRoot(rootEl, app)
+else ReactDOM.createRoot(rootEl).render(app)

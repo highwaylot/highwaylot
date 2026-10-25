@@ -19,6 +19,14 @@ import { cn } from "cn";
 const BODY_SLUGS = { Sedan: "sedan", Coupe: "coupe", Hatchback: "hatchback", SUV: "suv", Truck: "truck", "Van/Minivan": "van-minivan", Convertible: "convertible" };
 const BODY_SLUGS_REVERSE = Object.fromEntries(Object.entries(BODY_SLUGS).map(([k, v]) => [v, k]));
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+// NHTSA model data baked into a prerendered page at build time
+// (scripts/prerender.mjs), so wikiLOT pages ship complete HTML instead of
+// waiting on a client fetch. The server sets it per page; the browser reads
+// the copy embedded in that page. Keyed by make / model slug, so client-side
+// navigation to any other page still fetches live.
+let prerenderData = (typeof window !== "undefined" && window.__HL_DATA__) || {};
+export function setPrerenderData(data) { prerenderData = data || {}; }
 function categoryToPath(category) {
   const stateSlug = slugify(category.state);
   if (category.kind === "make") return `/category/make/${slugify(category.make)}/${stateSlug}`;
@@ -781,14 +789,14 @@ function Hero({ filters, setFilters, log }) {
   };
   return (
     <div style={{ background: C.ink }}>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         .hl-hero-fade { animation: hl-hero-fade-in 480ms ease both; }
         @keyframes hl-hero-fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .hl-search-bar { transition: box-shadow 160ms ease; }
         .hl-search-bar:focus-within { box-shadow: 0 0 0 3px rgba(245,183,0,0.45); }
         .hl-search-btn { transition: transform 120ms ease, background 120ms ease; }
         .hl-search-btn:hover { transform: translateY(-1px); background: #ffc61a; }
-      `}</style>
+      ` }} />
       <div className="hl-hero-fade" style={{ maxWidth: 1120, margin: "0 auto", padding: "44px 20px 24px" }}>
         <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
           <h1 style={{ fontFamily: FONT_HEAD, fontWeight: 700, fontSize: "clamp(26px, 6vw, 38px)", color: "#fff", margin: "0 auto", lineHeight: 1.1 }}>Buy and sell cars, coast to coast.</h1>
@@ -2439,12 +2447,18 @@ const REVEAL_CSS = `
 `;
 
 function ValueMyCar({ log }) {
+  const [form, setForm] = useState({ year: "", make: "", model: "", mileage: "", condition: "Good", originalPrice: "", body: "Sedan", state: "", loan_status: "Paid off", loan_balance: "", vin: "" });
   // Prefilled from a Price Guide link (/value?make=BMW&model=633csi) for a
   // model we don't have detailed guide pricing for — sends the visitor
   // straight into a real personalized estimate instead of a guide page that
-  // would otherwise have to fake precision it doesn't have.
-  const [initialParams] = useState(() => new URLSearchParams(window.location.search));
-  const [form, setForm] = useState({ year: "", make: initialParams.get("make") || "", model: initialParams.get("model") || "", mileage: "", condition: "Good", originalPrice: "", body: initialParams.get("body") || "Sedan", state: "", loan_status: "Paid off", loan_balance: "", vin: "" });
+  // would otherwise have to fake precision it doesn't have. Applied after
+  // mount: the prerendered HTML has no query string, so reading it during
+  // the first render would break hydration.
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const prefill = Object.fromEntries(["make", "model", "body", "year"].filter((k) => q.get(k)).map((k) => [k, q.get(k)]));
+    if (Object.keys(prefill).length) setForm((prev) => ({ ...prev, ...prefill }));
+  }, []);
   const [issues, setIssues] = useState({});
   const [result, setResult] = useState(null);
   const resultRef = useRef(null);
@@ -2531,13 +2545,13 @@ function ValueMyCar({ log }) {
         path="/value"
       />
       <PriceTagHero />
-      <style>{REVEAL_CSS}</style>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: REVEAL_CSS }} />
+      <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 900px) {
           .hl-value-grid { grid-template-columns: 1fr !important; }
           .hl-value-rail { position: static !important; }
         }
-      `}</style>
+      ` }} />
       <div className="hl-value-grid mx-auto grid max-w-5xl items-start gap-8 px-5 py-9" style={{ gridTemplateColumns: "1fr 340px" }}>
       <div>
       <VinDecoder
@@ -4186,6 +4200,11 @@ function GuideRedirect() {
 function LandingHome() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-24">
+      <SEOHead
+        title="HIGHWAYLOT — Car Knowledge Made Simple"
+        description="Free car knowledge for people who don't know cars — an honest value estimate and wikiLOT's price guide by make and model, no dealer jargon, no sales pitch."
+        path="/"
+      />
       <div className="mx-auto flex max-w-xl flex-col items-center text-center">
         <UiBadge variant="secondary" className="mb-5">Free · No account needed</UiBadge>
         <h1 className="font-heading text-5xl font-semibold tracking-tight text-foreground sm:text-6xl">
@@ -4303,10 +4322,12 @@ function GuideMake() {
   // already have real per-model pricing; everything else NHTSA returns
   // still gets listed here so the guide's model coverage is exhaustive for
   // this make, not capped at the ~65 we've hand-priced.
-  const [allModels, setAllModels] = useState([]);
+  const seeded = make ? prerenderData.makeModels?.[make] : null;
+  const [allModels, setAllModels] = useState(seeded?.names || []);
   const [loadingModels, setLoadingModels] = useState(false);
   useEffect(() => {
     if (!make) return;
+    if (seeded) { setAllModels(seeded.names); return; }
     setLoadingModels(true);
     fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`)
       .then((r) => r.json())
@@ -4322,9 +4343,10 @@ function GuideMake() {
   // long-tail models below can get a genuinely differentiated price instead
   // of all defaulting to the same flat brand number — see
   // classifyGuideBodyTypes above.
-  const [bodyByModel, setBodyByModel] = useState({});
+  const [bodyByModel, setBodyByModel] = useState(seeded?.bodyByModel || {});
   useEffect(() => {
     if (!make) return;
+    if (seeded) { setBodyByModel(seeded.bodyByModel); return; }
     classifyGuideBodyTypes(make).then(setBodyByModel);
   }, [make]);
 
@@ -4433,9 +4455,11 @@ function GuidePage() {
   // nothing honest to show, so redirect into a prefilled valuation-tool run
   // instead of a page that would just repeat the flat brand number under a
   // different name (misleading, and thin/duplicate content for SEO).
-  const [fallbackState, setFallbackState] = useState(null); // null=loading, {name, body}, or "redirect"
+  const seededFallback = prerenderData.guideFallback?.[`${makeSlug}/${modelSlug}`];
+  const [fallbackState, setFallbackState] = useState(seededFallback || null); // null=loading, {name, body}, or "redirect"
   useEffect(() => {
     if (entry || !fallbackMake) return;
+    if (seededFallback) { setFallbackState(seededFallback); return; }
     let cancelled = false;
     Promise.all([
       fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(fallbackMake)}?format=json`).then((r) => r.json()).catch(() => ({ Results: [] })),
@@ -4693,7 +4717,7 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: FONT_BODY, background: C.paper, minHeight: "100%" }}>
-      <style>{`
+      <style dangerouslySetInnerHTML={{ __html: `
         @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Anton&family=Inter:wght@400;500;600&display=swap');
         .hl-detail-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 32px; }
         .hl-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -4709,7 +4733,7 @@ export default function App() {
         .hl-listing-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(27,36,49,0.12); }
         .hl-listing-card img { transition: transform 220ms ease; }
         .hl-listing-card:hover img { transform: scale(1.04); }
-      `}</style>
+      ` }} />
       <ScrollToTop />
       {location.pathname !== "/" && <TopBar />}
       {/* Marketplace (browse/post/listings/manage) is dormant on main while
@@ -4745,9 +4769,12 @@ export default function App() {
 function NotFound() {
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
+      <SEOHead title="Page not found | HIGHWAYLOT" noindex />
       <div style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.ink, marginBottom: 8 }}>Page not found</div>
       <p style={{ color: C.steel, fontSize: 14 }}>That link doesn't lead anywhere on HIGHWAYLOT.</p>
       <Link to="/" style={{ display: "inline-block", marginTop: 16, background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Back to HIGHWAYLOT</Link>
     </div>
   );
 }
+
+export { GUIDE_CATALOG, MAKE_BASE_PRICE, slugify, isGuideCarModel, classifyGuideBodyTypes };
