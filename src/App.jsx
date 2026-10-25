@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Search, MapPin, Gauge, Fuel, Calendar, X, Plus, ChevronLeft, ChevronRight,
   ShieldCheck, Phone, SlidersHorizontal, Car as CarIcon, Check, Star,
-  TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, LockOpen, RotateCcw, FileText, DollarSign, Info, BookOpen
+  TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, LockOpen, RotateCcw, FileText, DollarSign, Info, BookOpen, TriangleAlert
 } from "lucide-react";
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
@@ -4436,11 +4436,86 @@ function GuideMake() {
           )}
           {loadingModels && <p className="mb-5 text-sm text-muted-foreground">Loading full model list…</p>}
 
-          <Link to="/value" className={cn(buttonVariants({ variant: "default" }))}>Get a real estimate for your {make} →</Link>
+          <Link to={`/value?make=${encodeURIComponent(make)}`} className={cn(buttonVariants({ variant: "default" }))}>Get a real estimate for your {make} →</Link>
         </div>
       </div>
     </div>
   );
+}
+
+// The year range a reputation note is about ("2013-2018 Altimas…",
+// "older (pre-2011) models…"), so the guide can flag specific model years.
+// Notes without a year range apply across years and aren't flagged.
+function noteYearRange(note) {
+  const span = note.match(/\b(19|20)(\d{2})\s*-\s*((?:19|20)\d{2})\b/);
+  if (span) return { from: Number(span[1] + span[2]), to: Number(span[3]) };
+  const pre = note.match(/\bpre-((?:19|20)\d{2})\b/);
+  if (pre) return { from: 0, to: Number(pre[1]) - 1 };
+  return null;
+}
+
+// BRAND_COMMON_NOTES entries that describe a strength rather than something
+// to check — shown as a reason the car is a good buy, not as a problem.
+const BRAND_NOTE_IS_STRENGTH = new Set(["Toyota"]);
+
+const TYPICAL_MILES_PER_YEAR = 12000; // same assumption estimateValue() uses
+const HIGH_MILES_PER_YEAR = 15000; // our rule of thumb for "high", stated as such on the page
+
+// Everything the model page says beyond the price table, derived only from
+// data the site already holds (repair costs, resale strength, depreciation
+// curves, reputation notes) — no new claims.
+function guideBuyingInsights({ make, modelKey, label, prices }) {
+  const fullName = `${make} ${label}`;
+  const repair = BRAND_REPAIR_COST[make];
+  const resale = BRAND_RESALE_MULTIPLIER[make] ?? 1.0;
+  const modelNote = MODEL_SPECIFIC_NOTES[make]?.[modelKey];
+  const brandNote = BRAND_NOTE_IS_STRENGTH.has(make) ? null : BRAND_COMMON_NOTES[make];
+  const brandStrength = BRAND_NOTE_IS_STRENGTH.has(make) ? BRAND_COMMON_NOTES[make] : null;
+  const article = /^[aeiou]/i.test(label) ? "An" : "A";
+  const retained5 = Math.round((prices.find((p) => p.age === 5).price / prices[0].price) * 100);
+
+  const reasons = [];
+  let score = 0;
+  if (repair) {
+    const rel = repair / ALL_BRAND_AVG_REPAIR_COST;
+    const good = rel <= 0.9, bad = rel >= 1.15;
+    score += good ? 1 : bad ? -1 : 0;
+    reasons.push({ good: !bad, text: `${make} repairs average $${repair.toLocaleString()}/year — ${good ? "below" : bad ? "well above" : "close to"} the $${ALL_BRAND_AVG_REPAIR_COST} all-brand average.` });
+  }
+  const resaleGood = resale >= 1.02, resaleBad = resale < 0.92;
+  score += resaleGood ? 1 : resaleBad ? -1 : 0;
+  reasons.push({ good: !resaleBad, text: `${make} resale strength is ${resaleGood ? "above" : resaleBad ? "below" : "about"} average${resaleBad ? " — good for buyers, since used ones cost less" : ""}.` });
+  reasons.push({ good: true, text: `${article} ${label} typically keeps about ${retained5}% of its new price after 5 years.` });
+  if (brandStrength) reasons.push({ good: true, text: `${make}s are ${brandStrength.charAt(0).toLowerCase()}${brandStrength.slice(1)}` });
+  if (modelNote) reasons.push({ good: false, text: "Has a commonly reported weak spot to check — see the model years below." });
+
+  const verdict = score >= 1
+    ? (modelNote ? "Generally yes — with one weak spot to check" : "Yes — a strong used buy")
+    : score === 0
+      ? (modelNote ? "A reasonable used buy — check the weak spot first" : "A reasonable used buy")
+      : "Buy carefully";
+  const tone = score >= 1 && !modelNote ? "good" : score <= -1 ? "caution" : "ok";
+
+  const currentYear = new Date().getFullYear();
+  const notes = [modelNote, brandNote].filter(Boolean).map((text) => ({ text, range: noteYearRange(text) }));
+  const stripYears = Array.from({ length: 11 }, (_, i) => currentYear - 10 + i);
+  const flagFor = (year) => notes.find((n) => n.range && year >= n.range.from && year <= n.range.to);
+  const anyFlagged = stripYears.some(flagFor);
+
+  const mileageRows = [1, 3, 5, 8, 10].map((age) => ({
+    year: currentYear - age, age,
+    typical: age * TYPICAL_MILES_PER_YEAR, high: age * HIGH_MILES_PER_YEAR,
+  }));
+  const valuePer12k = Math.round((prices[0].price * 0.02) / 50) * 50;
+
+  const faq = [
+    { q: `Is the ${fullName} a good used car?`, a: `${verdict}. ${reasons.map((r) => r.text).join(" ")}` },
+    { q: `What mileage is too high for a used ${fullName}?`, a: `About ${TYPICAL_MILES_PER_YEAR.toLocaleString()} miles a year is typical, so judge mileage against age: a 5-year-old ${label} usually has around ${(5 * TYPICAL_MILES_PER_YEAR).toLocaleString()} miles, and more than about ${(5 * HIGH_MILES_PER_YEAR).toLocaleString()} is on the high side. Each extra ${TYPICAL_MILES_PER_YEAR.toLocaleString()} miles takes roughly $${valuePer12k.toLocaleString()} off its value.` },
+    { q: `How much is a 5-year-old ${fullName} worth?`, a: `Around $${prices.find((p) => p.age === 5).price.toLocaleString()} with average mileage and in good condition, based on depreciation for this model.` },
+  ];
+  if (notes.length) faq.push({ q: `What problems should I check on a used ${fullName}?`, a: notes.map((n) => n.text).join(" ") });
+
+  return { verdict, tone, reasons, notes, stripYears, flagFor, anyFlagged, mileageRows, valuePer12k, faq };
 }
 
 function GuidePage() {
@@ -4492,17 +4567,35 @@ function GuidePage() {
   const prices = ages.map((age) => ({ age, price: guidePriceAtAge(make, modelKey, age, bodyOverride) }));
   const currentYear = new Date().getFullYear();
   const maxPrice = prices[0].price;
-  // Model-specific claim takes priority over the brand-wide one — a model
-  // with neither gets no section at all rather than showing another
-  // model's issue.
-  const buyingNote = MODEL_SPECIFIC_NOTES[make]?.[modelKey] || BRAND_COMMON_NOTES[make];
+  const insights = guideBuyingInsights({ make, modelKey, label, prices });
+  const body = bodyOverride || GUIDE_MODEL_BODY[make]?.[modelKey];
+  const valueLink = (year) => `/value?${new URLSearchParams({ make, model: label, ...(body ? { body } : {}), ...(year ? { year: String(year) } : {}) })}`;
+  const pageUrl = `${SITE_URL}/wikilot/${makeSlug}/${modelSlug}`;
+  const structuredData = [
+    {
+      "@context": "https://schema.org", "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Price Guide", item: `${SITE_URL}/wikilot` },
+        { "@type": "ListItem", position: 2, name: make, item: `${SITE_URL}/wikilot/${makeSlug}` },
+        { "@type": "ListItem", position: 3, name: label, item: pageUrl },
+      ],
+    },
+    {
+      "@context": "https://schema.org", "@type": "FAQPage",
+      mainEntity: insights.faq.map(({ q, a }) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
+    },
+  ];
+  const toneStyle = { good: "bg-[#E7F0EA] text-[#2F6B4F]", ok: "bg-[#FFF3D6] text-[#7A5A00]", caution: "bg-[#FBE4E3] text-[#A32D2D]" }[insights.tone];
   return (
     <div>
       <SEOHead
-        title={`${make} ${label} Price Guide — What Should It Cost? | wikiLOT`}
-        description={`What a used ${make} ${label} should cost at 3, 5, 8, and 10 years old — a depreciation-based reference so you know if an asking price is fair.`}
+        title={`${make} ${label} Price Guide — Value, Problems & Mileage | wikiLOT`}
+        description={`What a used ${make} ${label} should cost by age, whether it's a good used car, problem model years to check, and what mileage is too high.`}
         path={`/wikilot/${makeSlug}/${modelSlug}`}
       />
+      <Helmet>
+        {structuredData.map((d, i) => <script key={i} type="application/ld+json">{JSON.stringify(d).replace(/</g, "\\u003c")}</script>)}
+      </Helmet>
       <GuideHero
         eyebrow={<><Link to="/wikilot" className="underline">Price Guide</Link> / <Link to={`/wikilot/${makeSlug}`} className="underline">{make}</Link> / {label}</>}
         title={`${make} ${label} Price Guide`}
@@ -4539,21 +4632,90 @@ function GuidePage() {
             </div>
           </div>
 
-          {buyingNote && (
-            <div className="mb-7 rounded-lg border bg-card p-4">
-              <div className="mb-1.5 flex items-center gap-1.5 font-heading text-[15px] text-foreground"><ShieldCheck size={15} /> What to check before buying</div>
-              <p className="text-sm leading-relaxed text-muted-foreground">{buyingNote} This reflects general owner-reported reputation, not a confirmed defect in this specific {label} — always verify with a pre-purchase inspection and the vehicle's actual service history.</p>
+          <section className="mb-7">
+            <h2 className="mb-2.5 font-heading text-base text-foreground">Is the {make} {label} a good used car?</h2>
+            <div className="rounded-lg border bg-card p-4">
+              <div className={cn("mb-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium", toneStyle)}>
+                {insights.tone === "caution" ? <TriangleAlert size={14} /> : <Check size={14} />}{insights.verdict}
+              </div>
+              <ul className="space-y-1.5">
+                {insights.reasons.map((r, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-muted-foreground">
+                    {r.good ? <Check size={15} className="mt-0.5 shrink-0 text-[#2F6B4F]" /> : <TriangleAlert size={15} className="mt-0.5 shrink-0 text-[#A32D2D]" />}
+                    <span>{r.text}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-3 text-xs text-muted-foreground">Our read of brand repair costs, resale strength and depreciation — not a substitute for inspecting the actual car.</p>
             </div>
-          )}
+          </section>
+
+          <section className="mb-7">
+            <h2 className="mb-2.5 font-heading text-base text-foreground">{make} {label} problems to check, by model year</h2>
+            <div className="rounded-lg border bg-card p-4">
+              {insights.anyFlagged && (
+                <>
+                  <div className="mb-3 grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5">
+                    {insights.stripYears.map((year) => {
+                      const flagged = insights.flagFor(year);
+                      return (
+                        <div key={year} className={cn("rounded-md border px-1 py-1.5 text-center text-xs tabular-nums", flagged ? "border-[#E8B4B2] bg-[#FBE4E3] font-semibold text-[#A32D2D]" : "text-muted-foreground")}>
+                          {year}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <p className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground"><span className="inline-block size-2.5 rounded-sm bg-[#FBE4E3] ring-1 ring-[#E8B4B2]" /> Highlighted years have a commonly reported issue below.</p>
+                </>
+              )}
+              {insights.notes.length > 0 ? (
+                <ul className="space-y-2">
+                  {insights.notes.map((n, i) => (
+                    <li key={i} className="flex gap-2 text-sm leading-relaxed text-muted-foreground">
+                      <ShieldCheck size={15} className="mt-0.5 shrink-0 text-foreground" />
+                      <span>{n.text}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm leading-relaxed text-muted-foreground">We don't have a widely reported, model-specific problem on file for the {label}.</p>
+              )}
+              <p className="mt-3 text-xs text-muted-foreground">General owner-reported reputation, not a confirmed defect in any specific {label} — always verify with a pre-purchase inspection, the service history, and a VIN recall check.</p>
+            </div>
+          </section>
+
+          <section className="mb-7">
+            <h2 className="mb-1 font-heading text-base text-foreground">What mileage is too high for a used {make} {label}?</h2>
+            <p className="mb-2.5 text-sm leading-relaxed text-muted-foreground">
+              There's no single cutoff — judge miles against age. About {TYPICAL_MILES_PER_YEAR.toLocaleString()} a year is typical; we treat more than about {HIGH_MILES_PER_YEAR.toLocaleString()} a year as high. Each extra {TYPICAL_MILES_PER_YEAR.toLocaleString()} miles takes roughly <strong className="font-semibold text-foreground">${insights.valuePer12k.toLocaleString()}</strong> off the value.
+            </p>
+            <div className="overflow-hidden rounded-lg border bg-card">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                  <tr><th className="px-3 py-2 font-medium sm:px-4">Model year</th><th className="px-3 py-2 font-medium sm:px-4">Typical miles</th><th className="px-3 py-2 font-medium sm:px-4">High above</th><th className="px-3 py-2 sm:px-4" /></tr>
+                </thead>
+                <tbody>
+                  {insights.mileageRows.map((r) => (
+                    <tr key={r.year} className="border-t">
+                      <td className="px-4 py-2.5 font-medium text-foreground">{r.year}</td>
+                      <td className="px-4 py-2.5 tabular-nums text-muted-foreground">{r.typical.toLocaleString()}</td>
+                      <td className="px-4 py-2.5 tabular-nums text-muted-foreground">{r.high.toLocaleString()}</td>
+                      <td className="px-4 py-2.5 text-right"><Link to={valueLink(r.year)} aria-label={`Value a ${r.year} ${make} ${label}`} className="whitespace-nowrap text-xs font-semibold text-primary-text underline-offset-2 hover:underline"><span className="sm:hidden">Value →</span><span className="hidden sm:inline">Value a {r.year} →</span></Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
           <div className="mb-7 rounded-lg border bg-card p-4">
             <div className="mb-1.5 flex items-center gap-1.5 font-heading text-[15px] text-foreground"><Info size={15} /> Is your asking price fair?</div>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and any known issues, use the <Link to="/value" className="font-semibold text-primary-text">full valuation tool</Link> instead of this reference table.
+              These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and any known issues, use the <Link to={valueLink()} className="font-semibold text-primary-text">full valuation tool</Link> instead of this reference table.
             </p>
           </div>
 
-          <Link to="/value" className={cn(buttonVariants({ variant: "default" }))}>Get my {make} {label}'s real value →</Link>
+          <Link to={valueLink()} className={cn(buttonVariants({ variant: "default" }))}>Get my {make} {label}'s real value →</Link>
         </div>
       </div>
     </div>
