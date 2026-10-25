@@ -27,6 +27,28 @@ const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|
 // navigation to any other page still fetches live.
 let prerenderData = (typeof window !== "undefined" && window.__HL_DATA__) || {};
 export function setPrerenderData(data) { prerenderData = data || {}; }
+
+const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function formatDataDate(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${MONTHS_SHORT[m - 1]} ${d}, ${y}`;
+}
+
+// BLS used-car price index, year over year — pulled at build time.
+function MarketTrend({ className }) {
+  const m = prerenderData.market;
+  if (!m) return null;
+  const dir = m.yoyPct > 0 ? "up" : m.yoyPct < 0 ? "down" : "flat";
+  const Icon = m.yoyPct < 0 ? TrendingDown : TrendingUp;
+  return (
+    <p className={cn("flex items-start gap-1.5 text-xs leading-relaxed text-muted-foreground", className)}>
+      <Icon size={14} className="mt-0.5 shrink-0" />
+      <span>
+        Used car &amp; truck prices are {dir}{dir !== "flat" && <> <strong className="font-semibold text-foreground">{Math.abs(m.yoyPct)}%</strong></>} from a year ago (U.S. Bureau of Labor Statistics, {m.period}).
+      </span>
+    </p>
+  );
+}
 function categoryToPath(category) {
   const stateSlug = slugify(category.state);
   if (category.kind === "make") return `/category/make/${slugify(category.make)}/${stateSlug}`;
@@ -2734,6 +2756,7 @@ function ValueMyCar({ log }) {
           <div className="text-sm text-foreground">{soFarParts.length ? soFarParts.join(" · ") : "Fill in the form to see it summarized here."}</div>
           <div className="mt-2.5 text-xs text-muted-foreground">How it's worked out: real depreciation curves by body style, adjusted for age, mileage, condition and known issues.</div>
         </div>
+        <MarketTrend className="px-1" />
       </div>
       </div>
     </div>
@@ -4266,6 +4289,7 @@ function GuideIndex() {
       <SplitHero />
       <div className="min-h-[calc(100vh-64px)] bg-background">
         <div className="mx-auto max-w-4xl px-5 py-10">
+          <MarketTrend className="mb-6" />
           <div className="mb-1 font-heading text-lg text-foreground">Pricing by body style</div>
           <p className="mb-4 text-sm text-muted-foreground">Typical new price by body style — a starting anchor before brand and model narrow it down.</p>
           <div className="mb-9 grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-2.5">
@@ -4443,6 +4467,83 @@ function GuideMake() {
   );
 }
 
+// Owner complaints per model year from NHTSA (pulled at build time): one
+// series, so one color and no legend; the worst year is labeled on its cap,
+// every year has a hover/focus readout, and the table below holds every value.
+function niceCeil(n) {
+  const mag = 10 ** Math.floor(Math.log10(n));
+  return [1, 2, 2.5, 5, 10].map((f) => f * mag).find((v) => v >= n);
+}
+const compact = (n) => (n >= 1000 ? `${Math.round(n / 100) / 10}K` : String(n));
+
+function ComplaintsByYear({ history, flagFor }) {
+  const [active, setActive] = useState(null);
+  const years = history.years;
+  const top = niceCeil(Math.max(...years.map((y) => y.complaints), 1));
+  const worst = years.reduce((a, b) => (b.complaints > a.complaints ? b : a));
+  const activeIdx = years.findIndex((y) => y.year === active);
+  const act = years[activeIdx];
+  return (
+    <div className="relative">
+      <div className="flex">
+        <div className="relative mr-2 h-36 w-7 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+          <span className="absolute right-0 top-0 -translate-y-1/2">{compact(top)}</span>
+          <span className="absolute right-0 top-1/2 -translate-y-1/2">{compact(top / 2)}</span>
+          <span className="absolute bottom-0 right-0 translate-y-1/2">0</span>
+        </div>
+        <div className="relative flex-1">
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-36">
+            <div className="absolute inset-x-0 top-0 border-t border-border" />
+            <div className="absolute inset-x-0 top-1/2 border-t border-border" />
+            <div className="absolute inset-x-0 bottom-0 border-t border-foreground/25" />
+          </div>
+          <div className="relative flex h-36 items-end">
+            {years.map((y) => {
+              const h = (y.complaints / top) * 100;
+              return (
+                <button
+                  key={y.year}
+                  type="button"
+                  aria-label={`${y.year}: ${y.complaints.toLocaleString()} complaints, ${y.recalls} recalls`}
+                  onMouseEnter={() => setActive(y.year)} onMouseLeave={() => setActive(null)}
+                  onFocus={() => setActive(y.year)} onBlur={() => setActive(null)}
+                  className="group relative flex h-full flex-1 cursor-default items-end justify-center outline-none"
+                >
+                  {y.year === worst.year && y.complaints > 0 && (
+                    <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-semibold tabular-nums text-foreground" style={{ bottom: `calc(${h}% + 4px)` }}>{compact(y.complaints)}</span>
+                  )}
+                  <span
+                    className={cn("block w-[70%] max-w-6 rounded-t-[4px] bg-[#a75d00] transition-opacity", active && active !== y.year && "opacity-45", "group-focus-visible:ring-2 group-focus-visible:ring-ring")}
+                    style={{ height: `${Math.max(h, y.complaints ? 1.5 : 0)}%` }}
+                  />
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-1.5 flex">
+            {years.map((y) => (
+              <div key={y.year} className="flex flex-1 flex-col items-center text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
+                <span className="sm:hidden">'{String(y.year).slice(2)}</span><span className="hidden sm:inline">{y.year}</span>
+                {flagFor(y.year) && <TriangleAlert size={11} className="mt-0.5 text-[#A32D2D]" aria-label="Named in a reported issue below" />}
+              </div>
+            ))}
+          </div>
+          {act && (
+            <div
+              className="pointer-events-none absolute top-0 z-10 w-44 rounded-md border bg-popover p-2.5 text-left shadow-md"
+              style={activeIdx < 3 ? { left: `${(activeIdx / years.length) * 100}%` } : activeIdx > years.length - 4 ? { right: `${((years.length - 1 - activeIdx) / years.length) * 100}%` } : { left: `${((activeIdx + 0.5) / years.length) * 100}%`, transform: "translateX(-50%)" }}
+            >
+              <div className="text-sm font-semibold tabular-nums text-foreground">{act.complaints.toLocaleString()} complaints</div>
+              <div className="text-xs text-muted-foreground">{act.year} · {act.recalls} {act.recalls === 1 ? "recall" : "recalls"}</div>
+              {act.top.length > 0 && <div className="mt-1 text-xs text-muted-foreground">Mostly: {act.top.map(([n]) => n.toLowerCase()).join(", ")}</div>}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // The year range a reputation note is about ("2013-2018 Altimas…",
 // "older (pre-2011) models…"), so the guide can flag specific model years.
 // Notes without a year range apply across years and aren't flagged.
@@ -4464,7 +4565,7 @@ const HIGH_MILES_PER_YEAR = 15000; // our rule of thumb for "high", stated as su
 // Everything the model page says beyond the price table, derived only from
 // data the site already holds (repair costs, resale strength, depreciation
 // curves, reputation notes) — no new claims.
-function guideBuyingInsights({ make, modelKey, label, prices }) {
+function guideBuyingInsights({ make, modelKey, label, prices, history }) {
   const fullName = `${make} ${label}`;
   const repair = BRAND_REPAIR_COST[make];
   const resale = BRAND_RESALE_MULTIPLIER[make] ?? 1.0;
@@ -4513,9 +4614,18 @@ function guideBuyingInsights({ make, modelKey, label, prices }) {
     { q: `What mileage is too high for a used ${fullName}?`, a: `About ${TYPICAL_MILES_PER_YEAR.toLocaleString()} miles a year is typical, so judge mileage against age: a 5-year-old ${label} usually has around ${(5 * TYPICAL_MILES_PER_YEAR).toLocaleString()} miles, and more than about ${(5 * HIGH_MILES_PER_YEAR).toLocaleString()} is on the high side. Each extra ${TYPICAL_MILES_PER_YEAR.toLocaleString()} miles takes roughly $${valuePer12k.toLocaleString()} off its value.` },
     { q: `How much is a 5-year-old ${fullName} worth?`, a: `Around $${prices.find((p) => p.age === 5).price.toLocaleString()} with average mileage and in good condition, based on depreciation for this model.` },
   ];
-  if (notes.length) faq.push({ q: `What problems should I check on a used ${fullName}?`, a: notes.map((n) => n.text).join(" ") });
+  const nhtsaSummary = history && (() => {
+    const total = history.years.reduce((n, y) => n + y.complaints, 0);
+    const recallTotal = history.years.reduce((n, y) => n + y.recalls, 0);
+    const worst = history.years.reduce((a, b) => (b.complaints > a.complaints ? b : a));
+    const areas = history.topAreas.slice(0, 3).map(([n]) => n.toLowerCase());
+    const first = history.years[0].year, last = history.years[history.years.length - 1].year;
+    return { total, recallTotal, worst, areas, first, last,
+      text: `NHTSA lists ${total.toLocaleString()} owner complaints and ${recallTotal} recalls for ${first}–${last} ${fullName} model years${areas.length ? `; the most reported areas are ${areas.join(", ")}` : ""}.${worst.complaints ? ` ${worst.year} has the most complaints (${worst.complaints.toLocaleString()}).` : ""}` };
+  })();
+  if (notes.length || nhtsaSummary) faq.push({ q: `What problems should I check on a used ${fullName}?`, a: [nhtsaSummary?.text, ...notes.map((n) => n.text)].filter(Boolean).join(" ") });
 
-  return { verdict, tone, reasons, notes, stripYears, flagFor, anyFlagged, mileageRows, valuePer12k, faq };
+  return { verdict, tone, reasons, notes, stripYears, flagFor, anyFlagged, mileageRows, valuePer12k, faq, nhtsaSummary };
 }
 
 function GuidePage() {
@@ -4555,6 +4665,21 @@ function GuidePage() {
     }
   }, [fallbackState, fallbackMake, modelSlug, navigate]);
 
+  const historyKey = `${makeSlug}/${modelSlug}`;
+  const seededHistory = prerenderData.nhtsa?.[historyKey] || null;
+  const [history, setHistory] = useState(seededHistory);
+  useEffect(() => {
+    if (seededHistory) { setHistory(seededHistory); return; }
+    setHistory(null);
+    if (!entry) return;
+    let cancelled = false;
+    fetch(`/data/nhtsa/${historyKey}.json`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancelled) setHistory(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [historyKey]);
+
   if (!entry && !fallbackMake) return <NotFound />;
   if (!entry && !fallbackState) return null; // loading — brief, avoids a flash of "not found" or wrong content
   if (!entry && fallbackState === "redirect") return null;
@@ -4567,7 +4692,7 @@ function GuidePage() {
   const prices = ages.map((age) => ({ age, price: guidePriceAtAge(make, modelKey, age, bodyOverride) }));
   const currentYear = new Date().getFullYear();
   const maxPrice = prices[0].price;
-  const insights = guideBuyingInsights({ make, modelKey, label, prices });
+  const insights = guideBuyingInsights({ make, modelKey, label, prices, history });
   const body = bodyOverride || GUIDE_MODEL_BODY[make]?.[modelKey];
   const valueLink = (year) => `/value?${new URLSearchParams({ make, model: label, ...(body ? { body } : {}), ...(year ? { year: String(year) } : {}) })}`;
   const pageUrl = `${SITE_URL}/wikilot/${makeSlug}/${modelSlug}`;
@@ -4653,7 +4778,35 @@ function GuidePage() {
           <section className="mb-7">
             <h2 className="mb-2.5 font-heading text-base text-foreground">{make} {label} problems to check, by model year</h2>
             <div className="rounded-lg border bg-card p-4">
-              {insights.anyFlagged && (
+              {history && insights.nhtsaSummary && (
+                <div className="mb-4">
+                  <p className="mb-1 text-sm leading-relaxed text-foreground">
+                    Owner complaints filed with NHTSA, by model year{insights.nhtsaSummary.worst.complaints ? <> — <strong className="font-semibold">{insights.nhtsaSummary.worst.year}</strong> has the most</> : ""}.
+                  </p>
+                  <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+                    {insights.nhtsaSummary.areas.length > 0 && <>Most reported areas: {insights.nhtsaSummary.areas.join(", ")}. </>}{insights.nhtsaSummary.recallTotal} {insights.nhtsaSummary.recallTotal === 1 ? "recall" : "recalls"} across these years. Newer years have had less time on the road, so expect fewer complaints for them.
+                  </p>
+                  <ComplaintsByYear history={history} flagFor={insights.flagFor} />
+                  {insights.anyFlagged && <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground"><TriangleAlert size={12} className="text-[#A32D2D]" /> Years named in a reported issue below.</p>}
+                  <details className="mt-3 text-xs">
+                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">See the numbers</summary>
+                    <table className="mt-2 w-full">
+                      <thead className="text-left text-muted-foreground"><tr><th className="py-1 pr-2 font-medium">Year</th><th className="py-1 pr-2 font-medium">Complaints</th><th className="py-1 pr-2 font-medium">Recalls</th><th className="py-1 font-medium">Most reported</th></tr></thead>
+                      <tbody>
+                        {[...history.years].reverse().map((y) => (
+                          <tr key={y.year} className="border-t">
+                            <td className="py-1 pr-2 tabular-nums text-foreground">{y.year}</td>
+                            <td className="py-1 pr-2 tabular-nums">{y.complaints.toLocaleString()}</td>
+                            <td className="py-1 pr-2 tabular-nums">{y.recalls}</td>
+                            <td className="py-1 text-muted-foreground">{y.top.map(([n]) => n.toLowerCase()).join(", ") || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </details>
+                </div>
+              )}
+              {!history && insights.anyFlagged && (
                 <>
                   <div className="mb-3 grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-1.5">
                     {insights.stripYears.map((year) => {
@@ -4677,10 +4830,10 @@ function GuidePage() {
                     </li>
                   ))}
                 </ul>
-              ) : (
+              ) : !history && (
                 <p className="text-sm leading-relaxed text-muted-foreground">We don't have a widely reported, model-specific problem on file for the {label}.</p>
               )}
-              <p className="mt-3 text-xs text-muted-foreground">General owner-reported reputation, not a confirmed defect in any specific {label} — always verify with a pre-purchase inspection, the service history, and a VIN recall check.</p>
+              <p className="mt-3 text-xs text-muted-foreground">{history ? "Complaint counts are owner reports to NHTSA, not confirmed defects; popular models get more simply because more are on the road. " : "General owner-reported reputation, not a confirmed defect in any specific " + label + " — "}Always verify with a pre-purchase inspection, the service history, and a VIN recall check.</p>
             </div>
           </section>
 
@@ -4713,6 +4866,7 @@ function GuidePage() {
             <p className="text-sm leading-relaxed text-muted-foreground">
               These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and any known issues, use the <Link to={valueLink()} className="font-semibold text-primary-text">full valuation tool</Link> instead of this reference table.
             </p>
+            <MarketTrend className="mt-3" />
           </div>
 
           <Link to={valueLink()} className={cn(buttonVariants({ variant: "default" }))}>Get my {make} {label}'s real value →</Link>
@@ -4786,7 +4940,15 @@ function Footer() {
   return (
     <div className="border-t border-border bg-background">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-6">
-        <div className="text-sm text-muted-foreground">HIGHWAYLOT — free car knowledge, no dealer jargon.</div>
+        <div>
+          <div className="text-sm text-muted-foreground">HIGHWAYLOT — free car knowledge, no dealer jargon.</div>
+          {prerenderData.updatedAt && (
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground" title="Recalls and owner complaints from NHTSA; used-car price trend from the U.S. Bureau of Labor Statistics. Refreshed each time the site rebuilds.">
+              <span className="inline-block size-1.5 rounded-full bg-[#2F6B4F] motion-safe:animate-pulse" />
+              Data updated {formatDataDate(prerenderData.updatedAt)} · NHTSA, BLS
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-4">
           <Link to="/value" className="font-heading text-sm text-muted-foreground hover:text-foreground">Value my car</Link>
           <Link to="/wikilot" className="font-heading text-sm text-muted-foreground hover:text-foreground">Price Guide</Link>
