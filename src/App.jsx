@@ -4479,6 +4479,10 @@ const compact = (n) => (n >= 1000 ? `${Math.round(n / 100) / 10}K` : String(n));
 function ComplaintsByYear({ history, flagFor }) {
   const [active, setActive] = useState(null);
   const years = history.years;
+  // Near-zero recalls across a whole decade means NHTSA files this model's
+  // recalls under trim names we don't match (e.g. BMW "330i"); real models
+  // have 10+, so below 3 the recall figures are hidden rather than shown as zero.
+  const recallsKnown = years.reduce((n, y) => n + (y.recalls ?? 0), 0) >= 3;
   const top = niceCeil(Math.max(...years.map((y) => y.complaints ?? 0), 1));
   const worst = years.reduce((a, b) => ((b.complaints ?? 0) > (a.complaints ?? 0) ? b : a));
   const activeIdx = years.findIndex((y) => y.year === active);
@@ -4505,7 +4509,7 @@ function ComplaintsByYear({ history, flagFor }) {
                 <button
                   key={y.year}
                   type="button"
-                  aria-label={noData ? `${y.year}: no NHTSA records under this model name` : `${y.year}: ${y.complaints.toLocaleString()} complaints, ${y.recalls} recalls`}
+                  aria-label={noData ? `${y.year}: no NHTSA records under this model name` : `${y.year}: ${y.complaints.toLocaleString()} complaints${recallsKnown ? `, ${y.recalls} recalls` : ""}`}
                   onMouseEnter={() => setActive(y.year)} onMouseLeave={() => setActive(null)}
                   onFocus={() => setActive(y.year)} onBlur={() => setActive(null)}
                   className="group relative flex h-full flex-1 cursor-default items-end justify-center outline-none"
@@ -4540,7 +4544,7 @@ function ComplaintsByYear({ history, flagFor }) {
               ) : (
                 <>
                   <div className="text-sm font-semibold tabular-nums text-foreground">{act.complaints.toLocaleString()} complaints</div>
-                  <div className="text-xs text-muted-foreground">{act.year} · {act.recalls} {act.recalls === 1 ? "recall" : "recalls"}</div>
+                  <div className="text-xs text-muted-foreground">{act.year}{recallsKnown && <> · {act.recalls} {act.recalls === 1 ? "recall" : "recalls"}</>}</div>
                 </>
               )}
               {act.top.length > 0 && <div className="mt-1 text-xs text-muted-foreground">Mostly: {act.top.map(([n]) => n.toLowerCase()).join(", ")}</div>}
@@ -4627,11 +4631,12 @@ function guideBuyingInsights({ make, modelKey, label, prices, history }) {
     if (!withData.length) return null;
     const total = withData.reduce((n, y) => n + y.complaints, 0);
     const recallTotal = withData.reduce((n, y) => n + y.recalls, 0);
+    const recallsKnown = recallTotal >= 3; // see ComplaintsByYear
     const worst = withData.reduce((a, b) => (b.complaints > a.complaints ? b : a));
     const areas = history.topAreas.slice(0, 3).map(([n]) => n.toLowerCase());
     const first = withData[0].year, last = withData[withData.length - 1].year;
-    return { total, recallTotal, worst, areas, first, last,
-      text: `NHTSA lists ${total.toLocaleString()} owner complaints and ${recallTotal} recalls for ${first}–${last} ${fullName} model years${areas.length ? `; the most reported areas are ${areas.join(", ")}` : ""}.${worst.complaints ? ` ${worst.year} has the most complaints (${worst.complaints.toLocaleString()}).` : ""}` };
+    return { total, recallTotal, recallsKnown, worst, areas, first, last,
+      text: `NHTSA lists ${total.toLocaleString()} owner complaints${recallsKnown ? ` and ${recallTotal} recalls` : ""} for ${first}–${last} ${fullName} model years${areas.length ? `; the most reported areas are ${areas.join(", ")}` : ""}.${worst.complaints ? ` ${worst.year} has the most complaints (${worst.complaints.toLocaleString()}).` : ""}` };
   })();
   if (notes.length || nhtsaSummary) faq.push({ q: `What problems should I check on a used ${fullName}?`, a: [nhtsaSummary?.text, ...notes.map((n) => n.text)].filter(Boolean).join(" ") });
 
@@ -4794,7 +4799,7 @@ function GuidePage() {
                     Owner complaints filed with NHTSA, by model year{insights.nhtsaSummary.worst.complaints ? <> — <strong className="font-semibold">{insights.nhtsaSummary.worst.year}</strong> has the most</> : ""}.
                   </p>
                   <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-                    {insights.nhtsaSummary.areas.length > 0 && <>Most reported areas: {insights.nhtsaSummary.areas.join(", ")}. </>}{insights.nhtsaSummary.recallTotal} {insights.nhtsaSummary.recallTotal === 1 ? "recall" : "recalls"} across these years. Newer years have had less time on the road, so expect fewer complaints for them.
+                    {insights.nhtsaSummary.areas.length > 0 && <>Most reported areas: {insights.nhtsaSummary.areas.join(", ")}. </>}{insights.nhtsaSummary.recallsKnown && <>{insights.nhtsaSummary.recallTotal} {insights.nhtsaSummary.recallTotal === 1 ? "recall" : "recalls"} across these years. </>}Newer years have had less time on the road, so expect fewer complaints for them.
                   </p>
                   <ComplaintsByYear history={history} flagFor={insights.flagFor} />
                   {insights.anyFlagged && <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground"><TriangleAlert size={12} className="text-[#A32D2D]" /> Years named in a reported issue below.</p>}
@@ -4802,13 +4807,13 @@ function GuidePage() {
                   <details className="mt-3 text-xs">
                     <summary className="cursor-pointer text-muted-foreground hover:text-foreground">See the numbers</summary>
                     <table className="mt-2 w-full">
-                      <thead className="text-left text-muted-foreground"><tr><th className="py-1 pr-2 font-medium">Year</th><th className="py-1 pr-2 font-medium">Complaints</th><th className="py-1 pr-2 font-medium">Recalls</th><th className="py-1 font-medium">Most reported</th></tr></thead>
+                      <thead className="text-left text-muted-foreground"><tr><th className="py-1 pr-2 font-medium">Year</th><th className="py-1 pr-2 font-medium">Complaints</th>{insights.nhtsaSummary.recallsKnown && <th className="py-1 pr-2 font-medium">Recalls</th>}<th className="py-1 font-medium">Most reported</th></tr></thead>
                       <tbody>
                         {[...history.years].reverse().map((y) => (
                           <tr key={y.year} className="border-t">
                             <td className="py-1 pr-2 tabular-nums text-foreground">{y.year}</td>
                             <td className="py-1 pr-2 tabular-nums">{y.complaints == null ? "—" : y.complaints.toLocaleString()}</td>
-                            <td className="py-1 pr-2 tabular-nums">{y.recalls ?? "—"}</td>
+                            {insights.nhtsaSummary.recallsKnown && <td className="py-1 pr-2 tabular-nums">{y.recalls ?? "—"}</td>}
                             <td className="py-1 text-muted-foreground">{y.top.map(([n]) => n.toLowerCase()).join(", ") || "—"}</td>
                           </tr>
                         ))}
