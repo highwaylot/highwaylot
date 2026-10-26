@@ -775,7 +775,7 @@ function TopBar() {
           <span className="font-heading text-lg font-semibold text-foreground">HIGHWAYLOT</span>
         </Link>
         <div className="flex flex-wrap gap-5">
-          <NavLink label="Value my car" to="/value" active={pathname === "/value"} />
+          <NavLink label="ValueLOT" to="/value" active={pathname === "/value"} />
           <NavLink label="wikiLOT" to="/wikilot" active={pathname.startsWith("/wikilot")} />
         </div>
       </div>
@@ -2562,7 +2562,7 @@ function ValueMyCar({ log }) {
   return (
     <div className="bg-background">
       <SEOHead
-        title="Value My Car — Free Car Valuation | HIGHWAYLOT"
+        title="ValueLOT — Free Car Valuation | HIGHWAYLOT"
         description="A free, honest car value estimate — built for people who don't know cars. No dealer jargon, no sales pitch, just a real depreciation-based number."
         path="/value"
       />
@@ -3528,7 +3528,7 @@ function AdminPage() {
             <SimpleBarRow label="Flagged" value={credCounts.red} max={listings.length} />
           </AdminSection>
 
-          <AdminSection title="Value My Car submissions">
+          <AdminSection title="ValueLOT submissions">
             <div style={{ fontSize: 13.5, color: C.ink }}>Average estimate: <strong>{fmtPrice(avgEstimate)}</strong></div>
             <div style={{ fontSize: 12, color: C.steel, marginTop: 4 }}>{valuations.length} total submissions</div>
           </AdminSection>
@@ -4160,12 +4160,12 @@ function SplitHero() {
   );
 }
 
-// /value's hero — the shared lane-hero grammar: "What's your car worth?"
+// /value's hero — same grammar as wikiLOT's: the tool's name, then what it answers.
 // left side, the real avg-new-price figure on the right.
 function PriceTagHero() {
   const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
   const count = useCountUp(avg);
-  return <LaneHero left="What's your car worth?" value={`$${count.toLocaleString()}`} note="avg. new, all brands" />;
+  return <LaneHero left={<>ValueLOT <span className="font-normal text-muted-foreground">· what's your car worth?</span></>} value={`$${count.toLocaleString()}`} note="avg. new, all brands" />;
 }
 
 function ForSaleSignHero() {
@@ -4225,7 +4225,7 @@ function LandingHome() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-24">
       <SEOHead
         title="HIGHWAYLOT — Car Knowledge Made Simple"
-        description="Free car knowledge for people who don't know cars — an honest value estimate and wikiLOT's price guide by make and model, no dealer jargon, no sales pitch."
+        description="Free car knowledge for people who don't know cars — ValueLOT's honest value estimate and wikiLOT's price guide by make and model, no dealer jargon, no sales pitch."
         path="/"
       />
       <div className="mx-auto flex max-w-xl flex-col items-center text-center">
@@ -4242,8 +4242,8 @@ function LandingHome() {
         <Card className="transition-shadow hover:shadow-md">
           <CardHeader>
             <DollarSign className="size-5 text-primary-text" />
-            <CardTitle className="mt-2 text-lg">Value my car</CardTitle>
-            <CardDescription>Free instant estimate</CardDescription>
+            <CardTitle className="mt-2 text-lg">ValueLOT</CardTitle>
+            <CardDescription>The free car value estimate</CardDescription>
           </CardHeader>
           <CardFooter className="bg-transparent p-4 pt-0 border-t-0">
             <Link to="/value" className={cn(buttonVariants({ variant: "default" }), "w-full")}>
@@ -4389,7 +4389,7 @@ function GuideMake() {
       <GuideHero
         eyebrow={<><Link to="/wikilot" className="underline">Price Guide</Link> / {make}</>}
         title={`${make} Price Guide`}
-        subtitle={`See specific models below for age-by-age numbers, or use the full valuation tool for your exact car.`}
+        subtitle={`See specific models below for age-by-age numbers, or use ValueLOT for your exact car.`}
         stat={{ value: `$${anchor.toLocaleString()}`, note: `${make}, new` }}
       />
       <div className="min-h-[calc(100vh-64px)] bg-background">
@@ -4449,7 +4449,7 @@ function GuideMake() {
             <div className="mb-7">
               <div className="mb-1 font-heading text-base text-foreground">Every other {make} model</div>
               <p className="mb-2.5 text-sm text-muted-foreground">
-                We couldn't classify these enough to price them honestly, so each links straight to the real valuation tool with the model pre-filled instead of guessing.
+                We couldn't classify these enough to price them honestly, so each links straight to ValueLOT with the model pre-filled instead of guessing.
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {unclassifiedModels.map((name) => (
@@ -4864,7 +4864,7 @@ function GuidePage() {
           <div className="mb-7 rounded-lg border bg-card p-4">
             <div className="mb-1.5 flex items-center gap-1.5 font-heading text-[15px] text-foreground"><Info size={15} /> Is your asking price fair?</div>
             <p className="text-sm leading-relaxed text-muted-foreground">
-              These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and any known issues, use the <Link to={valueLink()} className="font-semibold text-primary-text">full valuation tool</Link> instead of this reference table.
+              These numbers assume average mileage (~12,000/year) and good condition. Higher mileage or mechanical issues push the real value below this table; low mileage or excellent condition push it above. For a number that accounts for your car's actual mileage, condition, and any known issues, use <Link to={valueLink()} className="font-semibold text-primary-text">ValueLOT</Link> instead of this reference table.
             </p>
             <MarketTrend className="mt-3" />
           </div>
@@ -4950,8 +4950,8 @@ function Footer() {
           )}
         </div>
         <div className="flex items-center gap-4">
-          <Link to="/value" className="font-heading text-sm text-muted-foreground hover:text-foreground">Value my car</Link>
-          <Link to="/wikilot" className="font-heading text-sm text-muted-foreground hover:text-foreground">Price Guide</Link>
+          <Link to="/value" className="font-heading text-sm text-muted-foreground hover:text-foreground">ValueLOT</Link>
+          <Link to="/wikilot" className="font-heading text-sm text-muted-foreground hover:text-foreground">wikiLOT</Link>
           <Link to="/terms" className="font-heading text-sm text-muted-foreground hover:text-foreground">Terms</Link>
           <Link to="/privacy" className="font-heading text-sm text-muted-foreground hover:text-foreground">Privacy</Link>
         </div>

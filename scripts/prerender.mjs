@@ -55,90 +55,16 @@ async function mapLimited(items, limit, fn) {
   return out;
 }
 
-// ---------- Live data: NHTSA complaints/recalls + BLS used-car prices ----------
-// NHTSA answers "no records for this model year" with HTTP 400 and an empty
-// result list, so a 400 carrying that shape is a real zero, not a failure.
-const nhtsaJson = async (url) => {
-  const res = await fetch(url);
-  if (res.ok) return res.json();
-  const body = await res.json().catch(() => null);
-  if (res.status === 400 && Array.isArray(body?.results) && body.results.length === 0) return body;
-  throw new Error(`HTTP ${res.status}`);
-};
-const friendlyComponent = (c) => c.split(":")[0].trim().toLowerCase().replace(/^\w/, (ch) => ch.toUpperCase());
-const IGNORED_COMPONENTS = new Set(["unknown or other"]);
-
-const currentYear = new Date().getFullYear();
-const MODEL_YEARS = Array.from({ length: 11 }, (_, i) => currentYear - 10 + i);
-
-async function fetchModelYear({ make, modelKey }, year) {
-  const q = `make=${encodeURIComponent(make)}&model=${encodeURIComponent(modelKey)}&modelYear=${year}`;
-  const [complaints, recalls] = await Promise.all([
-    nhtsaJson(`https://api.nhtsa.gov/complaints/complaintsByVehicle?${q}`),
-    nhtsaJson(`https://api.nhtsa.gov/recalls/recallsByVehicle?${q}`),
-  ]);
-  const byComponent = {};
-  for (const c of complaints.results || []) {
-    for (const raw of String(c.components || "").split(",")) {
-      const name = friendlyComponent(raw);
-      if (name && !IGNORED_COMPONENTS.has(name.toLowerCase())) byComponent[name] = (byComponent[name] || 0) + 1;
-    }
-  }
-  return {
-    year,
-    complaints: complaints.count ?? (complaints.results || []).length,
-    recalls: recalls.Count ?? (recalls.results || []).length,
-    byComponent,
-  };
-}
-
-// One model's last 11 model years. Any failed year drops the whole model
-// (it falls back to the notes-only section) rather than shipping a chart
-// with silently missing years.
-function summarizeHistory(entry, years) {
-  if (!years || years.some((y) => !y)) {
-    console.warn(`prerender: NHTSA complaints/recalls unavailable for ${entry.make} ${entry.modelKey}`);
-    return null;
-  }
-  if (!years.some((y) => y.complaints || y.recalls)) return null;
-  const overall = {};
-  for (const y of years) for (const [k, v] of Object.entries(y.byComponent)) overall[k] = (overall[k] || 0) + v;
-  const top = (counts, n) => Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, n);
-  return {
-    years: years.map(({ year, complaints, recalls, byComponent }) => ({ year, complaints, recalls, top: top(byComponent, 3) })),
-    topAreas: top(overall, 5),
-  };
-}
-
-// BLS CPI "used cars and trucks" (U.S. city average). The latest month vs
-// the same month a year earlier is the market trend shown on the site.
-async function fetchUsedCarTrend() {
-  try {
-    const json = await nhtsaJson("https://api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SETA02");
-    const data = (json.Results?.series?.[0]?.data || []).filter((d) => /^M(0[1-9]|1[0-2])$/.test(d.period));
-    const latest = data[0];
-    const yearAgo = data.find((d) => d.period === latest.period && Number(d.year) === Number(latest.year) - 1);
-    if (!latest || !yearAgo) return null;
-    const yoyPct = Math.round(((Number(latest.value) - Number(yearAgo.value)) / Number(yearAgo.value)) * 1000) / 10;
-    return { period: `${latest.periodName} ${latest.year}`, yoyPct };
-  } catch (e) {
-    console.warn(`prerender: BLS used-car index unavailable (${e.message})`);
-    return null;
-  }
-}
-
-const updatedAt = new Date().toISOString().slice(0, 10);
-const market = await fetchUsedCarTrend();
-const globalData = { updatedAt, ...(market ? { market } : {}) };
-
-const yearTasks = GUIDE_CATALOG.flatMap((entry) => MODEL_YEARS.map((year) => ({ entry, year })));
-const yearResults = await mapLimited(yearTasks, 10, ({ entry, year }) => fetchModelYear(entry, year).catch(() => null));
-const history = Object.fromEntries(GUIDE_CATALOG.map((entry, i) => [
-  `${slugify(entry.make)}/${slugify(entry.modelKey)}`,
-  summarizeHistory(entry, yearResults.slice(i * MODEL_YEARS.length, (i + 1) * MODEL_YEARS.length)),
-]));
+// ---------- Live data (NHTSA complaints/recalls + BLS used-car prices) ----------
+// Fetched slowly by scripts/refresh-live-data.mjs on a weekly schedule and
+// committed to data/live-data.json — fetching ~2,000 NHTSA records during
+// every deploy gets the build IP blocked by NHTSA's firewall.
+const liveDataFile = path.join(root, "data", "live-data.json");
+const live = fs.existsSync(liveDataFile) ? JSON.parse(fs.readFileSync(liveDataFile, "utf8")) : {};
+const history = live.nhtsa || {};
+const market = live.market || null;
+const globalData = { ...(live.updatedAt ? { updatedAt: live.updatedAt } : {}), ...(market ? { market } : {}) };
 for (const [key, h] of Object.entries(history)) {
-  if (!h) continue;
   const file = path.join(dist, "data", "nhtsa", `${key}.json`);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(h));
@@ -206,4 +132,4 @@ fs.writeFileSync(path.join(dist, "sitemap.xml"), sitemap);
 fs.rmSync(path.join(root, "dist-ssr"), { recursive: true, force: true });
 const perMake = makes.map((m) => `${m} ${pages.filter((p) => p.url.startsWith(`/wikilot/${slugify(m)}/`)).length}`).join(", ");
 console.log(`prerender: wrote ${pages.length} pages (model pages per make: ${perMake})`);
-console.log(`prerender: NHTSA complaint/recall history for ${Object.values(history).filter(Boolean).length}/${GUIDE_CATALOG.length} curated models; BLS used-car trend: ${market ? `${market.yoyPct}% YoY (${market.period})` : "unavailable"}`);
+console.log(`prerender: live data from ${live.updatedAt || "nowhere (data/live-data.json missing)"} — NHTSA history for ${Object.keys(history).length}/${GUIDE_CATALOG.length} curated models, BLS trend ${market ? `${market.yoyPct}% (${market.period})` : "none"}`);
