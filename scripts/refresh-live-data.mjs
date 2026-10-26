@@ -15,7 +15,7 @@ const { GUIDE_CATALOG, slugify } = await import(pathToFileURL(path.join(root, "d
 const outFile = path.join(root, "data", "live-data.json");
 const previous = fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, "utf8")) : {};
 
-const PACE_MS = 700;
+const PACE_MS = 350;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 class Blocked extends Error {}
 
@@ -59,34 +59,68 @@ async function fetchUsedCarTrend() {
 const friendlyComponent = (c) => c.split(":")[0].trim().toLowerCase().replace(/^\w/, (ch) => ch.toUpperCase());
 const IGNORED = new Set(["Unknown or other"]);
 const currentYear = new Date().getFullYear();
-const MODEL_YEARS = Array.from({ length: 11 }, (_, i) => currentYear - 10 + i);
+// Last 10 finished model years; the current one has almost no reports yet
+// and would read as a misleading zero.
+const MODEL_YEARS = Array.from({ length: 10 }, (_, i) => currentYear - 10 + i);
 const top = (counts, n) => Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, n);
+
+// NHTSA files most models under several variant names ("F-150 SUPER CREW",
+// "F-150 REGULAR CAB", "RX 350", "RX 450H"…), and newer years often have no
+// plain name at all. So each make/year's own name list is fetched, every
+// variant of the model is queried, and results are de-duplicated.
+const norm = (s) => s.toUpperCase().replace(/-/g, "").replace(/\s+/g, " ").trim();
+// Separate vehicles that share a name prefix with a catalog model.
+const DISTINCT_MODELS = ["COROLLA CROSS", "MUSTANG MACHE", "EQUINOX EV", "BLAZER EV", "SILVERADO EV", "SIERRA EV", "ESCALADE IQ", "ACCORD CROSSTOUR"];
+function isVariantOf(name, modelKey) {
+  const n = norm(name), k = norm(modelKey);
+  if (n.includes("POLICE") || !n.startsWith(k)) return false;
+  if (DISTINCT_MODELS.some((d) => n.startsWith(d) && !k.startsWith(d))) return false;
+  const next = n.charAt(k.length);
+  // "CX5" must not match "CX50"; "RX" may match "RX350".
+  return !next || !(/\d$/.test(k) && /\d/.test(next));
+}
+
+const nameLists = new Map();
+async function variantNames(make, year, issueType, modelKey) {
+  const cacheKey = `${make}|${year}|${issueType}`;
+  if (!nameLists.has(cacheKey)) {
+    const json = await getJson(`https://api.nhtsa.gov/products/vehicle/models?modelYear=${year}&make=${encodeURIComponent(make)}&issueType=${issueType}`);
+    nameLists.set(cacheKey, [...new Set((json.results || []).map((r) => r.model))]);
+  }
+  return nameLists.get(cacheKey).filter((name) => isVariantOf(name, modelKey));
+}
+
+async function fetchModelYear(make, modelKey, year) {
+  const complaints = new Map();
+  for (const name of await variantNames(make, year, "c", modelKey)) {
+    const json = await getJson(`https://api.nhtsa.gov/complaints/complaintsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(name)}&modelYear=${year}`);
+    for (const c of json.results || []) complaints.set(c.odiNumber, c);
+  }
+  const recalls = new Set();
+  for (const name of await variantNames(make, year, "r", modelKey)) {
+    const json = await getJson(`https://api.nhtsa.gov/recalls/recallsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(name)}&modelYear=${year}`);
+    for (const r of json.results || []) recalls.add(r.NHTSACampaignNumber);
+  }
+  const byComponent = {};
+  for (const c of complaints.values()) {
+    for (const raw of String(c.components || "").split(",")) {
+      const comp = friendlyComponent(raw);
+      if (comp && !IGNORED.has(comp)) byComponent[comp] = (byComponent[comp] || 0) + 1;
+    }
+  }
+  return { year, complaints: complaints.size, recalls: recalls.size, byComponent };
+}
 
 async function fetchModelHistory({ make, modelKey }) {
   const years = [];
+  for (const year of MODEL_YEARS) years.push(await fetchModelYear(make, modelKey, year));
+  if (!years.some((y) => y.complaints || y.recalls)) return null;
   const overall = {};
-  for (const year of MODEL_YEARS) {
-    const q = `make=${encodeURIComponent(make)}&model=${encodeURIComponent(modelKey)}&modelYear=${year}`;
-    const complaints = await getJson(`https://api.nhtsa.gov/complaints/complaintsByVehicle?${q}`);
-    const recalls = await getJson(`https://api.nhtsa.gov/recalls/recallsByVehicle?${q}`);
-    const byComponent = {};
-    for (const c of complaints.results || []) {
-      for (const raw of String(c.components || "").split(",")) {
-        const name = friendlyComponent(raw);
-        if (name && !IGNORED.has(name)) {
-          byComponent[name] = (byComponent[name] || 0) + 1;
-          overall[name] = (overall[name] || 0) + 1;
-        }
-      }
-    }
-    years.push({
-      year,
-      complaints: complaints.count ?? (complaints.results || []).length,
-      recalls: recalls.Count ?? (recalls.results || []).length,
-      top: top(byComponent, 3),
-    });
-  }
-  return years.some((y) => y.complaints || y.recalls) ? { years, topAreas: top(overall, 5) } : null;
+  for (const y of years) for (const [k, v] of Object.entries(y.byComponent)) overall[k] = (overall[k] || 0) + v;
+  return {
+    years: years.map(({ year, complaints, recalls, byComponent }) => ({ year, complaints, recalls, top: top(byComponent, 3) })),
+    topAreas: top(overall, 5),
+  };
 }
 
 let market = previous.market || null;
