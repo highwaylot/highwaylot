@@ -4479,8 +4479,8 @@ const compact = (n) => (n >= 1000 ? `${Math.round(n / 100) / 10}K` : String(n));
 function ComplaintsByYear({ history, flagFor }) {
   const [active, setActive] = useState(null);
   const years = history.years;
-  const top = niceCeil(Math.max(...years.map((y) => y.complaints), 1));
-  const worst = years.reduce((a, b) => (b.complaints > a.complaints ? b : a));
+  const top = niceCeil(Math.max(...years.map((y) => y.complaints ?? 0), 1));
+  const worst = years.reduce((a, b) => ((b.complaints ?? 0) > (a.complaints ?? 0) ? b : a));
   const activeIdx = years.findIndex((y) => y.year === active);
   const act = years[activeIdx];
   return (
@@ -4499,16 +4499,18 @@ function ComplaintsByYear({ history, flagFor }) {
           </div>
           <div className="relative flex h-36 items-end">
             {years.map((y) => {
-              const h = (y.complaints / top) * 100;
+              const noData = y.complaints == null;
+              const h = ((y.complaints ?? 0) / top) * 100;
               return (
                 <button
                   key={y.year}
                   type="button"
-                  aria-label={`${y.year}: ${y.complaints.toLocaleString()} complaints, ${y.recalls} recalls`}
+                  aria-label={noData ? `${y.year}: no NHTSA records under this model name` : `${y.year}: ${y.complaints.toLocaleString()} complaints, ${y.recalls} recalls`}
                   onMouseEnter={() => setActive(y.year)} onMouseLeave={() => setActive(null)}
                   onFocus={() => setActive(y.year)} onBlur={() => setActive(null)}
                   className="group relative flex h-full flex-1 cursor-default items-end justify-center outline-none"
                 >
+                  {noData && <span className="mb-1 text-[11px] text-muted-foreground">–</span>}
                   {y.year === worst.year && y.complaints > 0 && (
                     <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-semibold tabular-nums text-foreground" style={{ bottom: `calc(${h}% + 4px)` }}>{compact(y.complaints)}</span>
                   )}
@@ -4533,8 +4535,14 @@ function ComplaintsByYear({ history, flagFor }) {
               className="pointer-events-none absolute top-0 z-10 w-44 rounded-md border bg-popover p-2.5 text-left shadow-md"
               style={activeIdx < 3 ? { left: `${(activeIdx / years.length) * 100}%` } : activeIdx > years.length - 4 ? { right: `${((years.length - 1 - activeIdx) / years.length) * 100}%` } : { left: `${((activeIdx + 0.5) / years.length) * 100}%`, transform: "translateX(-50%)" }}
             >
-              <div className="text-sm font-semibold tabular-nums text-foreground">{act.complaints.toLocaleString()} complaints</div>
-              <div className="text-xs text-muted-foreground">{act.year} · {act.recalls} {act.recalls === 1 ? "recall" : "recalls"}</div>
+              {act.complaints == null ? (
+                <div className="text-xs text-muted-foreground">{act.year} · no NHTSA records under this model name</div>
+              ) : (
+                <>
+                  <div className="text-sm font-semibold tabular-nums text-foreground">{act.complaints.toLocaleString()} complaints</div>
+                  <div className="text-xs text-muted-foreground">{act.year} · {act.recalls} {act.recalls === 1 ? "recall" : "recalls"}</div>
+                </>
+              )}
               {act.top.length > 0 && <div className="mt-1 text-xs text-muted-foreground">Mostly: {act.top.map(([n]) => n.toLowerCase()).join(", ")}</div>}
             </div>
           )}
@@ -4615,11 +4623,13 @@ function guideBuyingInsights({ make, modelKey, label, prices, history }) {
     { q: `How much is a 5-year-old ${fullName} worth?`, a: `Around $${prices.find((p) => p.age === 5).price.toLocaleString()} with average mileage and in good condition, based on depreciation for this model.` },
   ];
   const nhtsaSummary = history && (() => {
-    const total = history.years.reduce((n, y) => n + y.complaints, 0);
-    const recallTotal = history.years.reduce((n, y) => n + y.recalls, 0);
-    const worst = history.years.reduce((a, b) => (b.complaints > a.complaints ? b : a));
+    const withData = history.years.filter((y) => y.complaints != null);
+    if (!withData.length) return null;
+    const total = withData.reduce((n, y) => n + y.complaints, 0);
+    const recallTotal = withData.reduce((n, y) => n + y.recalls, 0);
+    const worst = withData.reduce((a, b) => (b.complaints > a.complaints ? b : a));
     const areas = history.topAreas.slice(0, 3).map(([n]) => n.toLowerCase());
-    const first = history.years[0].year, last = history.years[history.years.length - 1].year;
+    const first = withData[0].year, last = withData[withData.length - 1].year;
     return { total, recallTotal, worst, areas, first, last,
       text: `NHTSA lists ${total.toLocaleString()} owner complaints and ${recallTotal} recalls for ${first}–${last} ${fullName} model years${areas.length ? `; the most reported areas are ${areas.join(", ")}` : ""}.${worst.complaints ? ` ${worst.year} has the most complaints (${worst.complaints.toLocaleString()}).` : ""}` };
   })();
@@ -4788,6 +4798,7 @@ function GuidePage() {
                   </p>
                   <ComplaintsByYear history={history} flagFor={insights.flagFor} />
                   {insights.anyFlagged && <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground"><TriangleAlert size={12} className="text-[#A32D2D]" /> Years named in a reported issue below.</p>}
+                  {history.years.some((y) => y.complaints == null) && <p className="mt-1.5 text-xs text-muted-foreground">– No NHTSA records under this model name that year (usually before it was sold).</p>}
                   <details className="mt-3 text-xs">
                     <summary className="cursor-pointer text-muted-foreground hover:text-foreground">See the numbers</summary>
                     <table className="mt-2 w-full">
@@ -4796,8 +4807,8 @@ function GuidePage() {
                         {[...history.years].reverse().map((y) => (
                           <tr key={y.year} className="border-t">
                             <td className="py-1 pr-2 tabular-nums text-foreground">{y.year}</td>
-                            <td className="py-1 pr-2 tabular-nums">{y.complaints.toLocaleString()}</td>
-                            <td className="py-1 pr-2 tabular-nums">{y.recalls}</td>
+                            <td className="py-1 pr-2 tabular-nums">{y.complaints == null ? "—" : y.complaints.toLocaleString()}</td>
+                            <td className="py-1 pr-2 tabular-nums">{y.recalls ?? "—"}</td>
                             <td className="py-1 text-muted-foreground">{y.top.map(([n]) => n.toLowerCase()).join(", ") || "—"}</td>
                           </tr>
                         ))}

@@ -15,7 +15,7 @@ const { GUIDE_CATALOG, slugify } = await import(pathToFileURL(path.join(root, "d
 const outFile = path.join(root, "data", "live-data.json");
 const previous = fs.existsSync(outFile) ? JSON.parse(fs.readFileSync(outFile, "utf8")) : {};
 
-const PACE_MS = 350;
+const PACE_MS = 300;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 class Blocked extends Error {}
 
@@ -71,8 +71,11 @@ const top = (counts, n) => Object.entries(counts).sort((a, b) => b[1] - a[1]).sl
 const norm = (s) => s.toUpperCase().replace(/-/g, "").replace(/\s+/g, " ").trim();
 // Separate vehicles that share a name prefix with a catalog model.
 const DISTINCT_MODELS = ["COROLLA CROSS", "MUSTANG MACHE", "EQUINOX EV", "BLAZER EV", "SILVERADO EV", "SIERRA EV", "ESCALADE IQ", "ACCORD CROSSTOUR"];
-function isVariantOf(name, modelKey) {
-  const n = norm(name), k = norm(modelKey);
+function isVariantOf(name, modelKey, make) {
+  let n = norm(name);
+  const k = norm(modelKey);
+  // Newer years prefix the make ("RAM 1500 CREW CAB").
+  if (n.startsWith(`${norm(make)} `)) n = n.slice(norm(make).length + 1);
   if (n.includes("POLICE") || !n.startsWith(k)) return false;
   if (DISTINCT_MODELS.some((d) => n.startsWith(d) && !k.startsWith(d))) return false;
   const next = n.charAt(k.length);
@@ -87,17 +90,21 @@ async function variantNames(make, year, issueType, modelKey) {
     const json = await getJson(`https://api.nhtsa.gov/products/vehicle/models?modelYear=${year}&make=${encodeURIComponent(make)}&issueType=${issueType}`);
     nameLists.set(cacheKey, [...new Set((json.results || []).map((r) => r.model))]);
   }
-  return nameLists.get(cacheKey).filter((name) => isVariantOf(name, modelKey));
+  return nameLists.get(cacheKey).filter((name) => isVariantOf(name, modelKey, make));
 }
 
+// Recalls are often filed under the plain name ("1500") even when the name
+// list only shows cab variants, so the plain name is always queried too.
 async function fetchModelYear(make, modelKey, year) {
+  const complaintNames = await variantNames(make, year, "c", modelKey);
+  const recallNames = await variantNames(make, year, "r", modelKey);
   const complaints = new Map();
-  for (const name of await variantNames(make, year, "c", modelKey)) {
+  for (const name of new Set([modelKey, ...complaintNames])) {
     const json = await getJson(`https://api.nhtsa.gov/complaints/complaintsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(name)}&modelYear=${year}`);
     for (const c of json.results || []) complaints.set(c.odiNumber, c);
   }
   const recalls = new Set();
-  for (const name of await variantNames(make, year, "r", modelKey)) {
+  for (const name of new Set([modelKey, ...recallNames])) {
     const json = await getJson(`https://api.nhtsa.gov/recalls/recallsByVehicle?make=${encodeURIComponent(make)}&model=${encodeURIComponent(name)}&modelYear=${year}`);
     for (const r of json.results || []) recalls.add(r.NHTSACampaignNumber);
   }
@@ -107,6 +114,11 @@ async function fetchModelYear(make, modelKey, year) {
       const comp = friendlyComponent(raw);
       if (comp && !IGNORED.has(comp)) byComponent[comp] = (byComponent[comp] || 0) + 1;
     }
+  }
+  // Nothing under any name: NHTSA has no record of this model that year
+  // (often it didn't exist yet). Shown as "no data", not as zero.
+  if (!complaintNames.length && !recallNames.length && !complaints.size && !recalls.size) {
+    return { year, complaints: null, recalls: null, byComponent: {} };
   }
   return { year, complaints: complaints.size, recalls: recalls.size, byComponent };
 }
