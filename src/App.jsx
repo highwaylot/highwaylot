@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Search, MapPin, Gauge, Fuel, Calendar, X, Plus, ChevronLeft, ChevronRight,
   ShieldCheck, Phone, SlidersHorizontal, Car as CarIcon, Check, Star,
-  TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, LockOpen, RotateCcw, FileText, DollarSign, Info, BookOpen, TriangleAlert
+  TrendingUp, TrendingDown, Zap, BarChart3, Building2, Camera, Lock, LockOpen, RotateCcw, FileText, DollarSign, Info, BookOpen, TriangleAlert, Sun, Moon
 } from "lucide-react";
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation, useSearchParams, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
@@ -80,9 +80,11 @@ function generateToken() {
 }
 
 // ---------- Design tokens ----------
+// Theme-aware: each value is a CSS variable (src/index.css) so inline styles
+// follow light/dark mode. Only the brand yellow is a fixed literal.
 const C = {
-  ink: "#1B2431", paper: "#FAFAF6", yellow: "#F5B700", yellowDark: "#8A6600",
-  steel: "#5B6472", line: "#DEDBD1", green: "#2F6B4F", greenBg: "#E7F0EA", card: "#FFFFFF",
+  ink: "var(--hl-ink)", paper: "var(--background)", yellow: "#F5B700", yellowDark: "var(--warn-foreground)",
+  steel: "var(--muted-foreground)", line: "var(--hl-line)", green: "var(--good-foreground)", greenBg: "var(--good)", card: "var(--card)",
   // "The Highway" redesign tokens — steel fails contrast on ink (~2.6:1), so
   // ink surfaces use paper at reduced opacity instead of steel for any
   // secondary text, border, or panel fill. Never use C.steel on C.ink.
@@ -393,7 +395,7 @@ function SEOHead({ title, description, path, image, noindex }) {
 }
 
 function Badge({ children, tone = "neutral" }) {
-  const tones = { neutral: { bg: "#EFEDE4", color: C.steel }, verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "#FFF3D6", color: C.yellowDark }, danger: { bg: "#FBE4E3", color: "#A32D2D" } };
+  const tones = { neutral: { bg: "var(--muted)", color: C.steel }, verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "var(--warn)", color: C.yellowDark }, danger: { bg: "var(--bad)", color: "var(--bad-foreground)" } };
   const t = tones[tone];
   return <span style={{ background: t.bg, color: t.color, fontSize: 12, fontWeight: 600, padding: "3px 9px", borderRadius: 4, display: "inline-flex", alignItems: "center", gap: 4 }}>{children}</span>;
 }
@@ -493,13 +495,13 @@ function VinDecoder({ vin, onVinChange, onDecode, ink }) {
   };
 
   return (
-    <div style={{ marginBottom: 18, background: ink ? C.panel : "#F4F2EA", border: `1px solid ${ink ? C.hair : C.line}`, borderRadius: 6, padding: 12 }}>
+    <div style={{ marginBottom: 18, background: ink ? C.panel : "var(--muted)", border: `1px solid ${ink ? C.hair : C.line}`, borderRadius: 6, padding: 12 }}>
       <div style={{ fontSize: 12, color: ink ? C.note : C.steel, marginBottom: 6 }}>Have your VIN handy? Auto-fill year, make, and model below.</div>
       <div style={{ display: "flex", gap: 8 }}>
         <input value={vin || ""} onChange={(e) => { onVinChange(e.target.value.toUpperCase()); setStatus("idle"); }} placeholder="17-character VIN (optional)" maxLength={17} style={{ ...style, flex: 1 }} />
-        <button onClick={decode} disabled={status === "loading"} style={{ background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, fontSize: 13, cursor: status === "loading" ? "default" : "pointer" }}>{status === "loading" ? "…" : "Auto-fill"}</button>
+        <button onClick={decode} disabled={status === "loading"} style={{ background: C.yellow, color: "#1B2431", border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, fontSize: 13, cursor: status === "loading" ? "default" : "pointer" }}>{status === "loading" ? "…" : "Auto-fill"}</button>
       </div>
-      {status === "error" && <div style={{ fontSize: 11.5, color: "#A32D2D", marginTop: 6 }}>Couldn't decode that VIN — double-check it, or just fill in the fields below manually.</div>}
+      {status === "error" && <div style={{ fontSize: 11.5, color: "var(--bad-foreground)", marginTop: 6 }}>Couldn't decode that VIN — double-check it, or just fill in the fields below manually.</div>}
     </div>
   );
 }
@@ -578,8 +580,8 @@ function MakeModelPicker({ make, model, year, onMakeChange, onModelChange, error
   );
 }
 
-const selectStyle = { border: `1.5px solid ${C.line}`, borderRadius: 5, padding: "9px 12px", fontSize: 14.5, color: C.ink, background: "#fff", fontFamily: FONT_BODY, cursor: "pointer" };
-const inputStyle = { width: "100%", border: `1.5px solid ${C.line}`, borderRadius: 5, padding: "11px 12px", fontSize: 15, color: C.ink, fontFamily: FONT_BODY, boxSizing: "border-box", background: "#fff" };
+const selectStyle = { border: `1.5px solid ${C.line}`, borderRadius: 5, padding: "9px 12px", fontSize: 14.5, color: C.ink, background: "var(--card)", fontFamily: FONT_BODY, cursor: "pointer" };
+const inputStyle = { width: "100%", border: `1.5px solid ${C.line}`, borderRadius: 5, padding: "11px 12px", fontSize: 15, color: C.ink, fontFamily: FONT_BODY, boxSizing: "border-box", background: "var(--card)" };
 
 function ListingCard({ listing, onOpen }) {
   const photo = listing.photos && listing.photos.length ? listing.photos[0] : null;
@@ -735,7 +737,7 @@ function CategoryPage({ listings, openListing }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
         {matches.map((c) => <ListingCard key={c.id} listing={c} onOpen={openListing} />)}
       </div>
-      <div style={{ marginTop: 24, padding: 14, background: "#F4F2EA", borderRadius: 6, fontSize: 12.5, color: C.steel }}>
+      <div style={{ marginTop: 24, padding: 14, background: "var(--muted)", borderRadius: 6, fontSize: 12.5, color: C.steel }}>
         This page lives at its own real address, so it can show up directly in Google search results — every combination gets one automatically as inventory grows. Read-only view of listings already public on the browse page.
       </div>
     </div>
@@ -762,6 +764,23 @@ function LaneHero({ left, value, note, right }) {
   );
 }
 
+// Light/dark switch. The theme lives on <html class="dark">, set before
+// first paint by the inline script in index.html; the icons swap by CSS
+// alone, so prerendered HTML and hydration never disagree about it.
+function ThemeToggle({ className }) {
+  const toggle = () => {
+    const dark = document.documentElement.classList.toggle("dark");
+    try { localStorage.setItem("hl-theme", dark ? "dark" : "light"); } catch {}
+  };
+  return (
+    <button type="button" onClick={toggle} aria-label="Toggle dark mode" title="Toggle dark mode"
+      className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "text-muted-foreground hover:text-foreground", className)}>
+      <Moon size={17} className="dark:hidden" />
+      <Sun size={17} className="hidden dark:block" />
+    </button>
+  );
+}
+
 function TopBar() {
   const { pathname } = useLocation();
   return (
@@ -769,8 +788,8 @@ function TopBar() {
       <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5">
         <Link to="/wikilot" className="flex items-center gap-2 no-underline">
           <svg viewBox="0 0 32 34" className="h-7 w-[26px] shrink-0">
-            <path d="M 16 1 L 30 6.5 L 30 17 Q 30 27 16 33 Q 2 27 2 17 L 2 6.5 Z" fill={C.yellow} stroke={C.ink} strokeWidth={2} />
-            <path d="M 16 6 L 16 28" stroke={C.ink} strokeWidth={1.5} strokeDasharray="4,3" opacity={0.5} />
+            <path d="M 16 1 L 30 6.5 L 30 17 Q 30 27 16 33 Q 2 27 2 17 L 2 6.5 Z" fill="#F5B700" stroke="#1B2431" strokeWidth={2} />
+            <path d="M 16 6 L 16 28" stroke="#1B2431" strokeWidth={1.5} strokeDasharray="4,3" opacity={0.5} />
           </svg>
           <span className="font-heading text-lg font-semibold text-foreground">HIGHWAYLOT</span>
         </Link>
@@ -778,6 +797,7 @@ function TopBar() {
           <NavLink label="ValueLOT" to="/value" active={pathname === "/value"} />
           <NavLink label="wikiLOT" to="/wikilot" active={pathname.startsWith("/wikilot")} />
         </div>
+        <ThemeToggle className="ml-auto" />
       </div>
     </div>
   );
@@ -978,7 +998,7 @@ function SavedSearchPrompt({ filters, log }) {
   if (!hasFilters) return null;
   return (
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "0 20px" }}>
-      <div style={{ background: "#F4F2EA", borderRadius: 6, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
+      <div style={{ background: "var(--muted)", borderRadius: 6, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
         {saved ? (
           <span style={{ fontSize: 13.5, color: C.ink, display: "flex", alignItems: "center", gap: 6 }}><Check size={15} color={C.green} /> You're on the list for this search.</span>
         ) : (
@@ -1100,10 +1120,10 @@ function ListingDetail({ allListings, log }) {
       </Helmet>
       <span onClick={() => navigate(-1)} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: C.steel, fontSize: 13.5, cursor: "pointer", marginBottom: 16 }}><ChevronLeft size={15} /> Back</span>
       {listing.status === "sold" && (
-        <div style={{ background: "#EFEDE4", border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", marginBottom: 16, fontSize: 13.5, color: C.steel }}>This car has been marked sold — no longer available.</div>
+        <div style={{ background: "var(--muted)", border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", marginBottom: 16, fontSize: 13.5, color: C.steel }}>This car has been marked sold — no longer available.</div>
       )}
       {listing.status === "active" && getExpiryInfo(listing).expired && (
-        <div style={{ background: "#EFEDE4", border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", marginBottom: 16, fontSize: 13.5, color: C.steel }}>This listing has expired and is no longer active.</div>
+        <div style={{ background: "var(--muted)", border: `1px solid ${C.line}`, borderRadius: 6, padding: "12px 16px", marginBottom: 16, fontSize: 13.5, color: C.steel }}>This listing has expired and is no longer active.</div>
       )}
       <div className="hl-detail-grid">
         <div>
@@ -1135,7 +1155,7 @@ function ListingDetail({ allListings, log }) {
           </div>
           <div style={{ marginTop: 26, borderTop: `1px solid ${C.line}`, paddingTop: 20 }}>
             <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: C.ink, marginBottom: 8 }}>Description</div>
-            <p style={{ fontSize: 14.5, color: "#3B4250", lineHeight: 1.6, margin: 0 }}>{listing.desc}</p>
+            <p style={{ fontSize: 14.5, color: "var(--foreground)", lineHeight: 1.6, margin: 0 }}>{listing.desc}</p>
           </div>
           {listing.issues && Object.keys(listing.issues).length > 0 && (
             <div style={{ marginTop: 26, borderTop: `1px solid ${C.line}`, paddingTop: 20 }}>
@@ -1180,7 +1200,7 @@ function ListingDetail({ allListings, log }) {
               {!revealed ? (
                 <button onClick={() => { setRevealed(true); log("contact_reveal", { listingId: listing.id }); }} style={{ width: "100%", background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "12px 0", fontFamily: FONT_HEAD, fontSize: 14.5, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}><Phone size={15} /> Contact seller</button>
               ) : (
-                <div style={{ background: "#F4F2EA", borderRadius: 4, padding: "12px 14px", fontSize: 14 }}>
+                <div style={{ background: "var(--muted)", borderRadius: 4, padding: "12px 14px", fontSize: 14 }}>
                   {/* Fixed a real bug: this used to show a fake number computed
                       from the listing ID, labeled "relayed — real number stays
                       private" — a masking/relay claim that wasn't actually true,
@@ -1242,12 +1262,12 @@ function ShippingReferralPrompt({ listing, log }) {
   }
 
   return (
-    <div style={{ marginTop: 8, background: "#F4F2EA", border: `1px solid ${C.line}`, borderRadius: 6, padding: 14 }}>
+    <div style={{ marginTop: 8, background: "var(--muted)", border: `1px solid ${C.line}`, borderRadius: 6, padding: 14 }}>
       <div style={{ fontSize: 12.5, color: C.steel, marginBottom: 10 }}>We'll pass your email and destination ZIP to a shipping partner for a quote — nothing else, and only if you submit this.</div>
       <input placeholder="Name (optional)" value={form.name} onChange={set("name")} style={{ ...inputStyle, marginBottom: 8 }} />
       <input placeholder="Email" value={form.email} onChange={set("email")} style={{ ...inputStyle, marginBottom: 8 }} />
       <input placeholder="Destination ZIP" value={form.destination_zip} onChange={set("destination_zip")} style={{ ...inputStyle, marginBottom: 8 }} />
-      {error && <div style={{ fontSize: 12, color: "#A32D2D", marginBottom: 8 }}>{error}</div>}
+      {error && <div style={{ fontSize: 12, color: "var(--bad-foreground)", marginBottom: 8 }}>{error}</div>}
       <div style={{ display: "flex", gap: 8 }}>
         <button onClick={submit} style={{ flex: 1, background: C.yellow, color: C.ink, border: "none", borderRadius: 4, padding: "9px 0", fontFamily: FONT_HEAD, fontSize: 13, cursor: "pointer" }}>Request quote</button>
         <button onClick={() => setOpen(false)} style={{ background: "transparent", color: C.steel, border: `1px solid ${C.line}`, borderRadius: 4, padding: "9px 14px", fontSize: 13, cursor: "pointer" }}>Cancel</button>
@@ -1414,7 +1434,7 @@ function PostAd({ onSubmit, existingListings, log }) {
             </label>
           )}
         </div>
-        {photoError && <div style={{ fontSize: 12, color: "#A32D2D", marginBottom: 6 }}>{photoError}</div>}
+        {photoError && <div style={{ fontSize: 12, color: "var(--bad-foreground)", marginBottom: 6 }}>{photoError}</div>}
         <div style={{ fontSize: 12, color: C.steel }}>{photos.length} of 3 minimum added.</div>
       </Field>
 
@@ -1458,7 +1478,7 @@ function PostAd({ onSubmit, existingListings, log }) {
       </div>
 
       {possibleDuplicate && (
-        <div style={{ marginTop: 16, padding: 14, background: "#FFF3D6", borderRadius: 6, border: `1px solid ${C.yellow}` }}>
+        <div style={{ marginTop: 16, padding: 14, background: "var(--warn)", borderRadius: 6, border: `1px solid ${C.yellow}` }}>
           <div style={{ fontSize: 13.5, color: C.yellowDark, fontWeight: 600, marginBottom: 4 }}>This looks like it might already be listed</div>
           <div style={{ fontSize: 12.5, color: "#6B4F00", marginBottom: 8 }}>
             A {possibleDuplicate.year} {possibleDuplicate.make} {possibleDuplicate.model} with ~{fmtMiles(possibleDuplicate.mileage)} is already on HIGHWAYLOT ({possibleDuplicate.posted}). If this is a different car, just confirm below.
@@ -1467,7 +1487,7 @@ function PostAd({ onSubmit, existingListings, log }) {
             <input type="checkbox" checked={confirmDuplicate} onChange={(e) => setConfirmDuplicate(e.target.checked)} />
             This is a different vehicle — continue anyway
           </label>
-          {errors.duplicate && <div style={{ fontSize: 11.5, color: "#A32D2D", marginTop: 4 }}>Please confirm before continuing.</div>}
+          {errors.duplicate && <div style={{ fontSize: 11.5, color: "var(--bad-foreground)", marginTop: 4 }}>Please confirm before continuing.</div>}
         </div>
       )}
 
@@ -1480,7 +1500,7 @@ function PostAd({ onSubmit, existingListings, log }) {
         We only share your phone number with buyers who request it, and it's never posted publicly. No ID or real name required to list.
       </div>
       {submitError && (
-        <div style={{ marginTop: 14, padding: 12, background: "#FBE4E3", border: "1px solid #E24B4A", borderRadius: 6, fontSize: 13, color: "#A32D2D" }}>
+        <div style={{ marginTop: 14, padding: 12, background: "var(--bad)", border: "1px solid #E24B4A", borderRadius: 6, fontSize: 13, color: "var(--bad-foreground)" }}>
           Couldn't publish your listing: {submitError}. Nothing was lost — fix this and try again.
         </div>
       )}
@@ -1491,7 +1511,7 @@ function PostAd({ onSubmit, existingListings, log }) {
   );
 }
 function Field({ label, required, error, children, ink }) {
-  return <div><label style={{ fontSize: 12.5, color: error ? "#E26B6B" : ink ? C.dim : C.steel, display: "block", marginBottom: 4 }}>{label}{required && " *"}{error && " — required"}</label>{children}</div>;
+  return <div><label style={{ fontSize: 12.5, color: error ? "var(--bad-foreground)" : ink ? C.dim : C.steel, display: "block", marginBottom: 4 }}>{label}{required && " *"}{error && " — required"}</label>{children}</div>;
 }
 const inkInputStyle = { width: "100%", border: `1px solid ${C.field}`, borderRadius: 6, padding: "11px 12px", fontSize: 15, color: C.paper, fontFamily: FONT_BODY, boxSizing: "border-box", background: C.panel, height: 46 };
 
@@ -1519,7 +1539,7 @@ function Success() {
       <p style={{ color: C.steel, fontSize: 14.5, marginBottom: 20 }}>Buyers across the country can now see your listing.</p>
 
       {manageLink && (
-        <div style={{ background: "#FFF3D6", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: 18, textAlign: "left", marginBottom: 24 }}>
+        <div style={{ background: "var(--warn)", border: `1px solid ${C.yellow}`, borderRadius: 8, padding: 18, textAlign: "left", marginBottom: 24 }}>
           <div style={{ fontFamily: FONT_HEAD, fontSize: 14.5, color: C.yellowDark, marginBottom: 4 }}>Save this link — it's the only way to edit or delete this listing</div>
           <div style={{ fontSize: 12, color: "#6B4F00", marginBottom: 10 }}>There's no login, so this exact link is what proves it's yours. We can't recover it if you lose it.</div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -1651,7 +1671,7 @@ function Quiz({ log, onComplete }) {
 
   return (
     <div style={{ maxWidth: 520, margin: "0 auto", padding: "48px 20px" }}>
-      <div style={{ height: 5, background: "#EFEDE4", borderRadius: 3, marginBottom: 20, overflow: "hidden" }}>
+      <div style={{ height: 5, background: "var(--muted)", borderRadius: 3, marginBottom: 20, overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${progress}%`, background: C.yellow, transition: "width 200ms" }} />
       </div>
       <div style={{ fontSize: 12, color: C.steel, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 6 }}>{step + 1} of {QUIZ_STATEMENTS.length}</div>
@@ -1735,7 +1755,7 @@ function DealerPage({ log }) {
             <div style={{ fontFamily: FONT_HEAD, fontSize: 18, color: C.ink }}>{t.name}</div>
             <div style={{ fontFamily: FONT_HEAD, fontSize: 30, color: C.ink, margin: "8px 0" }}>${t.price}<span style={{ fontSize: 13, color: C.steel }}>/mo</span></div>
             <div style={{ marginTop: 12 }}>
-              {t.features.map((f, i) => <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, color: "#3B4250", marginBottom: 8 }}><Check size={14} color={C.green} style={{ marginTop: 2, flexShrink: 0 }} />{f}</div>)}
+              {t.features.map((f, i) => <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13.5, color: "var(--foreground)", marginBottom: 8 }}><Check size={14} color={C.green} style={{ marginTop: 2, flexShrink: 0 }} />{f}</div>)}
             </div>
             <button onClick={() => log("dealer_plan_click", { plan: t.name })} style={{ width: "100%", marginTop: 12, background: t.highlight ? C.yellow : "transparent", border: t.highlight ? "none" : `1px solid ${C.line}`, borderRadius: 4, padding: "10px 0", fontFamily: FONT_HEAD, cursor: "pointer" }}>Choose plan</button>
           </div>
@@ -1953,7 +1973,7 @@ function computeMechanicalDeduction(issues, make, regionalMultiplier = 1.0) {
 function MechanicalChecklist({ issues, onChange, ink }) {
   const rowBorder = `1px solid ${ink ? C.hair : C.line}`;
   const labelColor = ink ? C.paper : C.ink;
-  const inactiveBg = ink ? C.panel : "#fff";
+  const inactiveBg = ink ? C.panel : "var(--card)";
   const inactiveBorder = `1px solid ${ink ? C.field : C.line}`;
   const inactiveColor = ink ? C.note : C.steel;
   return (
@@ -1964,7 +1984,7 @@ function MechanicalChecklist({ issues, onChange, ink }) {
           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
             {STATUS_OPTIONS.map((opt) => {
               const active = issues[sys.key] === opt.key;
-              const activeColors = { verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "#FFF3D6", color: C.yellowDark }, danger: { bg: "#FBE4E3", color: "#A32D2D" } };
+              const activeColors = { verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "var(--warn)", color: C.yellowDark }, danger: { bg: "var(--bad)", color: "var(--bad-foreground)" } };
               const c = activeColors[opt.tone];
               return (
                 <button
@@ -1988,7 +2008,7 @@ function MechanicalChecklist({ issues, onChange, ink }) {
           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
             {COSMETIC_OPTIONS.map((opt) => {
               const active = issues[sys.key] === opt.key;
-              const activeColors = { verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "#FFF3D6", color: C.yellowDark }, danger: { bg: "#FBE4E3", color: "#A32D2D" } };
+              const activeColors = { verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "var(--warn)", color: C.yellowDark }, danger: { bg: "var(--bad)", color: "var(--bad-foreground)" } };
               const c = activeColors[opt.tone];
               return (
                 <button
@@ -2019,7 +2039,7 @@ function MechanicalChecklist({ issues, onChange, ink }) {
                 style={{
                   fontSize: 11.5, padding: "5px 10px", borderRadius: 4, cursor: "pointer",
                   border: active ? "none" : inactiveBorder,
-                  background: active ? "#FBE4E3" : inactiveBg, color: active ? "#A32D2D" : inactiveColor, fontWeight: active ? 600 : 400,
+                  background: active ? "var(--bad)" : inactiveBg, color: active ? "var(--bad-foreground)" : inactiveColor, fontWeight: active ? 600 : 400,
                 }}
               >{tier.label}</button>
             );
@@ -2040,8 +2060,8 @@ function MechanicalChecklist({ issues, onChange, ink }) {
                 style={{
                   fontSize: 11.5, padding: "5px 14px", borderRadius: 4, cursor: "pointer",
                   border: active ? "none" : inactiveBorder,
-                  background: active && opt.key ? "#FBE4E3" : active ? C.greenBg : inactiveBg,
-                  color: active && opt.key ? "#A32D2D" : active ? C.green : inactiveColor,
+                  background: active && opt.key ? "var(--bad)" : active ? C.greenBg : inactiveBg,
+                  color: active && opt.key ? "var(--bad-foreground)" : active ? C.green : inactiveColor,
                   fontWeight: active ? 600 : 400,
                 }}
               >{opt.label}</button>
@@ -2077,7 +2097,7 @@ function IssuesGate({ issues, onChange, context = "listing", ink }) {
     return (
       <div style={lightweight
         ? { borderTop: `1px solid ${ink ? C.hair : C.line}`, paddingTop: 14 }
-        : { background: ink ? C.panel : "#F4F2EA", border: `1px solid ${ink ? C.hair : C.line}`, borderRadius: 8, padding: 20 }}>
+        : { background: ink ? C.panel : "var(--muted)", border: `1px solid ${ink ? C.hair : C.line}`, borderRadius: 8, padding: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
           {!lightweight && <div style={{ width: 4, height: 20, background: C.yellow, borderRadius: 2 }} />}
           <div style={{ fontFamily: FONT_HEAD, fontSize: lightweight ? 14 : 16, color: ink ? C.paper : C.ink }}>Any known issues?</div>
@@ -2091,7 +2111,7 @@ function IssuesGate({ issues, onChange, context = "listing", ink }) {
           <button onClick={() => { onChange(NO_ISSUES_STATE); setMode("none"); }} style={ink
             ? { flex: "1 1 160px", background: C.panel, color: C.paper, border: `1px solid ${C.yellow}`, borderRadius: 6, padding: "12px 8px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer" }
             : { flex: "1 1 160px", background: C.greenBg, color: C.green, border: "none", borderRadius: 6, padding: "12px 8px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer" }}>No, it's in good shape</button>
-          <button onClick={() => setMode("some")} style={{ flex: "1 1 160px", background: ink ? C.panel : "#fff", color: ink ? C.paper : C.ink, border: `1px solid ${ink ? C.field : C.line}`, borderRadius: 6, padding: "12px 8px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer" }}>Yes, let me note a few things</button>
+          <button onClick={() => setMode("some")} style={{ flex: "1 1 160px", background: ink ? C.panel : "var(--card)", color: ink ? C.paper : C.ink, border: `1px solid ${ink ? C.field : C.line}`, borderRadius: 6, padding: "12px 8px", fontFamily: FONT_HEAD, fontSize: 14, cursor: "pointer" }}>Yes, let me note a few things</button>
         </div>
       </div>
     );
@@ -2109,7 +2129,7 @@ function IssuesGate({ issues, onChange, context = "listing", ink }) {
   }
 
   return (
-    <div style={{ background: ink ? C.panel : "#F4F2EA", border: `1px solid ${ink ? C.hair : C.line}`, borderRadius: 8, padding: 20 }}>
+    <div style={{ background: ink ? C.panel : "var(--muted)", border: `1px solid ${ink ? C.hair : C.line}`, borderRadius: 8, padding: 20 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
         <div style={{ width: 4, height: 20, background: C.yellow, borderRadius: 2 }} />
         <div style={{ fontFamily: FONT_HEAD, fontSize: 16, color: ink ? C.paper : C.ink }}>What's going on?</div>
@@ -2623,14 +2643,14 @@ function ValueMyCar({ log }) {
         {result ? <><RotateCcw size={14} /> Update my breakdown</> : liveEstimate ? <><Lock size={14} /> Unlock my full breakdown</> : "Get my estimate"}
       </Button>
       {saveError && !result && (
-        <div className="mt-3 rounded-md bg-[#FBE4E3] px-3 py-2 text-xs text-[#A32D2D]">{saveError}</div>
+        <div className="mt-3 rounded-md bg-bad px-3 py-2 text-xs text-bad-foreground">{saveError}</div>
       )}
 
       {result && (
         <div key={result.revealId} ref={resultRef} className="hl-reveal-card relative mt-7 scroll-mt-6 rounded-lg border border-primary/60 bg-card p-6 text-center shadow-[0_10px_30px_-12px_rgba(167,93,0,0.35)]">
           <ConfettiBurst />
           {saveError && (
-            <div className="mb-3.5 rounded-md bg-[#FBE4E3] px-3 py-2 text-left text-xs text-[#A32D2D]">
+            <div className="mb-3.5 rounded-md bg-bad px-3 py-2 text-left text-xs text-bad-foreground">
               Your estimate above is accurate, but this submission couldn't be saved on our end ({saveError}).
             </div>
           )}
@@ -2651,7 +2671,7 @@ function ValueMyCar({ log }) {
               {result.boosters.map((b, i) => (
                 <span
                   key={b.label}
-                  className={cn("hl-reveal-item inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs", b.done ? "border-[#2F6B4F]/25 bg-[#E7F0EA] text-[#2F6B4F]" : "border-dashed bg-background text-muted-foreground")}
+                  className={cn("hl-reveal-item inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs", b.done ? "border-good-foreground/25 bg-good text-good-foreground" : "border-dashed bg-background text-muted-foreground")}
                   style={{ animationDelay: `${650 + i * 120}ms` }}
                 >
                   {b.done ? <Check size={12} /> : <Plus size={12} />}{b.label}
@@ -2676,7 +2696,7 @@ function ValueMyCar({ log }) {
           {form.loan_status === "Still financed (loan payoff needed)" && form.loan_balance && (
             <div className="hl-reveal-item mt-4.5 border-t pt-4" style={{ animationDelay: "950ms" }}>
               <div className="text-xs uppercase tracking-wide text-muted-foreground">Estimated equity</div>
-              <div className={cn("mt-1 font-heading text-2xl font-bold", (result.estimate - Number(form.loan_balance)) < 0 ? "text-[#C0392B]" : "text-primary-text")}>
+              <div className={cn("mt-1 font-heading text-2xl font-bold", (result.estimate - Number(form.loan_balance)) < 0 ? "text-bad-foreground" : "text-primary-text")}>
                 {fmtPrice(result.estimate - Number(form.loan_balance))}
               </div>
               <div className="mt-1.5 text-[11.5px] text-muted-foreground">
@@ -2711,12 +2731,12 @@ function ValueMyCar({ log }) {
           {result.mechanicalDeduction > 0 && (
             <div className="hl-reveal-item mt-4.5 border-t pt-4 text-left" style={{ animationDelay: "1650ms" }}>
               <div className="mb-2 text-center text-xs text-muted-foreground">
-                <strong className="text-[#C0392B]">-{fmtPrice(result.mechanicalDeduction)}</strong> knocked off for known issues
+                <strong className="text-bad-foreground">-{fmtPrice(result.mechanicalDeduction)}</strong> knocked off for known issues
               </div>
               {result.breakdown.filter((b) => b.deduction > 0).map((b, i) => (
                 <div key={i} className="flex justify-between py-0.5 text-xs text-muted-foreground">
                   <span>{b.label} — {b.status === "Broken" ? "not working" : b.status === "Ongoing" ? "ongoing issue" : b.status}</span>
-                  <span className="text-[#C0392B]">-{fmtPrice(b.deduction)}</span>
+                  <span className="text-bad-foreground">-{fmtPrice(b.deduction)}</span>
                 </div>
               ))}
               <div className="mt-2 text-[11px] text-muted-foreground">
@@ -2857,12 +2877,12 @@ function ManagePage() {
         </div>
       )}
       {listing.status === "active" && expiry && expiry.daysLeft <= 14 && !expiry.expired && (
-        <div style={{ fontSize: 13, color: "#A32D2D", fontWeight: 600, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: "var(--bad-foreground)", fontWeight: 600, marginBottom: 16 }}>
           Expires in {expiry.daysLeft} day{expiry.daysLeft === 1 ? "" : "s"} — update the price to keep it active.
         </div>
       )}
       {listing.status === "active" && expiry && expiry.expired && (
-        <div style={{ fontSize: 13, color: "#A32D2D", fontWeight: 600, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: "var(--bad-foreground)", fontWeight: 600, marginBottom: 16 }}>
           This listing has expired and is hidden from browse — update the price to bring it back.
         </div>
       )}
@@ -2899,8 +2919,8 @@ function ManagePage() {
 
       {listing.status !== "sold" && (
         <div style={{ marginTop: 30, paddingTop: 20, borderTop: `1px solid ${C.line}` }}>
-          <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: "#A32D2D", marginBottom: 6 }}>Danger zone</div>
-          <button onClick={deleteListing} style={{ background: "#FBE4E3", color: "#A32D2D", border: "none", borderRadius: 4, padding: "10px 18px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Delete this listing</button>
+          <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: "var(--bad-foreground)", marginBottom: 6 }}>Danger zone</div>
+          <button onClick={deleteListing} style={{ background: "var(--bad)", color: "var(--bad-foreground)", border: "none", borderRadius: 4, padding: "10px 18px", fontFamily: FONT_HEAD, cursor: "pointer" }}>Delete this listing</button>
         </div>
       )}
       <span onClick={goHome} style={{ display: "inline-block", marginTop: 24, color: C.steel, fontSize: 13, cursor: "pointer", textDecoration: "underline" }}>Back to HIGHWAYLOT</span>
@@ -2926,7 +2946,7 @@ function SimpleBarRow({ label, value, max, suffix = "" }) {
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, color: C.ink, marginBottom: 3 }}>
         <span>{label}</span><span style={{ fontWeight: 600 }}>{value}{suffix}</span>
       </div>
-      <div style={{ height: 8, background: "#EFEDE4", borderRadius: 4, overflow: "hidden" }}>
+      <div style={{ height: 8, background: "var(--muted)", borderRadius: 4, overflow: "hidden" }}>
         <div style={{ height: "100%", width: `${pct}%`, background: C.yellow }} />
       </div>
     </div>
@@ -3112,7 +3132,7 @@ function ListingSnippet({ listing }) {
         {listing.featured && <Badge tone="yellow">Featured</Badge>}
         <FairnessBadge fairness={listing.fairness} />
       </div>
-      <div style={{ fontSize: 12, color: "#3B4250", marginTop: 8, lineHeight: 1.5 }}>{listing.desc}</div>
+      <div style={{ fontSize: 12, color: "var(--foreground)", marginTop: 8, lineHeight: 1.5 }}>{listing.desc}</div>
     </div>
   );
 }
@@ -3493,12 +3513,12 @@ function AdminPage() {
             <span style={{ display: "flex", gap: 3, marginLeft: 2 }}>
               <span title="No issues" style={{ width: 7, height: 7, borderRadius: "50%", background: C.green, display: "inline-block" }} />
               <span title="Worth a look" style={{ width: 7, height: 7, borderRadius: "50%", background: "#E0B33C", display: "inline-block" }} />
-              <span title="Flagged" style={{ width: 7, height: 7, borderRadius: "50%", background: "#A32D2D", display: "inline-block" }} />
+              <span title="Flagged" style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--bad-foreground)", display: "inline-block" }} />
             </span>
           </button>
           <button onClick={() => setTab("quiz")} style={{ fontSize: 12.5, padding: "6px 12px", borderRadius: 20, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", color: C.ink }}><strong>{quizResponses.length}</strong> quiz completions</button>
           <button onClick={() => setTab("valuations")} style={{ fontSize: 12.5, padding: "6px 12px", borderRadius: 20, border: `1px solid ${C.line}`, background: "#fff", cursor: "pointer", color: C.ink }}><strong>{valuations.length}</strong> valuations</button>
-          <button onClick={() => setTab("reports")} style={{ fontSize: 12.5, padding: "6px 12px", borderRadius: 20, border: pendingReports.length > 0 ? "none" : `1px solid ${C.line}`, background: pendingReports.length > 0 ? "#FBE4E3" : "#fff", cursor: "pointer", color: pendingReports.length > 0 ? "#A32D2D" : C.ink, fontWeight: pendingReports.length > 0 ? 600 : 400 }}><strong>{pendingReports.length}</strong> pending report{pendingReports.length === 1 ? "" : "s"}</button>
+          <button onClick={() => setTab("reports")} style={{ fontSize: 12.5, padding: "6px 12px", borderRadius: 20, border: pendingReports.length > 0 ? "none" : `1px solid ${C.line}`, background: pendingReports.length > 0 ? "var(--bad)" : "#fff", cursor: "pointer", color: pendingReports.length > 0 ? "var(--bad-foreground)" : C.ink, fontWeight: pendingReports.length > 0 ? 600 : 400 }}><strong>{pendingReports.length}</strong> pending report{pendingReports.length === 1 ? "" : "s"}</button>
         </div>
       </div>
 
@@ -3570,7 +3590,7 @@ function AdminPage() {
                         <td style={TD}>{row.quiz}</td>
                         <td style={TD}>{row.valuations}</td>
                         <td style={TD}>{row.sold}</td>
-                        <td style={{ ...TD, color: avgDiff == null ? C.steel : avgDiff < 0 ? "#A32D2D" : C.green }}>{avgDiff == null ? "—" : `${avgDiff > 0 ? "+" : ""}${avgDiff}%`}</td>
+                        <td style={{ ...TD, color: avgDiff == null ? C.steel : avgDiff < 0 ? "var(--bad-foreground)" : C.green }}>{avgDiff == null ? "—" : `${avgDiff > 0 ? "+" : ""}${avgDiff}%`}</td>
                       </tr>
                     );
                   })}
@@ -3647,7 +3667,7 @@ function AdminPage() {
                       <span style={{ fontSize: 12.5, fontWeight: 600, color: C.ink }}>Visitor #{s.refNum} <span style={{ fontWeight: 400, color: C.steel }}>· {s.src}</span></span>
                       <span style={{ fontSize: 11, color: C.steel }}>{s.firstSeen ? exactDateTime(s.firstSeen) : "—"}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: "#3B4250", marginTop: 4, lineHeight: 1.6 }}>
+                    <div style={{ fontSize: 12, color: "var(--foreground)", marginTop: 4, lineHeight: 1.6 }}>
                       {s.valuations.map((v, i) => <div key={`v${i}`}>Valuation: {v.year} {v.make} {v.model} → {fmtPrice(v.estimate)}</div>)}
                       {s.quizzes.map((r, i) => <div key={`q${i}`}>Quiz: {r.archetype}</div>)}
                       {s.listings.map((l, i) => <div key={`l${i}`}>Posted: {l.year} {l.make} {l.model} — {fmtPrice(l.price)}</div>)}
@@ -3705,7 +3725,7 @@ function AdminPage() {
                     <td style={TD}><CredibilityDot credibility={l.credibility} /></td>
                     <td style={TD}>{manageLinkIds.has(l.id) ? <span style={{ color: C.green }}>Active</span> : <span style={{ color: C.steel }}>None (test data)</span>}</td>
                     <td style={TD}>{adminDate(l.created_at)}</td>
-                    <td style={TD}><button onClick={() => deleteListing(l.id)} style={{ fontSize: 11, color: "#A32D2D", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>Delete</button></td>
+                    <td style={TD}><button onClick={() => deleteListing(l.id)} style={{ fontSize: 11, color: "var(--bad-foreground)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>Delete</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -3809,7 +3829,7 @@ function AdminPage() {
               soldByMakeEntries.map((e) => (
                 <div key={e.make} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderBottom: `1px solid ${C.line}` }}>
                   <span>{e.make} <span style={{ color: C.steel, fontSize: 11.5 }}>({e.count})</span></span>
-                  <span style={{ fontWeight: 600, color: e.avgPct < 0 ? "#A32D2D" : C.green }}>{e.avgPct > 0 ? "+" : ""}{e.avgPct}%</span>
+                  <span style={{ fontWeight: 600, color: e.avgPct < 0 ? "var(--bad-foreground)" : C.green }}>{e.avgPct > 0 ? "+" : ""}{e.avgPct}%</span>
                 </div>
               ))}
           </AdminSection>
@@ -3821,7 +3841,7 @@ function AdminPage() {
                   <div style={{ fontSize: 13, color: C.ink }}>{l.year} {l.make} {l.model} — {fmtPrice(l.price)} → {fmtPrice(l.sold_price)}</div>
                   <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                     <button onClick={() => setSoldOverride(l.id, true)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer", border: "none", background: C.greenBg, color: C.green }}>Include anyway</button>
-                    <button onClick={() => clearSoldPrice(l.id)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer", border: "none", background: "#FBE4E3", color: "#A32D2D" }}>Clear price</button>
+                    <button onClick={() => clearSoldPrice(l.id)} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 4, cursor: "pointer", border: "none", background: "var(--bad)", color: "var(--bad-foreground)" }}>Clear price</button>
                   </div>
                 </div>
               ))}
@@ -3872,17 +3892,17 @@ function AdminPage() {
                     const daysToSell = l.sold_at ? Math.round((new Date(l.sold_at) - new Date(l.created_at)) / 86400000) : null;
                     const diffPct = l.sold_price ? Math.round(((l.sold_price - l.price) / l.price) * 100) : null;
                     const confidence = l.sold_price ? computeSaleConfidence(l, soldWithPrice) : null;
-                    const confColor = confidence === "High" ? C.green : confidence === "Medium" ? C.yellowDark : confidence === "Low" ? "#A32D2D" : C.steel;
+                    const confColor = confidence === "High" ? C.green : confidence === "Medium" ? C.yellowDark : confidence === "Low" ? "var(--bad-foreground)" : C.steel;
                     return (
                       <tr key={l.id}>
                         <td style={TD}>{l.year} {l.make} {l.model}</td>
                         <td style={TD}>{stateAbbr(l.state)}</td>
                         <td style={TD}>{fmtPrice(l.price)}</td>
                         <td style={TD}>{l.sold_price ? fmtPrice(l.sold_price) : <span style={{ color: C.steel, fontStyle: "italic" }}>Not reported</span>}</td>
-                        <td style={{ ...TD, color: diffPct == null ? C.steel : diffPct < 0 ? "#A32D2D" : C.green }}>{diffPct == null ? "—" : `${diffPct > 0 ? "+" : ""}${diffPct}%`}</td>
+                        <td style={{ ...TD, color: diffPct == null ? C.steel : diffPct < 0 ? "var(--bad-foreground)" : C.green }}>{diffPct == null ? "—" : `${diffPct > 0 ? "+" : ""}${diffPct}%`}</td>
                         <td style={{ ...TD, color: confColor, fontWeight: 600 }}>{confidence || "—"}{l.sold_confidence_override && confidence === "Low" ? " (included)" : ""}</td>
                         <td style={TD}>{daysToSell == null ? "—" : `${daysToSell}d`}</td>
-                        <td style={TD}>{l.sold_price && <button onClick={() => clearSoldPrice(l.id)} style={{ fontSize: 11, color: "#A32D2D", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>Clear price</button>}</td>
+                        <td style={TD}>{l.sold_price && <button onClick={() => clearSoldPrice(l.id)} style={{ fontSize: 11, color: "var(--bad-foreground)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}>Clear price</button>}</td>
                       </tr>
                     );
                   })}
@@ -4012,7 +4032,7 @@ function AdminPage() {
                   <ListingSnippet listing={listing} />
                   <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
                     <button onClick={() => resolveNotSpam(r.id)} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: "pointer", border: "none", background: C.greenBg, color: C.green, fontWeight: 600 }}>Not spam — dismiss</button>
-                    {listing && <button onClick={() => resolveSpam(r)} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: "pointer", border: "none", background: "#FBE4E3", color: "#A32D2D", fontWeight: 600 }}>Spam — remove listing</button>}
+                    {listing && <button onClick={() => resolveSpam(r)} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: "pointer", border: "none", background: "var(--bad)", color: "var(--bad-foreground)", fontWeight: 600 }}>Spam — remove listing</button>}
                   </div>
                 </div>
               );
@@ -4061,7 +4081,7 @@ function AdminPage() {
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => restoreListing(l.id)} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: "pointer", border: "none", background: C.greenBg, color: C.green, fontWeight: 600 }}>Restore</button>
-                  <button onClick={() => purgeListing(l.id)} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: "pointer", border: "none", background: "#FBE4E3", color: "#A32D2D", fontWeight: 600 }}>Delete forever</button>
+                  <button onClick={() => purgeListing(l.id)} style={{ fontSize: 11.5, padding: "5px 12px", borderRadius: 4, cursor: "pointer", border: "none", background: "var(--bad)", color: "var(--bad-foreground)", fontWeight: 600 }}>Delete forever</button>
                 </div>
               </div>
             );
@@ -4222,7 +4242,8 @@ function GuideRedirect() {
 // background. See CLAUDE.md / MARKETPLACE_AUDIT.md for why.
 function LandingHome() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-6 py-24">
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-6 py-24">
+      <ThemeToggle className="absolute right-4 top-4" />
       <SEOHead
         title="HIGHWAYLOT — Car Knowledge Made Simple"
         description="Free car knowledge for people who don't know cars — ValueLOT's honest value estimate and wikiLOT's price guide by make and model, no dealer jargon, no sales pitch."
@@ -4519,7 +4540,7 @@ function ComplaintsByYear({ history, flagFor }) {
                     <span className="absolute left-1/2 -translate-x-1/2 text-[11px] font-semibold tabular-nums text-foreground" style={{ bottom: `calc(${h}% + 4px)` }}>{compact(y.complaints)}</span>
                   )}
                   <span
-                    className={cn("block w-[70%] max-w-6 rounded-t-[4px] bg-[#a75d00] transition-opacity", active && active !== y.year && "opacity-45", "group-focus-visible:ring-2 group-focus-visible:ring-ring")}
+                    className={cn("block w-[70%] max-w-6 rounded-t-[4px] bg-primary-text transition-opacity", active && active !== y.year && "opacity-45", "group-focus-visible:ring-2 group-focus-visible:ring-ring")}
                     style={{ height: `${Math.max(h, y.complaints ? 1.5 : 0)}%` }}
                   />
                 </button>
@@ -4530,7 +4551,7 @@ function ComplaintsByYear({ history, flagFor }) {
             {years.map((y) => (
               <div key={y.year} className="flex flex-1 flex-col items-center text-[10px] tabular-nums text-muted-foreground sm:text-[11px]">
                 <span className="sm:hidden">'{String(y.year).slice(2)}</span><span className="hidden sm:inline">{y.year}</span>
-                {flagFor(y.year) && <TriangleAlert size={11} className="mt-0.5 text-[#A32D2D]" aria-label="Named in a reported issue below" />}
+                {flagFor(y.year) && <TriangleAlert size={11} className="mt-0.5 text-bad-foreground" aria-label="Named in a reported issue below" />}
               </div>
             ))}
           </div>
@@ -4725,7 +4746,7 @@ function GuidePage() {
       mainEntity: insights.faq.map(({ q, a }) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
     },
   ];
-  const toneStyle = { good: "bg-[#E7F0EA] text-[#2F6B4F]", ok: "bg-[#FFF3D6] text-[#7A5A00]", caution: "bg-[#FBE4E3] text-[#A32D2D]" }[insights.tone];
+  const toneStyle = { good: "bg-good text-good-foreground", ok: "bg-warn text-warn-foreground", caution: "bg-bad text-bad-foreground" }[insights.tone];
   return (
     <div>
       <SEOHead
@@ -4781,7 +4802,7 @@ function GuidePage() {
               <ul className="space-y-1.5">
                 {insights.reasons.map((r, i) => (
                   <li key={i} className="flex gap-2 text-sm text-muted-foreground">
-                    {r.good ? <Check size={15} className="mt-0.5 shrink-0 text-[#2F6B4F]" /> : <TriangleAlert size={15} className="mt-0.5 shrink-0 text-[#A32D2D]" />}
+                    {r.good ? <Check size={15} className="mt-0.5 shrink-0 text-good-foreground" /> : <TriangleAlert size={15} className="mt-0.5 shrink-0 text-bad-foreground" />}
                     <span>{r.text}</span>
                   </li>
                 ))}
@@ -4802,7 +4823,7 @@ function GuidePage() {
                     {insights.nhtsaSummary.areas.length > 0 && <>Most reported areas: {insights.nhtsaSummary.areas.join(", ")}. </>}{insights.nhtsaSummary.recallsKnown && <>{insights.nhtsaSummary.recallTotal} {insights.nhtsaSummary.recallTotal === 1 ? "recall" : "recalls"} across these years. </>}Newer years have had less time on the road, so expect fewer complaints for them.
                   </p>
                   <ComplaintsByYear history={history} flagFor={insights.flagFor} />
-                  {insights.anyFlagged && <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground"><TriangleAlert size={12} className="text-[#A32D2D]" /> Years named in a reported issue below.</p>}
+                  {insights.anyFlagged && <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground"><TriangleAlert size={12} className="text-bad-foreground" /> Years named in a reported issue below.</p>}
                   {history.years.some((y) => y.complaints == null) && <p className="mt-1.5 text-xs text-muted-foreground">– No NHTSA records under this model name that year (usually before it was sold).</p>}
                   <details className="mt-3 text-xs">
                     <summary className="cursor-pointer text-muted-foreground hover:text-foreground">See the numbers</summary>
@@ -4828,13 +4849,13 @@ function GuidePage() {
                     {insights.stripYears.map((year) => {
                       const flagged = insights.flagFor(year);
                       return (
-                        <div key={year} className={cn("rounded-md border px-1 py-1.5 text-center text-xs tabular-nums", flagged ? "border-[#E8B4B2] bg-[#FBE4E3] font-semibold text-[#A32D2D]" : "text-muted-foreground")}>
+                        <div key={year} className={cn("rounded-md border px-1 py-1.5 text-center text-xs tabular-nums", flagged ? "border-bad-border bg-bad font-semibold text-bad-foreground" : "text-muted-foreground")}>
                           {year}
                         </div>
                       );
                     })}
                   </div>
-                  <p className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground"><span className="inline-block size-2.5 rounded-sm bg-[#FBE4E3] ring-1 ring-[#E8B4B2]" /> Highlighted years have a commonly reported issue below.</p>
+                  <p className="mb-3 flex items-center gap-1.5 text-xs text-muted-foreground"><span className="inline-block size-2.5 rounded-sm bg-bad ring-1 ring-bad-border" /> Highlighted years have a commonly reported issue below.</p>
                 </>
               )}
               {insights.notes.length > 0 ? (
@@ -4911,7 +4932,7 @@ function Terms() {
       ].map(([title, body], i) => (
         <div key={i} style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 4 }}>{title}</div>
-          <div style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6 }}>{body}</div>
+          <div style={{ fontSize: 13.5, color: "var(--foreground)", lineHeight: 1.6 }}>{body}</div>
         </div>
       ))}
       <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
@@ -4940,7 +4961,7 @@ function PrivacyPolicy() {
       ].map(([title, body], i) => (
         <div key={i} style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 4 }}>{title}</div>
-          <div style={{ fontSize: 13.5, color: "#3B4250", lineHeight: 1.6 }}>{body}</div>
+          <div style={{ fontSize: 13.5, color: "var(--foreground)", lineHeight: 1.6 }}>{body}</div>
         </div>
       ))}
       <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
@@ -4960,7 +4981,7 @@ function Footer() {
           <div className="text-sm text-muted-foreground">HIGHWAYLOT — free car knowledge, no dealer jargon.</div>
           {prerenderData.updatedAt && (
             <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground" title="Recalls and owner complaints from NHTSA; used-car price trend from the U.S. Bureau of Labor Statistics. Refreshed each time the site rebuilds.">
-              <span className="inline-block size-1.5 rounded-full bg-[#2F6B4F] motion-safe:animate-pulse" />
+              <span className="inline-block size-1.5 rounded-full bg-good-foreground motion-safe:animate-pulse" />
               Data updated {formatDataDate(prerenderData.updatedAt)} · NHTSA, BLS
             </div>
           )}
@@ -5112,7 +5133,7 @@ function NotFound() {
       <SEOHead title="Page not found | HIGHWAYLOT" noindex />
       <div style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.ink, marginBottom: 8 }}>Page not found</div>
       <p style={{ color: C.steel, fontSize: 14 }}>That link doesn't lead anywhere on HIGHWAYLOT.</p>
-      <Link to="/" style={{ display: "inline-block", marginTop: 16, background: C.ink, color: "#fff", border: "none", borderRadius: 4, padding: "10px 20px", fontFamily: FONT_HEAD, textDecoration: "none" }}>Back to HIGHWAYLOT</Link>
+      <Link to="/" className={cn(buttonVariants({ variant: "default" }), "mt-4")}>Back to HIGHWAYLOT</Link>
     </div>
   );
 }

@@ -34,6 +34,13 @@
     --color-primary-foreground: var(--primary-foreground);
     --color-primary: var(--primary);
     --color-primary-text: var(--primary-text);
+    --color-good: var(--good);
+    --color-good-foreground: var(--good-foreground);
+    --color-bad: var(--bad);
+    --color-bad-foreground: var(--bad-foreground);
+    --color-bad-border: var(--bad-border);
+    --color-warn: var(--warn);
+    --color-warn-foreground: var(--warn-foreground);
     --color-popover-foreground: var(--popover-foreground);
     --color-popover: var(--popover);
     --color-card-foreground: var(--card-foreground);
@@ -66,6 +73,18 @@
        button fill with dark text on top, unreadable as text itself). This
        is the color every "text-primary" headline number actually uses. */
     --primary-text: oklch(0.55 0.15 70);
+    /* Status tints (good / caution / problem) — background + readable text. */
+    --good: #E7F0EA;
+    --good-foreground: #2F6B4F;
+    --bad: #FBE4E3;
+    --bad-foreground: #A32D2D;
+    --bad-border: #E8B4B2;
+    --warn: #FFF3D6;
+    --warn-foreground: #7A5A00;
+    /* Legacy inline-style palette (the C object in App.jsx) points here so
+       those components follow the theme too. */
+    --hl-ink: #1B2431;
+    --hl-line: #DEDBD1;
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
@@ -93,14 +112,26 @@
 }
 
 .dark {
+    color-scheme: dark;
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
     --card-foreground: oklch(0.985 0 0);
     --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
+    /* The brand yellow stays the accent in dark mode too. */
+    --primary: oklch(0.81 0.17 78);
+    --primary-foreground: oklch(0.145 0 0);
+    --primary-text: oklch(0.8 0.14 78);
+    --good: oklch(0.3 0.05 155);
+    --good-foreground: oklch(0.83 0.1 155);
+    --bad: oklch(0.3 0.07 25);
+    --bad-foreground: oklch(0.8 0.11 25);
+    --bad-border: oklch(0.45 0.1 25);
+    --warn: oklch(0.32 0.06 80);
+    --warn-foreground: oklch(0.86 0.12 85);
+    --hl-ink: oklch(0.985 0 0);
+    --hl-line: oklch(1 0 0 / 18%);
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
