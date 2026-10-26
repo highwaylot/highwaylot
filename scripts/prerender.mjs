@@ -23,7 +23,8 @@ globalThis.fetch = async (url, opts = {}) => {
   for (let attempt = 0; ; attempt++) {
     try {
       const res = await realFetch(url, { ...opts, signal: AbortSignal.timeout(20000) });
-      if (res.ok || attempt === 4) return res;
+      // Only throttling and server errors are worth retrying; other 4xx are answers.
+      if (res.ok || (res.status !== 429 && res.status < 500) || attempt === 4) return res;
     } catch (e) {
       if (attempt === 4) throw e;
     }
@@ -55,10 +56,14 @@ async function mapLimited(items, limit, fn) {
 }
 
 // ---------- Live data: NHTSA complaints/recalls + BLS used-car prices ----------
+// NHTSA answers "no records for this model year" with HTTP 400 and an empty
+// result list, so a 400 carrying that shape is a real zero, not a failure.
 const nhtsaJson = async (url) => {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  if (res.ok) return res.json();
+  const body = await res.json().catch(() => null);
+  if (res.status === 400 && Array.isArray(body?.results) && body.results.length === 0) return body;
+  throw new Error(`HTTP ${res.status}`);
 };
 const friendlyComponent = (c) => c.split(":")[0].trim().toLowerCase().replace(/^\w/, (ch) => ch.toUpperCase());
 const IGNORED_COMPONENTS = new Set(["unknown or other"]);
