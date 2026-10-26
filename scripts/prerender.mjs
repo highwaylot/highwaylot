@@ -11,7 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dist = path.join(root, "dist");
 const ssr = await import(pathToFileURL(path.join(root, "dist-ssr/entry-server.js")).href);
-const { render, GUIDE_CATALOG, MAKE_BASE_PRICE, slugify, isGuideCarModel, classifyGuideBodyTypes } = ssr;
+const { render, GUIDE_CATALOG, MAKE_BASE_PRICE, slugify, classifyGuideBodyTypes } = ssr;
 
 // NHTSA is a public API that stalls and throttles bursts (on Vercel's build
 // machines it started refusing requests partway through), so every request
@@ -32,18 +32,17 @@ globalThis.fetch = async (url, opts = {}) => {
   }
 };
 
+// A make page's "Other models" list: this make's current light-duty lineup
+// (exact make name only — see classifyGuideBodyTypes). Empty means NHTSA
+// didn't answer; the page then fetches the list live instead of baking in
+// an empty one.
 async function fetchMakeData(make) {
-  try {
-    const [data, bodyByModel] = await Promise.all([
-      fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`).then((r) => r.json()),
-      classifyGuideBodyTypes(make),
-    ]);
-    const names = Array.from(new Set((data.Results || []).map((m) => m.Model_Name))).filter(isGuideCarModel).sort();
-    return { names, bodyByModel };
-  } catch (e) {
-    console.warn(`prerender: NHTSA data unavailable for ${make} (${e.message}) — rendering curated models only`);
+  const names = Object.keys(await classifyGuideBodyTypes(make)).sort();
+  if (!names.length) {
+    console.warn(`prerender: NHTSA model list unavailable for ${make} — the page will fetch it live`);
     return null;
   }
+  return { names };
 }
 
 async function mapLimited(items, limit, fn) {
@@ -73,7 +72,7 @@ for (const [key, h] of Object.entries(history)) {
 const makes = Object.keys(MAKE_BASE_PRICE);
 const makeData = Object.fromEntries((await mapLimited(makes, 2, fetchMakeData)).map((d, i) => [makes[i], d]));
 
-const pages = ["/", "/value", "/wikilot", "/terms", "/privacy"].map((url) => ({ url, data: {} }));
+const pages = ["/", "/value", "/wikilot", "/how-we-calculate", "/terms", "/privacy"].map((url) => ({ url, data: {} }));
 for (const make of makes) {
   const md = makeData[make];
   pages.push({ url: `/wikilot/${slugify(make)}`, data: md ? { makeModels: { [make]: md } } : {} });
@@ -81,16 +80,6 @@ for (const make of makes) {
   for (const g of curated) {
     const key = `${slugify(make)}/${slugify(g.modelKey)}`;
     pages.push({ url: `/wikilot/${key}`, data: history[key] ? { nhtsa: { [key]: history[key] } } : {} });
-  }
-  if (!md) continue;
-  const curatedKeys = new Set(curated.map((g) => g.modelKey));
-  const seen = new Set();
-  for (const name of md.names) {
-    const slug = slugify(name);
-    if (curatedKeys.has(name.toLowerCase()) || !md.bodyByModel[name] || seen.has(slug)) continue;
-    seen.add(slug);
-    const key = `${slugify(make)}/${slug}`;
-    pages.push({ url: `/wikilot/${key}`, data: { guideFallback: { [key]: { name, body: md.bodyByModel[name] } } } });
   }
 }
 
@@ -121,10 +110,22 @@ for (const entry of pages) {
   fs.writeFileSync(out, page);
 }
 
+// Unknown URLs: Vercel serves 404.html with a real 404 status (vercel.json
+// only rewrites the client-routed paths to spa.html).
+{
+  const { html, helmet } = render("/__not-found__", globalData);
+  const page = withData(template, globalData)
+    .replace(/<title>[\s\S]*?<\/title>/, "")
+    .replace("</head>", `${headTagsFrom(helmet)}\n  </head>`)
+    .replace('<div id="root"></div>', `<div id="root">${html}</div>`);
+  fs.writeFileSync(path.join(dist, "404.html"), page);
+}
+
 const SITE_URL = "https://www.highwaylot.com";
+const lastmod = live.updatedAt || new Date().toISOString().slice(0, 10);
 const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${pages.map(({ url }) => `  <url><loc>${SITE_URL}${url === "/" ? "/" : url}</loc></url>`).join("\n")}
+${pages.map(({ url }) => `  <url><loc>${SITE_URL}${url === "/" ? "/" : url}</loc><lastmod>${lastmod}</lastmod></url>`).join("\n")}
 </urlset>
 `;
 fs.writeFileSync(path.join(dist, "sitemap.xml"), sitemap);

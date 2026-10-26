@@ -91,8 +91,9 @@ const C = {
   note: "rgba(250,250,246,0.72)", dim: "rgba(250,250,246,0.56)",
   hair: "rgba(250,250,246,0.14)", field: "rgba(250,250,246,0.22)", panel: "rgba(250,250,246,0.045)",
 };
-const FONT_HEAD = "'Oswald', 'Arial Narrow', sans-serif";
-const FONT_BODY = "'Inter', system-ui, sans-serif";
+// Everything uses the self-hosted Geist (src/index.css) — no third-party fonts.
+const FONT_HEAD = "'Geist Variable', system-ui, sans-serif";
+const FONT_BODY = "'Geist Variable', system-ui, sans-serif";
 
 const US_STATES = ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","District of Columbia","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"];
 // Newest first, one year ahead of today's calendar year to cover early
@@ -304,6 +305,8 @@ function loadTurnstileScript() {
 function TurnstileWidget({ onVerify, onExpire, size = "normal" }) {
   const containerRef = useRef(null);
   const widgetId = useRef(null);
+  const [failed, setFailed] = useState(false);
+  const fail = () => { setFailed(true); onExpire && onExpire(); };
 
   useEffect(() => {
     if (!TURNSTILE_SITE_KEY) return;
@@ -315,9 +318,9 @@ function TurnstileWidget({ onVerify, onExpire, size = "normal" }) {
         size,
         callback: onVerify,
         "expired-callback": () => onExpire && onExpire(),
-        "error-callback": () => onExpire && onExpire(),
+        "error-callback": fail,
       });
-    }).catch(() => onExpire && onExpire());
+    }).catch(fail);
     return () => {
       cancelled = true;
       if (widgetId.current != null && window.turnstile) window.turnstile.remove(widgetId.current);
@@ -327,7 +330,12 @@ function TurnstileWidget({ onVerify, onExpire, size = "normal" }) {
   if (!TURNSTILE_SITE_KEY) {
     return <div style={{ fontSize: 12, color: C.steel, padding: "8px 0" }}>CAPTCHA isn't configured yet (missing VITE_TURNSTILE_SITE_KEY) — this form is disabled until it is.</div>;
   }
-  return <div ref={containerRef} />;
+  return (
+    <div>
+      <div ref={containerRef} />
+      {failed && <div role="alert" style={{ fontSize: 12.5, color: "var(--bad-foreground)", padding: "6px 0" }}>The quick check didn't load. Try turning off ad or script blockers, or reload the page.</div>}
+    </div>
+  );
 }
 
 // Re-checks the token server-side (api/verify-turnstile.js calls Cloudflare's
@@ -496,12 +504,13 @@ function VinDecoder({ vin, onVinChange, onDecode, ink }) {
 
   return (
     <div style={{ marginBottom: 18, background: ink ? C.panel : "var(--muted)", border: `1px solid ${ink ? C.hair : C.line}`, borderRadius: 6, padding: 12 }}>
-      <div style={{ fontSize: 12, color: ink ? C.note : C.steel, marginBottom: 6 }}>Have your VIN handy? Auto-fill year, make, and model below.</div>
+      <label htmlFor="hl-vin" style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: ink ? C.paper : C.ink, marginBottom: 2 }}>VIN (optional)</label>
+      <div id="hl-vin-hint" style={{ fontSize: 12, color: ink ? C.note : C.ink, opacity: ink ? 1 : 0.8, marginBottom: 6 }}>Have it handy? Auto-fill year, make, and model below.</div>
       <div style={{ display: "flex", gap: 8 }}>
-        <input value={vin || ""} onChange={(e) => { onVinChange(e.target.value.toUpperCase()); setStatus("idle"); }} placeholder="17-character VIN (optional)" maxLength={17} style={{ ...style, flex: 1 }} />
-        <button onClick={decode} disabled={status === "loading"} style={{ background: C.yellow, color: "#1B2431", border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, fontSize: 13, cursor: status === "loading" ? "default" : "pointer" }}>{status === "loading" ? "…" : "Auto-fill"}</button>
+        <input id="hl-vin" aria-describedby="hl-vin-hint" value={vin || ""} onChange={(e) => { onVinChange(e.target.value.toUpperCase()); setStatus("idle"); }} placeholder="17 characters" maxLength={17} style={{ ...style, flex: 1, minWidth: 0 }} />
+        <button type="button" onClick={decode} disabled={status === "loading"} style={{ background: C.yellow, color: "#1B2431", border: "none", borderRadius: 4, padding: "0 16px", fontFamily: FONT_HEAD, fontSize: 13, cursor: status === "loading" ? "default" : "pointer" }}>{status === "loading" ? "…" : "Auto-fill"}</button>
       </div>
-      {status === "error" && <div style={{ fontSize: 11.5, color: "var(--bad-foreground)", marginTop: 6 }}>Couldn't decode that VIN — double-check it, or just fill in the fields below manually.</div>}
+      {status === "error" && <div role="alert" style={{ fontSize: 11.5, color: "var(--bad-foreground)", marginTop: 6 }}>Couldn't decode that VIN — double-check it, or just fill in the fields below manually.</div>}
     </div>
   );
 }
@@ -510,58 +519,65 @@ function VinDecoder({ vin, onVinChange, onDecode, ink }) {
 // fetched live from NHTSA's free public vPIC API for whichever make is
 // picked — real data, no maintenance on our end. "Other" always available
 // as an escape hatch on both fields so nobody's ever blocked from listing.
+// Models come from vPIC's per-vehicle-type lists for the chosen year (car,
+// truck, SUV, van — exact make only, no trailers or chassis), and each pick
+// reports NHTSA's body type so the form can set the body style. A make or
+// model set from outside (VIN decode, ?make= links) that isn't in the lists
+// is matched ignoring case, or shown in the type-it-in field.
 function MakeModelPicker({ make, model, year, onMakeChange, onModelChange, errors, clearError, ink }) {
   const style = ink ? inkInputStyle : inputStyle;
-  const [customMake, setCustomMake] = useState(Boolean(make) && !POPULAR_MAKES.includes(make));
+  const [customMake, setCustomMake] = useState(false);
   const [customModel, setCustomModel] = useState(false);
-  const [models, setModels] = useState([]);
-  const [loadingModels, setLoadingModels] = useState(false);
+  const [bodyByModel, setBodyByModel] = useState({});
+  const [loadedFor, setLoadedFor] = useState(null);
+  const models = Object.keys(bodyByModel).sort();
+  const listMake = POPULAR_MAKES.find((m) => m.toLowerCase() === (make || "").toLowerCase());
+  const isCustomMake = customMake || (Boolean(make) && !listMake);
+  const loadKey = `${listMake}|${year}`;
+  const loadingModels = Boolean(listMake) && loadedFor !== loadKey;
+  const listModel = models.find((m) => m.toLowerCase() === (model || "").toLowerCase());
+  const isCustomModel = isCustomMake || customModel || (Boolean(model) && !loadingModels && !listModel);
 
   useEffect(() => {
-    if (customMake || !make) { setModels([]); return; }
-    setLoadingModels(true);
-    // Year-specific endpoint when a year's picked — getmodelsformake alone
-    // returns every model a make has EVER produced across all years, which
-    // means a "2025 Chevrolet" search was showing decades-old and
-    // commercial/medium-duty codes (e.g. "6500XD") nobody's actually
-    // listing here. Falls back to the all-years endpoint only if year
-    // hasn't been picked yet (year is required, so this is brief).
-    const url = year
-      ? `https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformakeyear/make/${encodeURIComponent(make)}/modelyear/${encodeURIComponent(year)}?format=json`
-      : `https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`;
-    fetch(url)
-      .then((r) => r.json())
-      .then((data) => {
-        const names = Array.from(new Set((data.Results || []).map((m) => m.Model_Name))).sort();
-        setModels(names);
-      })
-      .catch(() => setModels([]))
-      .finally(() => setLoadingModels(false));
-  }, [make, customMake, year]);
+    if (make && listMake && make !== listMake) onMakeChange(listMake);
+  }, [make, listMake]);
+
+  useEffect(() => {
+    if (!listMake) { setBodyByModel({}); return; }
+    let cancelled = false;
+    classifyGuideBodyTypes(listMake, year ? Number(year) : undefined)
+      .then((map) => { if (!cancelled) { setBodyByModel(map); setLoadedFor(loadKey); } });
+    return () => { cancelled = true; };
+  }, [listMake, year]);
+
+  useEffect(() => {
+    if (model && listModel && model !== listModel) onModelChange(listModel, bodyByModel[listModel]);
+  }, [model, listModel]);
 
   const smallBtn = { fontSize: 11.5, background: "transparent", border: `1px solid ${ink ? C.field : C.line}`, borderRadius: 4, padding: "0 10px", cursor: "pointer", color: ink ? C.note : C.steel, whiteSpace: "nowrap" };
 
   return (
     <>
-      <Field label="Make" required error={errors.make} ink={ink}>
-        {!customMake ? (
-          <select value={make} onChange={(e) => { if (e.target.value === "__other__") { setCustomMake(true); onMakeChange(""); } else { onMakeChange(e.target.value); setCustomModel(false); onModelChange(""); clearError && clearError("make"); } }} style={style}>
+      <Field label="Make" id="hl-make" required error={errors.make} ink={ink}>
+        {!isCustomMake ? (
+          <select id="hl-make" value={listMake || ""} onChange={(e) => { if (e.target.value === "__other__") { setCustomMake(true); onMakeChange(""); } else { onMakeChange(e.target.value); setCustomModel(false); onModelChange(""); clearError && clearError("make"); } }} style={style}>
             <option value="">Select make</option>
             {POPULAR_MAKES.map((m) => <option key={m} value={m}>{m}</option>)}
             <option value="__other__">Other (type it in)</option>
           </select>
         ) : (
           <div style={{ display: "flex", gap: 6 }}>
-            <input value={make} onChange={(e) => { onMakeChange(e.target.value); clearError && clearError("make"); }} placeholder="Type the make" style={style} />
+            <input id="hl-make" value={make} onChange={(e) => { onMakeChange(e.target.value); clearError && clearError("make"); }} placeholder="e.g. Saab" style={style} />
             <button type="button" onClick={() => { setCustomMake(false); onMakeChange(""); }} style={smallBtn}>Use list</button>
           </div>
         )}
       </Field>
-      <Field label="Model" required error={errors.model} ink={ink}>
-        {!customMake && !customModel ? (
+      <Field label="Model" id="hl-model" required error={errors.model} ink={ink}>
+        {!isCustomModel ? (
           <select
-            value={model}
-            onChange={(e) => { if (e.target.value === "__other__") { setCustomModel(true); onModelChange(""); } else { onModelChange(e.target.value); clearError && clearError("model"); } }}
+            id="hl-model"
+            value={listModel || ""}
+            onChange={(e) => { if (e.target.value === "__other__") { setCustomModel(true); onModelChange(""); } else { onModelChange(e.target.value, bodyByModel[e.target.value]); clearError && clearError("model"); } }}
             style={style}
             disabled={!make || loadingModels}
           >
@@ -571,8 +587,8 @@ function MakeModelPicker({ make, model, year, onMakeChange, onModelChange, error
           </select>
         ) : (
           <div style={{ display: "flex", gap: 6 }}>
-            <input value={model} onChange={(e) => { onModelChange(e.target.value); clearError && clearError("model"); }} placeholder="Type the model" style={style} />
-            {!customMake && <button type="button" onClick={() => { setCustomModel(false); onModelChange(""); }} style={smallBtn}>Use list</button>}
+            <input id="hl-model" value={model} onChange={(e) => { onModelChange(e.target.value); clearError && clearError("model"); }} placeholder="e.g. 9-3" style={style} />
+            {!isCustomMake && <button type="button" onClick={() => { setCustomModel(false); onModelChange(""); }} style={smallBtn}>Use list</button>}
           </div>
         )}
       </Field>
@@ -580,8 +596,8 @@ function MakeModelPicker({ make, model, year, onMakeChange, onModelChange, error
   );
 }
 
-const selectStyle = { border: `1.5px solid ${C.line}`, borderRadius: 5, padding: "9px 12px", fontSize: 14.5, color: C.ink, background: "var(--card)", fontFamily: FONT_BODY, cursor: "pointer" };
-const inputStyle = { width: "100%", border: `1.5px solid ${C.line}`, borderRadius: 5, padding: "11px 12px", fontSize: 15, color: C.ink, fontFamily: FONT_BODY, boxSizing: "border-box", background: "var(--card)" };
+const selectStyle = { border: `1.5px solid var(--field-border)`, borderRadius: 5, padding: "9px 12px", fontSize: 14.5, color: C.ink, background: "var(--card)", fontFamily: FONT_BODY, cursor: "pointer" };
+const inputStyle = { width: "100%", border: `1.5px solid var(--field-border)`, borderRadius: 5, padding: "11px 12px", fontSize: 15, color: C.ink, fontFamily: FONT_BODY, boxSizing: "border-box", background: "var(--card)" };
 
 function ListingCard({ listing, onOpen }) {
   const photo = listing.photos && listing.photos.length ? listing.photos[0] : null;
@@ -784,7 +800,7 @@ function ThemeToggle({ className }) {
 function TopBar() {
   const { pathname } = useLocation();
   return (
-    <div className="flex h-16 items-center border-b bg-background">
+    <header className="flex h-16 items-center border-b bg-background">
       <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5">
         <Link to="/" aria-label="HIGHWAYLOT home" className="flex items-center gap-2 no-underline">
           <svg viewBox="0 0 32 34" className="h-7 w-[26px] shrink-0">
@@ -793,13 +809,13 @@ function TopBar() {
           </svg>
           <span className="font-heading text-lg font-semibold text-foreground">HIGHWAYLOT</span>
         </Link>
-        <div className="flex flex-wrap gap-5">
+        <nav aria-label="Main" className="flex flex-wrap gap-5">
           <NavLink label="valueLOT" to="/value" active={pathname === "/value"} />
           <NavLink label="wikiLOT" to="/wikilot" active={pathname.startsWith("/wikilot")} />
-        </div>
+        </nav>
         <ThemeToggle className="ml-auto" />
       </div>
-    </div>
+    </header>
   );
 }
 function NavLink({ label, to, active }) {
@@ -807,7 +823,7 @@ function NavLink({ label, to, active }) {
     <Link
       to={to}
       className={cn(
-        "flex items-center border-b-2 py-1 text-sm font-medium no-underline whitespace-nowrap",
+        "flex items-center border-b-2 py-2 text-sm font-medium no-underline whitespace-nowrap",
         active ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
       )}
     >
@@ -1510,8 +1526,8 @@ function PostAd({ onSubmit, existingListings, log }) {
       </div>
   );
 }
-function Field({ label, required, error, children, ink }) {
-  return <div><label style={{ fontSize: 12.5, color: error ? "var(--bad-foreground)" : ink ? C.dim : C.steel, display: "block", marginBottom: 4 }}>{label}{required && " *"}{error && " — required"}</label>{children}</div>;
+function Field({ label, required, error, children, ink, id }) {
+  return <div><label htmlFor={id} style={{ fontSize: 12.5, color: error ? "var(--bad-foreground)" : ink ? C.dim : C.steel, display: "block", marginBottom: 4 }}>{label}{required && " *"}{error && " — required"}</label>{children}</div>;
 }
 const inkInputStyle = { width: "100%", border: `1px solid ${C.field}`, borderRadius: 6, padding: "11px 12px", fontSize: 15, color: C.paper, fontFamily: FONT_BODY, boxSizing: "border-box", background: C.panel, height: 46 };
 
@@ -1979,9 +1995,9 @@ function MechanicalChecklist({ issues, onChange, ink }) {
   return (
     <div>
       {MECHANICAL_SYSTEMS.map((sys) => (
-        <div key={sys.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: rowBorder, gap: 10 }}>
-          <span style={{ fontSize: 13.5, color: labelColor }}>{sys.label}</span>
-          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+        <div key={sys.key} role="group" aria-labelledby={`hl-issue-${sys.key}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: rowBorder, gap: 10, flexWrap: "wrap" }}>
+          <span id={`hl-issue-${sys.key}`} style={{ fontSize: 13.5, color: labelColor }}>{sys.label}</span>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {STATUS_OPTIONS.map((opt) => {
               const active = issues[sys.key] === opt.key;
               const activeColors = { verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "var(--warn)", color: C.yellowDark }, danger: { bg: "var(--bad)", color: "var(--bad-foreground)" } };
@@ -1989,13 +2005,15 @@ function MechanicalChecklist({ issues, onChange, ink }) {
               return (
                 <button
                   key={opt.key}
+                  type="button"
+                  aria-pressed={active}
                   onClick={() => onChange({ ...issues, [sys.key]: active ? undefined : opt.key })}
                   style={{
                     fontSize: 11.5, padding: "5px 10px", borderRadius: 4, cursor: "pointer",
                     border: active ? "none" : inactiveBorder,
                     background: active ? c.bg : inactiveBg, color: active ? c.color : inactiveColor, fontWeight: active ? 600 : 400,
                   }}
-                >{opt.key === "Ongoing" ? "Ongoing/okay" : opt.key}</button>
+                >{active && <Check size={11} aria-hidden="true" style={{ display: "inline", marginRight: 3, verticalAlign: -1 }} />}{opt.key === "Ongoing" ? "Ongoing/okay" : opt.key}</button>
               );
             })}
           </div>
@@ -2003,9 +2021,9 @@ function MechanicalChecklist({ issues, onChange, ink }) {
       ))}
 
       {COSMETIC_SYSTEMS.map((sys) => (
-        <div key={sys.key} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: rowBorder, gap: 10 }}>
-          <span style={{ fontSize: 13.5, color: labelColor }}>{sys.label}</span>
-          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+        <div key={sys.key} role="group" aria-labelledby={`hl-issue-${sys.key}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: rowBorder, gap: 10, flexWrap: "wrap" }}>
+          <span id={`hl-issue-${sys.key}`} style={{ fontSize: 13.5, color: labelColor }}>{sys.label}</span>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {COSMETIC_OPTIONS.map((opt) => {
               const active = issues[sys.key] === opt.key;
               const activeColors = { verified: { bg: C.greenBg, color: C.green }, yellow: { bg: "var(--warn)", color: C.yellowDark }, danger: { bg: "var(--bad)", color: "var(--bad-foreground)" } };
@@ -2013,13 +2031,15 @@ function MechanicalChecklist({ issues, onChange, ink }) {
               return (
                 <button
                   key={opt.key}
+                  type="button"
+                  aria-pressed={active}
                   onClick={() => onChange({ ...issues, [sys.key]: active ? undefined : opt.key })}
                   style={{
                     fontSize: 11.5, padding: "5px 10px", borderRadius: 4, cursor: "pointer",
                     border: active ? "none" : inactiveBorder,
                     background: active ? c.bg : inactiveBg, color: active ? c.color : inactiveColor, fontWeight: active ? 600 : 400,
                   }}
-                >{opt.key}</button>
+                >{active && <Check size={11} aria-hidden="true" style={{ display: "inline", marginRight: 3, verticalAlign: -1 }} />}{opt.key}</button>
               );
             })}
           </div>
@@ -2027,35 +2047,39 @@ function MechanicalChecklist({ issues, onChange, ink }) {
       ))}
 
       {/* Burn marks — counted, not rated by severity, since cost scales with how many there are */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: rowBorder, gap: 10 }}>
-        <span style={{ fontSize: 13.5, color: labelColor }}>Burn marks (seats, carpet)</span>
-        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+      <div role="group" aria-labelledby="hl-issue-burn" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", borderBottom: rowBorder, gap: 10, flexWrap: "wrap" }}>
+        <span id="hl-issue-burn" style={{ fontSize: 13.5, color: labelColor }}>Burn marks (seats, carpet)</span>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {BURN_TIERS.map((tier) => {
             const active = issues.burnCount === tier.key;
             return (
               <button
                 key={tier.key}
+                type="button"
+                aria-pressed={active}
                 onClick={() => onChange({ ...issues, burnCount: active ? undefined : tier.key })}
                 style={{
                   fontSize: 11.5, padding: "5px 10px", borderRadius: 4, cursor: "pointer",
                   border: active ? "none" : inactiveBorder,
                   background: active ? "var(--bad)" : inactiveBg, color: active ? "var(--bad-foreground)" : inactiveColor, fontWeight: active ? 600 : 400,
                 }}
-              >{tier.label}</button>
+              >{active && <Check size={11} aria-hidden="true" style={{ display: "inline", marginRight: 3, verticalAlign: -1 }} />}{tier.label}</button>
             );
           })}
         </div>
       </div>
 
       {/* Smoke odor — flat yes/no, it's one detailing service regardless of how bad it is */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", gap: 10 }}>
-        <span style={{ fontSize: 13.5, color: labelColor }}>Smoked-in / lingering odor</span>
-        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+      <div role="group" aria-labelledby="hl-issue-odor" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 0", gap: 10, flexWrap: "wrap" }}>
+        <span id="hl-issue-odor" style={{ fontSize: 13.5, color: labelColor }}>Smoked-in / lingering odor</span>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {[{ key: false, label: "No" }, { key: true, label: "Yes" }].map((opt) => {
             const active = Boolean(issues.odorTreatment) === opt.key;
             return (
               <button
                 key={String(opt.key)}
+                type="button"
+                aria-pressed={active}
                 onClick={() => onChange({ ...issues, odorTreatment: opt.key })}
                 style={{
                   fontSize: 11.5, padding: "5px 14px", borderRadius: 4, cursor: "pointer",
@@ -2064,7 +2088,7 @@ function MechanicalChecklist({ issues, onChange, ink }) {
                   color: active && opt.key ? "var(--bad-foreground)" : active ? C.green : inactiveColor,
                   fontWeight: active ? 600 : 400,
                 }}
-              >{opt.label}</button>
+              >{active && <Check size={11} aria-hidden="true" style={{ display: "inline", marginRight: 3, verticalAlign: -1 }} />}{opt.label}</button>
             );
           })}
         </div>
@@ -2302,24 +2326,42 @@ const GUIDE_MODEL_BODY = {
 // De-duplicated (make, modelKey) pairs for the guide — MODEL_BASE_PRICE has
 // a couple of aliases (f150/f-150, crv/cr-v, 1500 keyed twice) pointing at
 // the same car, which would otherwise produce duplicate guide pages.
+// Model names that aren't plain title case.
+const MODEL_DISPLAY_NAMES = {
+  rav4: "RAV4", "4runner": "4Runner", "cr-v": "CR-V", glc: "GLC", rx: "RX", es: "ES",
+  "cx-5": "CX-5", "cx-9": "CX-9", xt5: "XT5", xc60: "XC60", mdx: "MDX", rdx: "RDX",
+};
 const GUIDE_CATALOG = Object.entries(MODEL_BASE_PRICE).flatMap(([make, models]) =>
-  Object.keys(GUIDE_MODEL_BODY[make] || {}).map((modelKey) => ({ make, modelKey, label: modelKey.replace(/(^|\s|-)\w/g, (c) => c.toUpperCase()) }))
+  Object.keys(GUIDE_MODEL_BODY[make] || {}).map((modelKey) => ({ make, modelKey, label: MODEL_DISPLAY_NAMES[modelKey] ?? modelKey.replace(/(^|\s|-)\w/g, (c) => c.toUpperCase()) }))
 );
+// "an" before a vowel sound, including letters read aloud: an MDX, an F-150, an X5.
+function indefiniteArticle(word) {
+  if (/^[aeiou]/i.test(word)) return "an";
+  return /^[FHLMNRSX](?=[A-Z0-9-])/.test(word) ? "an" : "a";
+}
 // NHTSA's GetModelsForMakeYear endpoint accepts a vehicletype filter
 // ("car", "truck", "mpv" for SUVs, "van"/"bus" for minivans) — the "car"
 // example is straight from vPIC's own API docs; the others are best-effort
 // and just fail closed (empty result) if vPIC uses different wording, same
 // as every other NHTSA fetch in this app. Used to give uncurated long-tail
 // models a real depreciation curve instead of always defaulting to Sedan.
-const NHTSA_VEHICLE_TYPE_TO_BODY = { car: "Sedan", truck: "Truck", mpv: "SUV", van: "Van/Minivan", bus: "Van/Minivan" };
-async function classifyGuideBodyTypes(make) {
-  const year = new Date().getFullYear() - 1; // last full model year — more complete than the current year, which is often still filling in
+const NHTSA_VEHICLE_TYPE_TO_BODY = { car: "Sedan", truck: "Truck", mpv: "SUV", van: "Van/Minivan" };
+// vPIC's make lookups match partial names ("Ford" also returns Cranford
+// Radiator, Medford Steel, Stanford Customs…), so results are kept only when
+// Make_Name is exactly the requested make, and motorcycle codes are dropped.
+const isExactMake = (row, make) => String(row.Make_Name || "").toLowerCase() === make.toLowerCase();
+// Commercial chassis and oddities vPIC files under consumer makes: Ford's
+// F-450–F-750 and Ram's 4500/5500 chassis cabs, Hyundai's Xcient semi, and
+// specialty entries named like "'34".
+const NON_CONSUMER_MODEL = /^['"]|^F-?[4-7][05]0\b|^[45]500\b|xcient|cutaway|chassis|stripped/i;
+async function classifyGuideBodyTypes(make, modelYear) {
+  const year = modelYear || new Date().getFullYear() - 1; // default: last full model year — more complete than the current one
   const results = await Promise.all(
     Object.keys(NHTSA_VEHICLE_TYPE_TO_BODY).map(async (type) => {
       try {
         const r = await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMakeYear/make/${encodeURIComponent(make)}/modelyear/${year}/vehicletype/${type}?format=json`);
         const data = await r.json();
-        return { type, names: (data.Results || []).map((m) => m.Model_Name) };
+        return { type, names: (data.Results || []).filter((m) => isExactMake(m, make) && isGuideCarModel(m.Model_Name) && !NON_CONSUMER_MODEL.test(m.Model_Name)).map((m) => m.Model_Name) };
       } catch {
         return { type, names: [] };
       }
@@ -2334,12 +2376,10 @@ async function classifyGuideBodyTypes(make) {
 // Same depreciation math as estimateValue's retained-value curve, but without
 // mileage/condition/comps — this is a general reference table, not a
 // personalized estimate (the real valuation tool at /value is for that).
-// bodyOverride lets a caller supply a real NHTSA-classified body style for
-// models outside GUIDE_MODEL_BODY (see classifyGuideBodyTypes below) instead
-// of silently defaulting every unknown model to a Sedan curve.
-function guidePriceAtAge(make, modelKey, age, bodyOverride) {
+// Only called for curated models, which all have a model price and body.
+function guidePriceAtAge(make, modelKey, age) {
   const anchor = MODEL_BASE_PRICE[make]?.[modelKey] ?? MAKE_BASE_PRICE[make];
-  const body = bodyOverride || GUIDE_MODEL_BODY[make]?.[modelKey] || "Sedan";
+  const body = GUIDE_MODEL_BODY[make]?.[modelKey] || "Sedan";
   const curve = BODY_DEPRECIATION_CURVES[body] || BODY_DEPRECIATION_CURVES.Sedan;
   let retained = 1;
   for (let y = 0; y < age; y++) retained *= y === 0 ? curve.year1 : curve.after;
@@ -2531,12 +2571,19 @@ function ValueMyCar({ log }) {
   // gimmicky, 0.80 noul), activates the moment all 4 required fields are
   // filled, then sharpens further as optional fields fill in. This is a
   // local-only preview, never logged/saved — only the real submit() does that.
-  const requiredFilled = form.year && form.make && form.model && form.mileage && Number(form.mileage) > 0;
+  const MAX_MILES = 500000;
+  const mileageOff = form.mileage !== "" && (Number(form.mileage) < 1 || Number(form.mileage) > MAX_MILES);
+  const requiredFilled = form.year && form.make && form.model && form.mileage && !mileageOff;
+  // Only models with their own price get a number without "what you paid";
+  // the brand-average fallback put a Corvette at $22k, so it's not shown.
+  const hasPricePaid = Number(form.originalPrice) > 0;
+  const unpriced = Boolean(requiredFilled) && !hasPricePaid && getPricingAnchor(form.make, form.model, form.body).tier !== "model";
+  const priceInputRef = useRef(null);
   const liveEstimate = useMemo(() => {
-    if (!requiredFilled) return null;
+    if (!requiredFilled || unpriced) return null;
     const input = { year: Number(form.year), make: form.make, model: form.model, mileage: Number(form.mileage), condition: form.condition, originalPrice: Number(form.originalPrice), body: form.body, regionalMultiplier };
     return estimateValue(input, [], issues);
-  }, [requiredFilled, form.year, form.make, form.model, form.mileage, form.condition, form.originalPrice, form.body, regionalMultiplier, issues]);
+  }, [requiredFilled, unpriced, form.year, form.make, form.model, form.mileage, form.condition, form.originalPrice, form.body, regionalMultiplier, issues]);
 
   useEffect(() => {
     if (!result) return;
@@ -2546,7 +2593,10 @@ function ValueMyCar({ log }) {
   const submit = async () => {
     const req = ["year", "make", "model", "mileage"]; // originalPrice is optional now — estimateValue() falls back to a typical-price-by-body-style anchor when it's blank
     const errs = {}; req.forEach((k) => { if (!String(form[k]).trim()) errs[k] = true; });
+    if (mileageOff) errs.mileage = true;
+    if (unpriced) errs.originalPrice = true;
     setErrors(errs);
+    if (unpriced) priceInputRef.current?.focus();
     if (Object.keys(errs).length > 0) return;
     setSaveError(null);
     if (TURNSTILE_SITE_KEY && !(await verifyTurnstileToken(captchaToken))) {
@@ -2580,7 +2630,7 @@ function ValueMyCar({ log }) {
   ].filter(Boolean);
 
   return (
-    <div className="bg-background">
+    <div className={cn("bg-background", (liveEstimate || unpriced) && !result && "max-[900px]:pb-16")}>
       <SEOHead
         title="valueLOT — Free Car Valuation | HIGHWAYLOT"
         description="A free, honest car value estimate — built for people who don't know cars. No dealer jargon, no sales pitch, just a real depreciation-based number."
@@ -2590,7 +2640,7 @@ function ValueMyCar({ log }) {
       <style dangerouslySetInnerHTML={{ __html: REVEAL_CSS }} />
       <style dangerouslySetInnerHTML={{ __html: `
         @media (max-width: 900px) {
-          .hl-value-grid { grid-template-columns: 1fr !important; }
+          .hl-value-grid { grid-template-columns: minmax(0, 1fr) !important; }
           .hl-value-rail { position: static !important; }
         }
       ` }} />
@@ -2612,18 +2662,23 @@ function ValueMyCar({ log }) {
       />
 
       <div className="hl-form-grid">
-        <Field label="Year" required error={errors.year}>
-          <select value={form.year} onChange={set("year")} style={inputStyle}><option value="">Select year</option>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
+        <Field label="Year" id="hl-year" required error={errors.year}>
+          <select id="hl-year" value={form.year} onChange={set("year")} style={inputStyle}><option value="">Select year</option>{YEARS.map((y) => <option key={y} value={y}>{y}</option>)}</select>
         </Field>
-        <MakeModelPicker make={form.make} model={form.model} year={form.year} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v) => setForm((prev) => { const guess = guessBodyStyle(v); return { ...prev, model: v, ...(guess ? { body: guess } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
-        <Field label="Current mileage" required error={errors.mileage}><input value={form.mileage} onChange={setNumeric("mileage")} inputMode="numeric" placeholder="52000" style={inputStyle} /></Field>
-        <Field label="Original price paid (optional — sharpens the estimate)"><input value={form.originalPrice} onChange={setNumeric("originalPrice")} inputMode="numeric" placeholder="28000" style={inputStyle} /></Field>
-        <Field label="Overall condition"><select value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
-        <Field label="Body style"><select value={form.body} onChange={set("body")} style={inputStyle}><option>Sedan</option><option>Coupe</option><option>Hatchback</option><option>SUV</option><option>Truck</option><option>Van/Minivan</option><option>Convertible</option></select></Field>
-        <Field label="State"><select value={form.state} onChange={set("state")} style={inputStyle}><option value="">Select state</option>{US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}</select></Field>
-        <Field label="Ownership status"><select value={form.loan_status} onChange={set("loan_status")} style={inputStyle}><option>Paid off</option><option>Still financed (loan payoff needed)</option></select></Field>
+        <MakeModelPicker make={form.make} model={form.model} year={form.year} onMakeChange={(v) => setForm((prev) => ({ ...prev, make: v }))} onModelChange={(v, nhtsaBody) => setForm((prev) => { const body = GUIDE_MODEL_BODY[prev.make]?.[(v || "").toLowerCase()] || guessBodyStyle(v) || nhtsaBody; return { ...prev, model: v, ...(body ? { body } : {}) }; })} errors={errors} clearError={(k) => setErrors((prev) => ({ ...prev, [k]: false }))} />
+        <Field label="Current mileage" id="hl-mileage" required error={errors.mileage && !mileageOff}>
+          <input id="hl-mileage" value={form.mileage} onChange={setNumeric("mileage")} inputMode="numeric" placeholder="e.g. 52000" aria-describedby={mileageOff ? "hl-mileage-note" : undefined} aria-invalid={mileageOff || undefined} style={inputStyle} />
+          {mileageOff && <div id="hl-mileage-note" role="alert" className="mt-1 text-xs text-bad-foreground">Mileage looks off — enter between 1 and {MAX_MILES.toLocaleString()}.</div>}
+        </Field>
+        <Field label={unpriced ? "Original price paid — needed for this model" : "Original price paid (optional — sharpens the estimate)"} id="hl-price" error={errors.originalPrice && !hasPricePaid}>
+          <input id="hl-price" ref={priceInputRef} value={form.originalPrice} onChange={setNumeric("originalPrice")} inputMode="numeric" placeholder="e.g. 28000" aria-describedby={unpriced ? "hl-unpriced-note" : undefined} style={inputStyle} />
+        </Field>
+        <Field label="Overall condition" id="hl-condition"><select id="hl-condition" value={form.condition} onChange={set("condition")} style={inputStyle}><option>Excellent</option><option>Good</option><option>Fair</option><option>Needs work</option></select></Field>
+        <Field label="Body style" id="hl-body"><select id="hl-body" value={form.body} onChange={set("body")} style={inputStyle}><option>Sedan</option><option>Coupe</option><option>Hatchback</option><option>SUV</option><option>Truck</option><option>Van/Minivan</option><option>Convertible</option></select></Field>
+        <Field label="State" id="hl-state"><select id="hl-state" value={form.state} onChange={set("state")} style={inputStyle}><option value="">Select state</option>{US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}</select></Field>
+        <Field label="Ownership status" id="hl-loan"><select id="hl-loan" value={form.loan_status} onChange={set("loan_status")} style={inputStyle}><option>Paid off</option><option>Still financed (loan payoff needed)</option></select></Field>
         {form.loan_status === "Still financed (loan payoff needed)" && (
-          <Field label="Remaining loan balance ($)"><input value={form.loan_balance} onChange={setNumeric("loan_balance")} inputMode="numeric" placeholder="8500" style={inputStyle} /></Field>
+          <Field label="Remaining loan balance ($)" id="hl-loan-balance"><input id="hl-loan-balance" value={form.loan_balance} onChange={setNumeric("loan_balance")} inputMode="numeric" placeholder="e.g. 8500" style={inputStyle} /></Field>
         )}
       </div>
 
@@ -2761,24 +2816,44 @@ function ValueMyCar({ log }) {
 
       <div className="hl-value-rail sticky top-6 flex flex-col gap-4">
         <div className="rounded-lg border bg-card p-5">
-          <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Live estimate</div>
-          {requiredFilled ? (
-            <div className="font-heading text-5xl font-bold leading-none text-primary-text">{fmtPrice(liveEstimate.estimate)}</div>
-          ) : (
-            <>
-              <div className="font-heading text-5xl font-bold leading-none text-primary-text">$ —</div>
-              <div className="mt-2 text-sm text-muted-foreground">Shows a dollar range as year, make and model are filled in.</div>
-            </>
-          )}
+          <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Your estimate</div>
+          <div aria-live="polite" aria-atomic="true">
+            {liveEstimate ? (
+              <>
+                <div className="font-heading text-4xl font-bold leading-none tabular-nums text-primary-text">{fmtPrice(liveEstimate.rangeLow)}–{fmtPrice(liveEstimate.rangeHigh)}</div>
+                <div className="mt-2 text-xs text-muted-foreground">Formula estimate — unlock the breakdown below for how it was worked out.</div>
+              </>
+            ) : unpriced ? (
+              <div id="hl-unpriced-note">
+                <div className="font-heading text-lg leading-snug text-foreground">We don't have pricing for the {form.make} {form.model} yet.</div>
+                <button type="button" onClick={() => priceInputRef.current?.focus()} className="mt-2 text-sm font-semibold text-primary-text underline underline-offset-2">Enter what you paid to get an estimate</button>
+              </div>
+            ) : (
+              <>
+                <div className="font-heading text-4xl font-bold leading-none text-primary-text">$ —</div>
+                <div className="mt-2 text-sm text-muted-foreground">Fill in year, make, model and mileage to see an estimate.</div>
+              </>
+            )}
+          </div>
+          <Link to="/how-we-calculate" className="mt-3 inline-block text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground">How we calculate</Link>
         </div>
         <div className="rounded-lg border bg-card p-5">
           <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">So far</div>
           <div className="text-sm text-foreground">{soFarParts.length ? soFarParts.join(" · ") : "Fill in the form to see it summarized here."}</div>
           <div className="mt-2.5 text-xs text-muted-foreground">How it's worked out: real depreciation curves by body style, adjusted for age, mileage, condition and known issues.</div>
         </div>
-        <MarketTrend className="px-1" />
       </div>
       </div>
+      {(liveEstimate || unpriced) && !result && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 px-5 py-3 backdrop-blur min-[901px]:hidden" aria-hidden="true">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+            <span className="text-xs uppercase tracking-wide text-muted-foreground">Your estimate</span>
+            {liveEstimate
+              ? <span className="font-heading text-xl font-bold tabular-nums text-primary-text">{fmtPrice(liveEstimate.rangeLow)}–{fmtPrice(liveEstimate.rangeHigh)}</span>
+              : <span className="text-right text-sm text-foreground">Add what you paid for this model</span>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4168,7 +4243,7 @@ function SplitHero() {
   const priciest = priced.reduce((a, b) => (b.price > a.price ? b : a));
   return (
     <LaneHero
-      left={<>wikiLOT <span className="font-normal text-muted-foreground">· the car price guide</span></>}
+      left={<h1 className="font-heading font-semibold">wikiLOT <span className="font-normal text-muted-foreground">· the car price guide</span></h1>}
       right={
         <div>
           <div className="mb-2 text-sm uppercase tracking-wide text-muted-foreground">At 5 years old</div>
@@ -4182,10 +4257,20 @@ function SplitHero() {
 
 // /value's hero — same grammar as wikiLOT's: the tool's name, then what it answers.
 // left side, the real avg-new-price figure on the right.
+// The right-hand stat is the one sourced, dated market figure the site has
+// (BLS used-car prices, baked in at build so it's in the HTML); without it,
+// the hero shows just the title rather than a made-up number.
 function PriceTagHero() {
-  const avg = Math.round(Object.values(MAKE_BASE_PRICE).reduce((a, b) => a + b, 0) / Object.keys(MAKE_BASE_PRICE).length);
-  const count = useCountUp(avg);
-  return <LaneHero left={<>valueLOT <span className="font-normal text-muted-foreground">· what's your car worth?</span></>} value={`$${count.toLocaleString()}`} note="avg. new, all brands" />;
+  const m = prerenderData.market;
+  const title = <h1 className="font-heading font-semibold">valueLOT <span className="font-normal text-muted-foreground">· what's your car worth?</span></h1>;
+  if (!m) return <LaneHero left={title} right={<span />} />;
+  return (
+    <LaneHero
+      left={title}
+      value={`${m.yoyPct > 0 ? "+" : m.yoyPct < 0 ? "−" : ""}${Math.abs(m.yoyPct)}%`}
+      note={`used car & truck prices vs. a year ago · BLS, ${m.period}`}
+    />
+  );
 }
 
 function ForSaleSignHero() {
@@ -4207,7 +4292,7 @@ function GuideHero({ eyebrow, title, subtitle, big, stat }) {
   return (
     <div className="border-b bg-muted/40">
       <div className={cn("mx-auto max-w-4xl px-5", big ? "py-14 sm:py-16" : "py-8 sm:py-10")}>
-        {eyebrow && <div className="mb-2 text-xs tracking-wide text-muted-foreground">{eyebrow}</div>}
+        {eyebrow && <nav aria-label="Breadcrumb" className="mb-2 text-xs leading-8 tracking-wide text-muted-foreground">{eyebrow}</nav>}
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div>
             <h1 className={cn("font-heading font-semibold leading-tight text-foreground", big ? "text-4xl sm:text-5xl" : "text-2xl sm:text-3xl")}>{renderHeroTitle(title)}</h1>
@@ -4244,19 +4329,25 @@ function LandingHome() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-6 py-24">
       <ThemeToggle className="absolute right-4 top-4" />
+      <Helmet>
+        <script type="application/ld+json">{JSON.stringify([
+          { "@context": "https://schema.org", "@type": "WebSite", name: "HIGHWAYLOT", url: `${SITE_URL}/` },
+          { "@context": "https://schema.org", "@type": "Organization", name: "HIGHWAYLOT", url: `${SITE_URL}/`, logo: `${SITE_URL}/favicon.svg` },
+        ])}</script>
+      </Helmet>
       <SEOHead
-        title="HIGHWAYLOT — Car Knowledge Made Simple"
+        title="Free Car Value Estimate & Used Car Price Guide | HIGHWAYLOT"
         description="Free car knowledge for people who don't know cars — valueLOT's honest value estimate and wikiLOT's price guide by make and model, no dealer jargon, no sales pitch."
         path="/"
       />
       <div className="mx-auto flex max-w-xl flex-col items-center text-center">
         <UiBadge variant="secondary" className="mb-5">Free · No account needed</UiBadge>
-        <h1 className="font-heading text-5xl font-semibold tracking-tight text-foreground sm:text-6xl">
+        <div className="font-heading text-5xl font-semibold tracking-tight text-foreground sm:text-6xl">
           HIGHWAY<span className="text-primary-text">LOT</span>
-        </h1>
-        <p className="mt-4 max-w-md text-balance text-muted-foreground">
+        </div>
+        <h1 className="mt-4 max-w-md text-balance text-muted-foreground">
           Free, honest car knowledge — no dealer jargon, no sales pitch.
-        </p>
+        </h1>
       </div>
 
       <div className="mt-12 grid w-full max-w-xl grid-cols-1 gap-4 sm:grid-cols-2">
@@ -4329,20 +4420,20 @@ function GuideIndex() {
               const models = byMake[make];
               const anchor = MAKE_BASE_PRICE[make];
               return (
-                <Link key={make} to={`/wikilot/${slugify(make)}`} className="hl-listing-card block rounded-lg border bg-card p-4 no-underline">
+                <div key={make} className="hl-listing-card relative rounded-lg border bg-card p-4">
                   <div className="flex items-baseline justify-between gap-2.5">
-                    <div className="font-heading text-[17px] font-medium text-foreground">{make}</div>
+                    <Link to={`/wikilot/${slugify(make)}`} className="font-heading text-[17px] font-medium text-foreground no-underline after:absolute after:inset-0 after:content-['']">{make}</Link>
                     <div className="shrink-0 font-heading text-[28px] font-bold text-primary-text">${anchor.toLocaleString()}</div>
                   </div>
                   <div className="mt-0.5 text-xs text-muted-foreground">New, starting around</div>
                   {models && (
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
                       {models.map(({ modelKey, label }) => (
-                        <span key={label} className="rounded border bg-muted/50 px-2.5 py-1 text-[13px] text-muted-foreground">{label} · <span className="font-medium text-foreground">${guidePriceAtAge(make, modelKey, 5).toLocaleString()}</span></span>
+                        <Link key={label} to={`/wikilot/${slugify(make)}/${slugify(modelKey)}`} className="relative z-10 rounded border bg-muted/50 px-2.5 py-1 text-[13px] text-muted-foreground no-underline hover:text-foreground">{label} · <span className="font-medium text-foreground">${guidePriceAtAge(make, modelKey, 5).toLocaleString()}</span> at 5 yrs</Link>
                       ))}
                     </div>
                   )}
-                </Link>
+                </div>
               );
             })}
           </div>
@@ -4361,12 +4452,10 @@ function GuideMake() {
   const brandMult = make ? (BRAND_RESALE_MULTIPLIER[make] ?? 1.0) : 1.0;
   const resaleLabel = brandMult > 1.02 ? "Above average" : brandMult < 0.92 ? "Below average" : "About average";
 
-  // Full real model list from NHTSA — same free API + fetch pattern
-  // MakeModelPicker already uses for the /post and /value forms, so this
-  // needs no separate data source. Curated models (GUIDE_CATALOG, above)
-  // already have real per-model pricing; everything else NHTSA returns
-  // still gets listed here so the guide's model coverage is exhaustive for
-  // this make, not capped at the ~65 we've hand-priced.
+  // This make's current light-duty lineup from NHTSA (baked in at build,
+  // fetched live on client-side navigation). Only curated models get prices;
+  // the rest are listed by name and open valueLOT, which asks for the price
+  // paid instead of guessing from the brand average.
   const seeded = make ? prerenderData.makeModels?.[make] : null;
   const [allModels, setAllModels] = useState(seeded?.names || []);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -4374,30 +4463,13 @@ function GuideMake() {
     if (!make) return;
     if (seeded) { setAllModels(seeded.names); return; }
     setLoadingModels(true);
-    fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(make)}?format=json`)
-      .then((r) => r.json())
-      .then((data) => {
-        const names = Array.from(new Set((data.Results || []).map((m) => m.Model_Name))).filter(isGuideCarModel).sort();
-        setAllModels(names);
-      })
+    classifyGuideBodyTypes(make)
+      .then((bodyByModel) => setAllModels(Object.keys(bodyByModel).sort()))
       .catch(() => setAllModels([]))
       .finally(() => setLoadingModels(false));
   }, [make]);
 
-  // Real body type per model (SUV/Truck/Sedan/Van) from NHTSA, so the
-  // long-tail models below can get a genuinely differentiated price instead
-  // of all defaulting to the same flat brand number — see
-  // classifyGuideBodyTypes above.
-  const [bodyByModel, setBodyByModel] = useState(seeded?.bodyByModel || {});
-  useEffect(() => {
-    if (!make) return;
-    if (seeded) { setBodyByModel(seeded.bodyByModel); return; }
-    classifyGuideBodyTypes(make).then(setBodyByModel);
-  }, [make]);
-
   const otherModels = allModels.filter((name) => !curatedKeys.has(name.toLowerCase()));
-  const classifiedModels = otherModels.filter((name) => bodyByModel[name]);
-  const unclassifiedModels = otherModels.filter((name) => !bodyByModel[name]);
 
   if (!make) return <NotFound />;
   return (
@@ -4446,35 +4518,15 @@ function GuideMake() {
             </div>
           )}
 
-          {classifiedModels.length > 0 && (
+          {otherModels.length > 0 && (
             <div className="mb-7">
-              <div className="mb-1 font-heading text-base text-foreground">More {make} models</div>
+              <h2 className="mb-1 font-heading text-base text-foreground">Other {make} models</h2>
               <p className="mb-2.5 text-sm text-muted-foreground">
-                Pulled live from NHTSA, with a real body type (so a truck depreciates like a truck, not a sedan) but not yet a model-specific base price — these use the {make} brand anchor with the correct depreciation curve.
-              </p>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
-                {classifiedModels.map((name) => {
-                  const p5 = guidePriceAtAge(make, name.toLowerCase(), 5, bodyByModel[name]);
-                  return (
-                    <Link key={name} to={`/wikilot/${makeSlug}/${slugify(name)}`} className="hl-listing-card block rounded-lg border bg-card p-3.5 no-underline">
-                      <div className="mb-0.5 font-heading text-sm text-foreground">{make} {name}</div>
-                      <div className="text-xs font-semibold text-primary-text">${p5.toLocaleString()} <span className="font-normal text-muted-foreground">at 5 years old ({bodyByModel[name]})</span></div>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {unclassifiedModels.length > 0 && (
-            <div className="mb-7">
-              <div className="mb-1 font-heading text-base text-foreground">Every other {make} model</div>
-              <p className="mb-2.5 text-sm text-muted-foreground">
-                We couldn't classify these enough to price them honestly, so each links straight to valueLOT with the model pre-filled instead of guessing.
+                We don't have model-specific pricing for these yet, so we don't guess. Each opens valueLOT with the model filled in — add what you paid to get an estimate.
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {unclassifiedModels.map((name) => (
-                  <Link key={name} to={`/value?make=${encodeURIComponent(make)}&model=${encodeURIComponent(name)}`} className="rounded border bg-muted/50 px-2.5 py-1.5 text-sm text-muted-foreground no-underline">{name}</Link>
+                {otherModels.map((name) => (
+                  <Link key={name} to={`/value?make=${encodeURIComponent(make)}&model=${encodeURIComponent(name)}`} className="rounded border bg-muted/50 px-2.5 py-1.5 text-sm text-muted-foreground no-underline hover:text-foreground">{name}</Link>
                 ))}
               </div>
             </div>
@@ -4530,7 +4582,7 @@ function ComplaintsByYear({ history, flagFor }) {
                 <button
                   key={y.year}
                   type="button"
-                  aria-label={noData ? `${y.year}: no NHTSA records under this model name` : `${y.year}: ${y.complaints.toLocaleString()} complaints${recallsKnown ? `, ${y.recalls} recalls` : ""}`}
+                  aria-label={noData ? `${y.year}: no NHTSA records under this model name` : `${y.year}: ${y.complaints.toLocaleString()} complaints${recallsKnown ? `, ${y.recalls} ${y.recalls === 1 ? "recall" : "recalls"}` : ""}`}
                   onMouseEnter={() => setActive(y.year)} onMouseLeave={() => setActive(null)}
                   onFocus={() => setActive(y.year)} onBlur={() => setActive(null)}
                   className="group relative flex h-full flex-1 cursor-default items-end justify-center outline-none"
@@ -4605,7 +4657,7 @@ function guideBuyingInsights({ make, modelKey, label, prices, history }) {
   const modelNote = MODEL_SPECIFIC_NOTES[make]?.[modelKey];
   const brandNote = BRAND_NOTE_IS_STRENGTH.has(make) ? null : BRAND_COMMON_NOTES[make];
   const brandStrength = BRAND_NOTE_IS_STRENGTH.has(make) ? BRAND_COMMON_NOTES[make] : null;
-  const article = /^[aeiou]/i.test(label) ? "An" : "A";
+  const article = indefiniteArticle(label) === "an" ? "An" : "A";
   const retained5 = Math.round((prices.find((p) => p.age === 5).price / prices[0].price) * 100);
 
   const reasons = [];
@@ -4657,49 +4709,21 @@ function guideBuyingInsights({ make, modelKey, label, prices, history }) {
     const areas = history.topAreas.slice(0, 3).map(([n]) => n.toLowerCase());
     const first = withData[0].year, last = withData[withData.length - 1].year;
     return { total, recallTotal, recallsKnown, worst, areas, first, last,
-      text: `NHTSA lists ${total.toLocaleString()} owner complaints${recallsKnown ? ` and ${recallTotal} recalls` : ""} for ${first}–${last} ${fullName} model years${areas.length ? `; the most reported areas are ${areas.join(", ")}` : ""}.${worst.complaints ? ` ${worst.year} has the most complaints (${worst.complaints.toLocaleString()}).` : ""}` };
+      text: `NHTSA lists ${total.toLocaleString()} owner complaints${recallsKnown ? ` and ${recallTotal} ${recallTotal === 1 ? "recall" : "recalls"}` : ""} for ${first}–${last} ${fullName} model years${areas.length ? `; the most reported areas are ${areas.join(", ")}` : ""}.${worst.complaints ? ` ${worst.year} has the most complaints (${worst.complaints.toLocaleString()}).` : ""}` };
   })();
   if (notes.length || nhtsaSummary) faq.push({ q: `What problems should I check on a used ${fullName}?`, a: [nhtsaSummary?.text, ...notes.map((n) => n.text)].filter(Boolean).join(" ") });
 
   return { verdict, tone, reasons, notes, stripYears, flagFor, anyFlagged, mileageRows, valuePer12k, faq, nhtsaSummary };
 }
 
+// Other spellings of a curated model's URL, sent to the curated page.
+const GUIDE_SLUG_ALIASES = { "mercedes-benz/glc-class": "mercedes-benz/glc", "mercedes-benz/c-class-sedan": "mercedes-benz/c-class" };
+
 function GuidePage() {
   const { make: makeSlug, model: modelSlug } = useParams();
-  const navigate = useNavigate();
   const entry = GUIDE_CATALOG.find((g) => slugify(g.make) === makeSlug && slugify(g.modelKey) === modelSlug);
-  const fallbackMake = !entry ? Object.keys(MAKE_BASE_PRICE).find((m) => slugify(m) === makeSlug) : null;
-
-  // For a non-curated model, this resolves whether NHTSA can give us a real
-  // body type for it (see classifyGuideBodyTypes) — if so, render a real
-  // page using that body's actual depreciation curve; if not, there's
-  // nothing honest to show, so redirect into a prefilled valuation-tool run
-  // instead of a page that would just repeat the flat brand number under a
-  // different name (misleading, and thin/duplicate content for SEO).
-  const seededFallback = prerenderData.guideFallback?.[`${makeSlug}/${modelSlug}`];
-  const [fallbackState, setFallbackState] = useState(seededFallback || null); // null=loading, {name, body}, or "redirect"
-  useEffect(() => {
-    if (entry || !fallbackMake) return;
-    if (seededFallback) { setFallbackState(seededFallback); return; }
-    let cancelled = false;
-    Promise.all([
-      fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/getmodelsformake/${encodeURIComponent(fallbackMake)}?format=json`).then((r) => r.json()).catch(() => ({ Results: [] })),
-      classifyGuideBodyTypes(fallbackMake),
-    ]).then(([data, bodyByModel]) => {
-      if (cancelled) return;
-      const names = (data.Results || []).map((m) => m.Model_Name).filter(isGuideCarModel);
-      const realName = names.find((n) => slugify(n) === modelSlug);
-      if (realName && bodyByModel[realName]) setFallbackState({ name: realName, body: bodyByModel[realName] });
-      else setFallbackState("redirect");
-    });
-    return () => { cancelled = true; };
-  }, [entry, fallbackMake, modelSlug]);
-
-  useEffect(() => {
-    if (fallbackState === "redirect" && fallbackMake) {
-      navigate(`/value?make=${encodeURIComponent(fallbackMake)}&model=${encodeURIComponent(modelSlug.replace(/-/g, " "))}`, { replace: true });
-    }
-  }, [fallbackState, fallbackMake, modelSlug, navigate]);
+  const knownMake = !entry ? Object.keys(MAKE_BASE_PRICE).find((m) => slugify(m) === makeSlug) : null;
+  const alias = GUIDE_SLUG_ALIASES[`${makeSlug}/${modelSlug}`];
 
   const historyKey = `${makeSlug}/${modelSlug}`;
   const seededHistory = prerenderData.nhtsa?.[historyKey] || null;
@@ -4716,20 +4740,19 @@ function GuidePage() {
     return () => { cancelled = true; };
   }, [historyKey]);
 
-  if (!entry && !fallbackMake) return <NotFound />;
-  if (!entry && !fallbackState) return null; // loading — brief, avoids a flash of "not found" or wrong content
-  if (!entry && fallbackState === "redirect") return null;
+  if (alias) return <Navigate to={`/wikilot/${alias}`} replace />;
+  if (!entry && !knownMake) return <NotFound />;
+  // Not a curated model: there's no model-level price to show honestly, so
+  // open valueLOT with it filled in (it asks for the price paid instead).
+  if (!entry) return <Navigate to={`/value?make=${encodeURIComponent(knownMake)}&model=${encodeURIComponent(modelSlug.replace(/-/g, " "))}`} replace />;
 
-  const make = entry ? entry.make : fallbackMake;
-  const modelKey = entry ? entry.modelKey : fallbackState.name.toLowerCase();
-  const label = entry ? entry.label : fallbackState.name;
-  const bodyOverride = entry ? undefined : fallbackState.body;
+  const { make, modelKey, label } = entry;
   const ages = guideAges();
-  const prices = ages.map((age) => ({ age, price: guidePriceAtAge(make, modelKey, age, bodyOverride) }));
+  const prices = ages.map((age) => ({ age, price: guidePriceAtAge(make, modelKey, age) }));
   const currentYear = new Date().getFullYear();
   const maxPrice = prices[0].price;
   const insights = guideBuyingInsights({ make, modelKey, label, prices, history });
-  const body = bodyOverride || GUIDE_MODEL_BODY[make]?.[modelKey];
+  const body = GUIDE_MODEL_BODY[make]?.[modelKey];
   const valueLink = (year) => `/value?${new URLSearchParams({ make, model: label, ...(body ? { body } : {}), ...(year ? { year: String(year) } : {}) })}`;
   const pageUrl = `${SITE_URL}/wikilot/${makeSlug}/${modelSlug}`;
   const structuredData = [
@@ -4765,12 +4788,6 @@ function GuidePage() {
       />
       <div className="min-h-[calc(100vh-64px)] bg-background">
         <div className="mx-auto max-w-3xl px-5 py-10">
-          {bodyOverride && (
-            <div className="mb-5 flex items-start gap-2 rounded-lg border bg-card p-3.5">
-              <Info size={15} className="mt-0.5 shrink-0 text-primary-text" />
-              <p className="text-sm leading-relaxed text-muted-foreground">We don't have {make} {label}-specific pricing yet — this uses the {make} brand price with a real {bodyOverride.toLowerCase()} depreciation curve (via NHTSA), not a model-specific one.</p>
-            </div>
-          )}
           <div className="mb-7 flex flex-wrap gap-3">
             <GuideStat icon={<DollarSign size={13} />} label="New, typical" value={`$${maxPrice.toLocaleString()}`} />
             {BRAND_REPAIR_COST[make] && (
@@ -4890,7 +4907,7 @@ function GuidePage() {
                       <td className="px-4 py-2.5 font-medium text-foreground">{r.year}</td>
                       <td className="px-4 py-2.5 tabular-nums text-muted-foreground">{r.typical.toLocaleString()}</td>
                       <td className="px-4 py-2.5 tabular-nums text-muted-foreground">{r.high.toLocaleString()}</td>
-                      <td className="px-4 py-2.5 text-right"><Link to={valueLink(r.year)} aria-label={`Value a ${r.year} ${make} ${label}`} className="whitespace-nowrap text-xs font-semibold text-primary-text underline-offset-2 hover:underline"><span className="sm:hidden">Value →</span><span className="hidden sm:inline">Value a {r.year} →</span></Link></td>
+                      <td className="px-4 py-2.5 text-right"><Link to={valueLink(r.year)} aria-label={`Value a ${r.year} ${make} ${label}`} className="inline-block whitespace-nowrap py-2 text-xs font-semibold text-primary-text underline-offset-2 hover:underline"><span className="sm:hidden">Value →</span><span className="hidden sm:inline">Value a {r.year} →</span></Link></td>
                     </tr>
                   ))}
                 </tbody>
@@ -4913,22 +4930,58 @@ function GuidePage() {
   );
 }
 
+function HowWeCalculate() {
+  const curated = GUIDE_CATALOG.length;
+  const steps = [
+    ["Starting price", `Either what you paid (if you enter it) or the typical new price for your model from our price list, which covers ${curated} common models and was last reviewed ${PRICE_LIST_REVIEWED}. If your model isn't on the list, we don't guess from the brand average — we ask for what you paid.`],
+    ["Age", "Cars lose the most value in their first year and less each year after. The rate depends on body style: trucks and SUVs hold value better than sedans and coupes, and there's a floor below which a running car rarely falls."],
+    ["Brand", "Brands with stronger resale (Toyota, Honda, Lexus, Subaru) are nudged up; weaker ones are nudged down."],
+    ["Mileage", "Compared with about 12,000 miles a year for the car's age. More miles than that lowers the estimate; fewer raises it."],
+    ["Condition", "Excellent nudges the estimate up; fair and needs-work bring it down."],
+    ["Known issues", "Each problem you mark is priced as a rough repair cost, scaled by the brand's typical repair costs (RepairPal) and your state's labor rates where we have them."],
+    ["The range", "The result is shown as a range rather than one number, because it's a formula estimate — not an appraisal and not based on recent sales."],
+  ];
+  return (
+    <div className="mx-auto max-w-2xl px-5 py-12">
+      <SEOHead title="How We Calculate | HIGHWAYLOT" description="How valueLOT and wikiLOT work out a car's value: a starting price, depreciation by age and body style, brand, mileage, condition and known issues — and which outside data is used." path="/how-we-calculate" />
+      <h1 className="mb-2 font-heading text-3xl font-semibold text-foreground">How we calculate</h1>
+      <p className="mb-6 text-muted-foreground">valueLOT and the wikiLOT price guide use the same formula. It's a reasoned estimate built from public data and our own price list — not live market sales.</p>
+      <ol className="mb-8 space-y-3">
+        {steps.map(([t, d], i) => (
+          <li key={t} className="flex gap-3">
+            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">{i + 1}</span>
+            <div><div className="font-medium text-foreground">{t}</div><p className="text-sm leading-relaxed text-muted-foreground">{d}</p></div>
+          </li>
+        ))}
+      </ol>
+      <h2 className="mb-2 font-heading text-lg text-foreground">Outside data</h2>
+      <ul className="mb-8 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-muted-foreground">
+        <li><strong className="font-medium text-foreground">NHTSA owner complaints and recalls</strong> — shown on wikiLOT model pages{prerenderData.updatedAt ? `, refreshed ${formatDataDate(prerenderData.updatedAt)}` : ""}. They don't change any price.</li>
+        <li><strong className="font-medium text-foreground">BLS used-car price index</strong>{prerenderData.market ? ` (${prerenderData.market.period})` : ""} — shown as market context. It doesn't change any price.</li>
+        <li><strong className="font-medium text-foreground">NHTSA vehicle database</strong> — model lists, VIN decoding, and body types.</li>
+      </ul>
+      <Link to="/value" className={cn(buttonVariants({ variant: "default" }))}>Get an estimate</Link>
+    </div>
+  );
+}
+
 function Terms() {
   return (
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
       <SEOHead title="Terms of Service | HIGHWAYLOT" description="HIGHWAYLOT's terms of service — the valuation tool and price guide, what we don't guarantee, and your responsibilities as a user." path="/terms" />
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <FileText size={20} color={C.ink} /><h2 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: 0 }}>Terms of Service</h2>
+        <FileText size={20} color={C.ink} /><h1 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: 0 }}>Terms of Service</h1>
       </div>
-      <p style={{ color: C.steel, fontSize: 13, marginBottom: 20 }}>By using HIGHWAYLOT, you agree to the following terms.</p>
+      <p style={{ color: C.steel, fontSize: 13, marginBottom: 4 }}>By using HIGHWAYLOT, you agree to the following terms.</p>
+      <p style={{ color: C.steel, fontSize: 12.5, marginBottom: 20 }}>Last updated October 26, 2026</p>
       {[
-        ["What HIGHWAYLOT is.", "HIGHWAYLOT is a free car knowledge resource — a car valuation tool and wikiLOT, a price guide by make and model — built for people who don't know cars. HIGHWAYLOT does not host a buy/sell marketplace; no listings can be posted or browsed on this site."],
+        ["What HIGHWAYLOT is.", "HIGHWAYLOT is a free car knowledge resource — a car valuation tool and wikiLOT, a price guide by make and model — built for people who don't know cars."],
         ["Estimates and guide prices aren't guarantees.", "Valuation estimates and wikiLOT's price-guide figures are formula-based references built from depreciation modeling and public data. They are not appraisals, and we don't guarantee any car would actually sell for the range shown."],
         ["No ID or account required.", "You don't need to submit identification or create an account to use the valuation tool or price guide."],
         ["Data collection and use.", "Using HIGHWAYLOT means you consent to the data collection and use described in our Privacy Policy, including analytics, research, and the potential licensing or sharing of aggregated or anonymized usage data."],
-        ["Prohibited use.", "You may not scrape the site, submit fraudulent data, or spam or harass other users. HIGHWAYLOT may restrict access at its discretion."],
+        ["Prohibited use.", "You may not scrape the site in bulk, submit fraudulent data, or try to disrupt the site. HIGHWAYLOT may restrict access at its discretion."],
         ["No warranty; limitation of liability.", "HIGHWAYLOT is provided on an \"as is\" basis, without warranties of any kind. To the fullest extent permitted by law, HIGHWAYLOT is not liable for any damages arising from your use of the site."],
-        ["Changes to these terms.", "These terms may be updated from time to time, including as more of the site launches. Continued use of HIGHWAYLOT after changes are posted constitutes acceptance of the revised terms."],
+        ["Changes to these terms.", "These terms may be updated from time to time. Continued use of HIGHWAYLOT after changes are posted constitutes acceptance of the revised terms."],
       ].map(([title, body], i) => (
         <div key={i} style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 4 }}>{title}</div>
@@ -4948,16 +5001,18 @@ function PrivacyPolicy() {
     <div style={{ maxWidth: 680, margin: "0 auto", padding: "48px 20px 70px" }}>
       <SEOHead title="Privacy Policy | HIGHWAYLOT" description="How HIGHWAYLOT collects, uses, and shares information — no account required to use the valuation tool or price guide." path="/privacy" />
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-        <FileText size={20} color={C.ink} /><h2 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: 0 }}>Privacy Policy</h2>
+        <FileText size={20} color={C.ink} /><h1 style={{ fontFamily: FONT_HEAD, fontSize: 24, color: C.ink, margin: 0 }}>Privacy Policy</h1>
       </div>
-      <p style={{ color: C.steel, fontSize: 13, marginBottom: 20 }}>How HIGHWAYLOT collects, uses, and shares information.</p>
+      <p style={{ color: C.steel, fontSize: 13, marginBottom: 4 }}>How HIGHWAYLOT collects, uses, and shares information.</p>
+      <p style={{ color: C.steel, fontSize: 12.5, marginBottom: 20 }}>Last updated October 26, 2026</p>
       {[
         ["No account required.", "You don't need to create an account to use the valuation tool or browse the wikiLOT price guide."],
-        ["What we collect.", "We collect usage data — searches, filters, pages viewed, and valuation requests, including the vehicle details you enter (year, make, model, mileage, condition, and optionally VIN, state, and loan status) — as well as standard technical data like IP address, browser, and device. This is tracked via a browser session identifier, not a login."],
+        ["What we collect.", "When you use valueLOT, we save the vehicle details you enter — year, make, model, mileage, condition, body style, what you paid, any issues you mark, your state, and whether the car is financed and the remaining loan balance — along with the estimate. We also log basic usage events (pages viewed, tool actions) and standard technical data like IP address, browser, and device. This is tied to a browser session, not to a login or your name. A VIN you enter is used only to look up the vehicle and isn't saved."],
+        ["Services that handle your data.", "Supabase stores the data above. Vercel hosts the site. Cloudflare Turnstile runs a bot check on the valuation form and processes technical information about your browser to do so. If you use VIN auto-fill, the VIN is sent to NHTSA's public vehicle database to look up the year, make, and model; model lists are also loaded from NHTSA."],
         ["How we use it.", "We use this data to operate and improve the valuation tool and price guide and to understand usage behavior, including analytics and research. Aggregated or anonymized data may be analyzed, licensed, or shared with third parties such as advertisers or market-research partners. We do not sell or share personally identifying information without your consent."],
         ["California residents (CCPA).", "California residents have rights under the CCPA regarding the sale or sharing of personal information, including the right to opt out. Contact hugo@highwaylot.com to make a request."],
-        ["Cookies and local storage.", "We use session storage to hold basic session info — like referral source and recent searches — for the duration of your visit only. This is not tied to your real identity."],
-        ["Changes to this policy.", "This policy may be updated from time to time, including as more of the site launches. Continued use of HIGHWAYLOT after changes are posted constitutes acceptance of the revised policy."],
+        ["Cookies and browser storage.", "We use session storage for basic session info — like a referral code from a flyer link — for the length of your visit only. If you switch between light and dark mode, that choice is kept in your browser's local storage (hl-theme) until you clear it. We don't use advertising or tracking cookies."],
+        ["Changes to this policy.", "This policy may be updated from time to time. Continued use of HIGHWAYLOT after changes are posted constitutes acceptance of the revised policy."],
       ].map(([title, body], i) => (
         <div key={i} style={{ marginBottom: 18 }}>
           <div style={{ fontFamily: FONT_HEAD, fontSize: 15, color: C.ink, marginBottom: 4 }}>{title}</div>
@@ -4973,27 +5028,31 @@ function PrivacyPolicy() {
 }
 
 // ---------- Footer ----------
+// When the hand-compiled price list (MAKE_BASE_PRICE / MODEL_BASE_PRICE)
+// was last checked. Update alongside those tables.
+const PRICE_LIST_REVIEWED = "Sep 2026";
+
 function Footer() {
   return (
-    <div className="border-t border-border bg-background">
+    <footer className="border-t border-border bg-background">
       <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-6">
         <div>
           <div className="text-sm text-muted-foreground">HIGHWAYLOT — free car knowledge, no dealer jargon.</div>
-          {prerenderData.updatedAt && (
-            <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground" title="Recalls and owner complaints from NHTSA; used-car price trend from the U.S. Bureau of Labor Statistics. Refreshed each time the site rebuilds.">
-              <span className="inline-block size-1.5 rounded-full bg-good-foreground motion-safe:animate-pulse" />
-              Data updated {formatDataDate(prerenderData.updatedAt)} · NHTSA, BLS
-            </div>
-          )}
+          <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground">
+            Prices: HIGHWAYLOT depreciation model (price list reviewed {PRICE_LIST_REVIEWED})
+            {prerenderData.updatedAt && <> · Recalls &amp; complaints: NHTSA, refreshed {formatDataDate(prerenderData.updatedAt)}</>}
+            {prerenderData.market && <> · Used-car trend: BLS CPI, {prerenderData.market.period}</>}
+            {" · "}<Link to="/how-we-calculate" className="underline underline-offset-2 hover:text-foreground">How we calculate</Link>
+          </p>
         </div>
-        <div className="flex items-center gap-4">
+        <nav aria-label="Footer" className="flex items-center gap-4">
           <Link to="/value" className="font-heading text-sm text-muted-foreground hover:text-foreground">valueLOT</Link>
           <Link to="/wikilot" className="font-heading text-sm text-muted-foreground hover:text-foreground">wikiLOT</Link>
           <Link to="/terms" className="font-heading text-sm text-muted-foreground hover:text-foreground">Terms</Link>
           <Link to="/privacy" className="font-heading text-sm text-muted-foreground hover:text-foreground">Privacy</Link>
-        </div>
+        </nav>
       </div>
-    </div>
+    </footer>
   );
 }
 
@@ -5079,28 +5138,24 @@ export default function App() {
   return (
     <div style={{ fontFamily: FONT_BODY, background: C.paper, minHeight: "100%" }}>
       <style dangerouslySetInnerHTML={{ __html: `
-        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Anton&family=Inter:wght@400;500;600&display=swap');
         .hl-detail-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 32px; }
-        .hl-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .hl-form-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
         .hl-spec-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 18px; }
         @media (max-width: 720px) { .hl-detail-grid { grid-template-columns: 1fr; gap: 24px; } }
-        @media (max-width: 480px) { .hl-form-grid { grid-template-columns: 1fr; } .hl-spec-grid { grid-template-columns: 1fr 1fr; } }
-        /* jev-tested (round: "listing cards" pass) — hover motion tested as
-           higher-leverage than bigger photos alone for the "feels alive"
-           goal, sequenced after a photo-size bump so it has something more
-           dominant to actually move. Kept to transform/shadow only — no
-           animation library, cheap and broadly supported. */
+        @media (max-width: 480px) { .hl-form-grid { grid-template-columns: minmax(0, 1fr); } .hl-spec-grid { grid-template-columns: 1fr 1fr; } }
         .hl-listing-card { transition: transform 160ms ease, box-shadow 160ms ease; }
         .hl-listing-card:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(27,36,49,0.12); }
         .hl-listing-card img { transition: transform 220ms ease; }
         .hl-listing-card:hover img { transform: scale(1.04); }
       ` }} />
       <ScrollToTop />
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2 focus:text-sm focus:text-foreground focus:shadow">Skip to content</a>
       {location.pathname !== "/" && <TopBar />}
       {/* Marketplace (browse/post/listings/manage) is dormant on main while
           it's rebuilt on the preview branch — only the valuation tool and
           wikiLOT price guide are live here. Those routes redirect instead
           of 404ing since old links/bookmarks may still point at them. */}
+      <main id="main">
       <Routes>
         <Route path="/" element={<LandingHome />} />
         <Route path="/listing/:id" element={<Navigate to="/wikilot" replace />} />
@@ -5117,11 +5172,13 @@ export default function App() {
         <Route path="/guide" element={<Navigate to="/wikilot" replace />} />
         <Route path="/guide/:make" element={<GuideRedirect />} />
         <Route path="/guide/:make/:model" element={<GuideRedirect />} />
+        <Route path="/how-we-calculate" element={<HowWeCalculate />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/admin/:secret" element={<AdminPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
+      </main>
       {location.pathname !== "/" && <Footer />}
     </div>
   );
@@ -5131,7 +5188,7 @@ function NotFound() {
   return (
     <div style={{ maxWidth: 480, margin: "0 auto", padding: "80px 20px", textAlign: "center" }}>
       <SEOHead title="Page not found | HIGHWAYLOT" noindex />
-      <div style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.ink, marginBottom: 8 }}>Page not found</div>
+      <h1 style={{ fontFamily: FONT_HEAD, fontSize: 22, color: C.ink, marginBottom: 8 }}>Page not found</h1>
       <p style={{ color: C.steel, fontSize: 14 }}>That link doesn't lead anywhere on HIGHWAYLOT.</p>
       <Link to="/" className={cn(buttonVariants({ variant: "default" }), "mt-4")}>Back to HIGHWAYLOT</Link>
     </div>

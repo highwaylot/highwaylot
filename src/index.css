@@ -85,6 +85,10 @@
        those components follow the theme too. */
     --hl-ink: #1B2431;
     --hl-line: #DEDBD1;
+    /* Form controls and focus: borders >= 3:1, placeholder >= 4.5:1. */
+    --field-border: #8c8c8c;
+    --placeholder: #6b6f76;
+    --focus: #1B2431;
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
@@ -132,6 +136,9 @@
     --warn-foreground: oklch(0.86 0.12 85);
     --hl-ink: oklch(0.985 0 0);
     --hl-line: oklch(1 0 0 / 18%);
+    --field-border: #767676;
+    --placeholder: #a3a3a3;
+    --focus: #F5B700;
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
@@ -163,6 +170,16 @@
     }
   body {
     @apply bg-background text-foreground;
+    }
+  input::placeholder, textarea::placeholder {
+    color: var(--placeholder);
+    opacity: 1;
+    }
+  /* One clearly visible keyboard focus ring everywhere (component styles
+     that remove the outline are overridden on purpose). */
+  :focus-visible {
+    outline: 2px solid var(--focus) !important;
+    outline-offset: 2px;
     }
   html {
     @apply font-sans;
