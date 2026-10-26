@@ -786,7 +786,7 @@ function TopBar() {
   return (
     <div className="flex h-16 items-center border-b bg-background">
       <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-6 gap-y-2 px-5">
-        <Link to="/wikilot" className="flex items-center gap-2 no-underline">
+        <Link to="/" aria-label="HIGHWAYLOT home" className="flex items-center gap-2 no-underline">
           <svg viewBox="0 0 32 34" className="h-7 w-[26px] shrink-0">
             <path d="M 16 1 L 30 6.5 L 30 17 Q 30 27 16 33 Q 2 27 2 17 L 2 6.5 Z" fill="#F5B700" stroke="#1B2431" strokeWidth={2} />
             <path d="M 16 6 L 16 28" stroke="#1B2431" strokeWidth={1.5} strokeDasharray="4,3" opacity={0.5} />
