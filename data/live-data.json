@@ -1,8 +1,8 @@
 {
- "updatedAt": "2026-11-09",
+ "updatedAt": "2026-11-16",
  "market": {
-  "period": "September 2026",
-  "yoyPct": -1.5
+  "period": "October 2026",
+  "yoyPct": -3.3
  },
  "nhtsa": {
   "toyota/camry": {
@@ -47,12 +47,12 @@
     },
     {
      "year": 2018,
-     "complaints": 783,
+     "complaints": 785,
      "recalls": 8,
      "top": [
       [
        "Power train",
-       202
+       204
       ],
       [
        "Service brakes",
@@ -66,12 +66,12 @@
     },
     {
      "year": 2019,
-     "complaints": 414,
+     "complaints": 416,
      "recalls": 7,
      "top": [
       [
        "Power train",
-       116
+       118
       ],
       [
        "Engine",
@@ -142,7 +142,7 @@
     },
     {
      "year": 2023,
-     "complaints": 67,
+     "complaints": 69,
      "recalls": 2,
      "top": [
       [
@@ -150,11 +150,11 @@
        9
       ],
       [
-       "Fuel/propulsion system",
+       "Vehicle speed control",
        7
       ],
       [
-       "Power train",
+       "Fuel/propulsion system",
        7
       ]
      ]
@@ -180,7 +180,7 @@
     },
     {
      "year": 2025,
-     "complaints": 177,
+     "complaints": 179,
      "recalls": 6,
      "top": [
       [
@@ -201,7 +201,7 @@
    "topAreas": [
     [
      "Power train",
-     412
+     416
     ],
     [
      "Engine",
@@ -225,7 +225,7 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 215,
+     "complaints": 216,
      "recalls": 1,
      "top": [
       [
@@ -282,12 +282,12 @@
     },
     {
      "year": 2019,
-     "complaints": 206,
+     "complaints": 207,
      "recalls": 5,
      "top": [
       [
        "Power train",
-       56
+       57
       ],
       [
        "Engine",
@@ -301,7 +301,7 @@
     },
     {
      "year": 2020,
-     "complaints": 316,
+     "complaints": 317,
      "recalls": 4,
      "top": [
       [
@@ -425,7 +425,7 @@
     ],
     [
      "Power train",
-     202
+     204
     ],
     [
      "Electrical system",
@@ -498,7 +498,7 @@
     },
     {
      "year": 2019,
-     "complaints": 887,
+     "complaints": 888,
      "recalls": 7,
      "top": [
       [
@@ -517,12 +517,12 @@
     },
     {
      "year": 2020,
-     "complaints": 640,
+     "complaints": 642,
      "recalls": 6,
      "top": [
       [
        "Engine",
-       180
+       181
       ],
       [
        "Electrical system",
@@ -536,7 +536,7 @@
     },
     {
      "year": 2021,
-     "complaints": 389,
+     "complaints": 390,
      "recalls": 1,
      "top": [
       [
@@ -555,7 +555,7 @@
     },
     {
      "year": 2022,
-     "complaints": 150,
+     "complaints": 151,
      "recalls": 1,
      "top": [
       [
@@ -574,12 +574,12 @@
     },
     {
      "year": 2023,
-     "complaints": 164,
+     "complaints": 166,
      "recalls": 3,
      "top": [
       [
        "Electrical system",
-       44
+       45
       ],
       [
        "Steering",
@@ -612,7 +612,7 @@
     },
     {
      "year": 2025,
-     "complaints": 96,
+     "complaints": 98,
      "recalls": 3,
      "top": [
       [
@@ -624,7 +624,7 @@
        14
       ],
       [
-       "Service brakes",
+       "Vehicle speed control",
        9
       ]
      ]
@@ -633,23 +633,23 @@
    "topAreas": [
     [
      "Electrical system",
-     701
+     702
     ],
     [
      "Engine",
-     623
+     624
     ],
     [
      "Fuel/propulsion system",
-     424
+     425
     ],
     [
      "Air bags",
-     312
+     313
     ],
     [
      "Structure",
-     274
+     275
     ]
    ]
   },
@@ -695,12 +695,12 @@
     },
     {
      "year": 2018,
-     "complaints": 280,
+     "complaints": 282,
      "recalls": 5,
      "top": [
       [
        "Power train",
-       74
+       76
       ],
       [
        "Service brakes",
@@ -714,12 +714,12 @@
     },
     {
      "year": 2019,
-     "complaints": 516,
+     "complaints": 517,
      "recalls": 3,
      "top": [
       [
        "Power train",
-       216
+       217
       ],
       [
        "Fuel/propulsion system",
@@ -727,7 +727,7 @@
       ],
       [
        "Engine",
-       72
+       73
       ]
      ]
     },
@@ -752,12 +752,12 @@
     },
     {
      "year": 2021,
-     "complaints": 553,
+     "complaints": 559,
      "recalls": 5,
      "top": [
       [
        "Power train",
-       232
+       238
       ],
       [
        "Service brakes",
@@ -771,7 +771,7 @@
     },
     {
      "year": 2022,
-     "complaints": 273,
+     "complaints": 275,
      "recalls": 6,
      "top": [
       [
@@ -780,7 +780,7 @@
       ],
       [
        "Structure",
-       44
+       45
       ],
       [
        "Service brakes",
@@ -790,7 +790,7 @@
     },
     {
      "year": 2023,
-     "complaints": 190,
+     "complaints": 193,
      "recalls": 9,
      "top": [
       [
@@ -802,8 +802,8 @@
        28
       ],
       [
-       "Service brakes",
-       21
+       "Seats",
+       23
       ]
      ]
     },
@@ -849,7 +849,7 @@
    "topAreas": [
     [
      "Power train",
-     806
+     815
     ],
     [
      "Service brakes",
@@ -857,11 +857,11 @@
     ],
     [
      "Engine",
-     277
+     278
     ],
     [
      "Electrical system",
-     232
+     234
     ],
     [
      "Fuel/propulsion system",
@@ -892,7 +892,7 @@
     },
     {
      "year": 2017,
-     "complaints": 245,
+     "complaints": 246,
      "recalls": 5,
      "top": [
       [
@@ -987,7 +987,7 @@
     },
     {
      "year": 2022,
-     "complaints": 59,
+     "complaints": 60,
      "recalls": 3,
      "top": [
       [
@@ -996,7 +996,7 @@
       ],
       [
        "Structure",
-       8
+       9
       ],
       [
        "Air bags",
@@ -1025,7 +1025,7 @@
     },
     {
      "year": 2024,
-     "complaints": 155,
+     "complaints": 156,
      "recalls": 5,
      "top": [
       [
@@ -1038,13 +1038,13 @@
       ],
       [
        "Electrical system",
-       16
+       17
       ]
      ]
     },
     {
      "year": 2025,
-     "complaints": 117,
+     "complaints": 118,
      "recalls": 5,
      "top": [
       [
@@ -1073,15 +1073,15 @@
     ],
     [
      "Engine",
-     188
+     189
     ],
     [
      "Fuel/propulsion system",
-     174
+     175
     ],
     [
      "Electrical system",
-     150
+     151
     ]
    ]
   },
@@ -1165,7 +1165,7 @@
     },
     {
      "year": 2020,
-     "complaints": 47,
+     "complaints": 48,
      "recalls": 5,
      "top": [
       [
@@ -1177,7 +1177,7 @@
        6
       ],
       [
-       "Steering",
+       "Electrical system",
        5
       ]
      ]
@@ -1203,12 +1203,12 @@
     },
     {
      "year": 2022,
-     "complaints": 433,
+     "complaints": 434,
      "recalls": 13,
      "top": [
       [
        "Engine",
-       165
+       166
       ],
       [
        "Power train",
@@ -1222,12 +1222,12 @@
     },
     {
      "year": 2023,
-     "complaints": 415,
+     "complaints": 420,
      "recalls": 13,
      "top": [
       [
        "Engine",
-       169
+       173
       ],
       [
        "Power train",
@@ -1241,12 +1241,12 @@
     },
     {
      "year": 2024,
-     "complaints": 354,
+     "complaints": 358,
      "recalls": 10,
      "top": [
       [
        "Engine",
-       155
+       157
       ],
       [
        "Power train",
@@ -1254,22 +1254,22 @@
       ],
       [
        "Fuel/propulsion system",
-       47
+       48
       ]
      ]
     },
     {
      "year": 2025,
-     "complaints": 143,
+     "complaints": 145,
      "recalls": 5,
      "top": [
       [
        "Engine",
-       47
+       48
       ],
       [
        "Power train",
-       37
+       38
       ],
       [
        "Fuel/propulsion system",
@@ -1281,23 +1281,23 @@
    "topAreas": [
     [
      "Engine",
-     568
+     576
     ],
     [
      "Power train",
-     333
+     335
     ],
     [
      "Fuel/propulsion system",
-     269
+     270
     ],
     [
      "Electrical system",
-     223
+     224
     ],
     [
      "Service brakes",
-     177
+     179
     ]
    ]
   },
@@ -1343,12 +1343,12 @@
     },
     {
      "year": 2018,
-     "complaints": 72,
+     "complaints": 73,
      "recalls": 7,
      "top": [
       [
        "Power train",
-       20
+       21
       ],
       [
        "Fuel/propulsion system",
@@ -1381,7 +1381,7 @@
     },
     {
      "year": 2020,
-     "complaints": 38,
+     "complaints": 39,
      "recalls": 2,
      "top": [
       [
@@ -1389,12 +1389,12 @@
        8
       ],
       [
-       "Electrical system",
+       "Engine",
        7
       ],
       [
-       "Engine",
-       6
+       "Electrical system",
+       7
       ]
      ]
     },
@@ -1432,7 +1432,7 @@
    "topAreas": [
     [
      "Power train",
-     78
+     79
     ],
     [
      "Structure",
@@ -1448,7 +1448,7 @@
     ],
     [
      "Engine",
-     35
+     36
     ]
    ]
   },
@@ -1513,7 +1513,7 @@
     },
     {
      "year": 2019,
-     "complaints": 65,
+     "complaints": 66,
      "recalls": 4,
      "top": [
       [
@@ -1521,12 +1521,12 @@
        10
       ],
       [
-       "Electrical system",
+       "Fuel/propulsion system",
        8
       ],
       [
-       "Suspension",
-       7
+       "Electrical system",
+       8
       ]
      ]
     },
@@ -1627,7 +1627,7 @@
     },
     {
      "year": 2025,
-     "complaints": 63,
+     "complaints": 66,
      "recalls": 1,
      "top": [
       [
@@ -1636,11 +1636,11 @@
       ],
       [
        "Electrical system",
-       8
+       9
       ],
       [
        "Structure",
-       7
+       8
       ]
      ]
     }
@@ -1656,7 +1656,7 @@
     ],
     [
      "Electrical system",
-     51
+     52
     ],
     [
      "Suspension",
@@ -1672,7 +1672,7 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 1082,
+     "complaints": 1083,
      "recalls": 5,
      "top": [
       [
@@ -1685,7 +1685,7 @@
       ],
       [
        "Engine",
-       95
+       96
       ]
      ]
     },
@@ -1729,7 +1729,7 @@
     },
     {
      "year": 2019,
-     "complaints": 461,
+     "complaints": 462,
      "recalls": 4,
      "top": [
       [
@@ -1748,7 +1748,7 @@
     },
     {
      "year": 2020,
-     "complaints": 243,
+     "complaints": 245,
      "recalls": 5,
      "top": [
       [
@@ -1761,13 +1761,13 @@
       ],
       [
        "Steering",
-       32
+       33
       ]
      ]
     },
     {
      "year": 2021,
-     "complaints": 163,
+     "complaints": 164,
      "recalls": 4,
      "top": [
       [
@@ -1786,12 +1786,12 @@
     },
     {
      "year": 2022,
-     "complaints": 962,
+     "complaints": 963,
      "recalls": 4,
      "top": [
       [
        "Steering",
-       805
+       806
       ],
       [
        "Forward collision avoidance",
@@ -1805,7 +1805,7 @@
     },
     {
      "year": 2023,
-     "complaints": 338,
+     "complaints": 340,
      "recalls": 4,
      "top": [
       [
@@ -1818,7 +1818,7 @@
       ],
       [
        "Electrical system",
-       20
+       21
       ]
      ]
     },
@@ -1843,7 +1843,7 @@
     },
     {
      "year": 2025,
-     "complaints": 105,
+     "complaints": 107,
      "recalls": 2,
      "top": [
       [
@@ -1864,15 +1864,15 @@
    "topAreas": [
     [
      "Steering",
-     2246
+     2248
     ],
     [
      "Electrical system",
-     450
+     451
     ],
     [
      "Engine",
-     303
+     305
     ],
     [
      "Service brakes",
@@ -1907,12 +1907,12 @@
     },
     {
      "year": 2017,
-     "complaints": 585,
+     "complaints": 587,
      "recalls": 3,
      "top": [
       [
        "Electrical system",
-       164
+       165
       ],
       [
        "Engine",
@@ -1920,51 +1920,51 @@
       ],
       [
        "Service brakes",
-       60
+       61
       ]
      ]
     },
     {
      "year": 2018,
-     "complaints": 2016,
+     "complaints": 2019,
      "recalls": 6,
      "top": [
       [
        "Engine",
-       585
+       586
       ],
       [
        "Forward collision avoidance",
-       356
+       357
       ],
       [
        "Fuel/propulsion system",
-       323
+       324
       ]
      ]
     },
     {
      "year": 2019,
-     "complaints": 793,
+     "complaints": 796,
      "recalls": 6,
      "top": [
       [
        "Engine",
-       212
+       213
       ],
       [
        "Forward collision avoidance",
-       175
+       176
       ],
       [
-       "Electrical system",
-       125
+       "Fuel/propulsion system",
+       126
       ]
      ]
     },
     {
      "year": 2020,
-     "complaints": 408,
+     "complaints": 412,
      "recalls": 6,
      "top": [
       [
@@ -1977,13 +1977,13 @@
       ],
       [
        "Electrical system",
-       66
+       68
       ]
      ]
     },
     {
      "year": 2021,
-     "complaints": 294,
+     "complaints": 296,
      "recalls": 4,
      "top": [
       [
@@ -2002,12 +2002,12 @@
     },
     {
      "year": 2022,
-     "complaints": 319,
+     "complaints": 322,
      "recalls": 4,
      "top": [
       [
        "Electrical system",
-       119
+       121
       ],
       [
        "Forward collision avoidance",
@@ -2021,7 +2021,7 @@
     },
     {
      "year": 2023,
-     "complaints": 233,
+     "complaints": 236,
      "recalls": 9,
      "top": [
       [
@@ -2040,7 +2040,7 @@
     },
     {
      "year": 2024,
-     "complaints": 234,
+     "complaints": 237,
      "recalls": 6,
      "top": [
       [
@@ -2053,18 +2053,18 @@
       ],
       [
        "Forward collision avoidance",
-       31
+       32
       ]
      ]
     },
     {
      "year": 2025,
-     "complaints": 125,
+     "complaints": 127,
      "recalls": 3,
      "top": [
       [
        "Steering",
-       51
+       52
       ],
       [
        "Forward collision avoidance",
@@ -2080,23 +2080,23 @@
    "topAreas": [
     [
      "Electrical system",
-     1200
+     1206
     ],
     [
      "Engine",
-     1145
+     1147
     ],
     [
      "Forward collision avoidance",
-     943
+     946
     ],
     [
      "Service brakes",
-     695
+     697
     ],
     [
      "Fuel/propulsion system",
-     685
+     689
     ]
    ]
   },
@@ -2104,16 +2104,16 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 395,
+     "complaints": 396,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       102
+       103
       ],
       [
        "Fuel/propulsion system",
-       65
+       66
       ],
       [
        "Electrical system",
@@ -2123,26 +2123,26 @@
     },
     {
      "year": 2017,
-     "complaints": 1781,
+     "complaints": 1786,
      "recalls": 7,
      "top": [
       [
        "Engine",
-       533
+       535
       ],
       [
        "Electrical system",
-       403
+       404
       ],
       [
        "Fuel/propulsion system",
-       349
+       350
       ]
      ]
     },
     {
      "year": 2018,
-     "complaints": 2166,
+     "complaints": 2169,
      "recalls": 5,
      "top": [
       [
@@ -2151,7 +2151,7 @@
       ],
       [
        "Forward collision avoidance",
-       396
+       397
       ],
       [
        "Fuel/propulsion system",
@@ -2161,7 +2161,7 @@
     },
     {
      "year": 2019,
-     "complaints": 1108,
+     "complaints": 1111,
      "recalls": 8,
      "top": [
       [
@@ -2180,7 +2180,7 @@
     },
     {
      "year": 2020,
-     "complaints": 361,
+     "complaints": 363,
      "recalls": 7,
      "top": [
       [
@@ -2192,90 +2192,90 @@
        47
       ],
       [
-       "Electrical system",
-       44
+       "Steering",
+       45
       ]
      ]
     },
     {
      "year": 2021,
-     "complaints": 342,
+     "complaints": 344,
      "recalls": 4,
      "top": [
       [
        "Steering",
-       116
+       117
       ],
       [
        "Forward collision avoidance",
        89
       ],
       [
-       "Electrical system",
+       "Engine",
        34
       ]
      ]
     },
     {
      "year": 2022,
-     "complaints": 270,
-     "recalls": 3,
+     "complaints": 354,
+     "recalls": 6,
      "top": [
       [
        "Steering",
-       144
+       151
       ],
       [
        "Forward collision avoidance",
-       44
+       56
       ],
       [
-       "Engine",
-       19
+       "Electrical system",
+       41
       ]
      ]
     },
     {
      "year": 2023,
-     "complaints": 518,
-     "recalls": 3,
+     "complaints": 636,
+     "recalls": 8,
      "top": [
       [
        "Steering",
-       325
+       398
       ],
       [
        "Forward collision avoidance",
-       38
+       45
       ],
       [
        "Lane departure",
-       30
+       43
       ]
      ]
     },
     {
      "year": 2024,
-     "complaints": 396,
-     "recalls": 2,
+     "complaints": 487,
+     "recalls": 5,
      "top": [
       [
        "Steering",
-       127
+       150
       ],
       [
        "Forward collision avoidance",
-       51
+       59
       ],
       [
        "Visibility/wiper",
-       49
+       57
       ]
      ]
     },
     {
      "year": 2025,
-     "complaints": 267,
+     "complaints": 271,
      "recalls": 1,
      "top": [
       [
@@ -2288,31 +2288,31 @@
       ],
       [
        "Visibility/wiper",
-       33
+       36
       ]
      ]
     }
    ],
    "topAreas": [
     [
-     "Engine",
-     1440
+     "Steering",
+     1538
     ],
     [
-     "Steering",
-     1430
+     "Engine",
+     1484
     ],
     [
      "Forward collision avoidance",
-     1319
+     1347
     ],
     [
      "Electrical system",
-     1090
+     1134
     ],
     [
      "Fuel/propulsion system",
-     1073
+     1113
     ]
    ]
   },
@@ -2320,16 +2320,16 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 1728,
+     "complaints": 1732,
      "recalls": 8,
      "top": [
       [
        "Engine",
-       783
+       785
       ],
       [
        "Electrical system",
-       583
+       584
       ],
       [
        "Power train",
@@ -2339,26 +2339,26 @@
     },
     {
      "year": 2017,
-     "complaints": 941,
+     "complaints": 943,
      "recalls": 4,
      "top": [
       [
        "Engine",
-       477
+       479
       ],
       [
        "Electrical system",
        266
       ],
       [
-       "Fuel/propulsion system",
+       "Power train",
        123
       ]
      ]
     },
     {
      "year": 2018,
-     "complaints": 442,
+     "complaints": 443,
      "recalls": 7,
      "top": [
       [
@@ -2377,7 +2377,7 @@
     },
     {
      "year": 2019,
-     "complaints": 929,
+     "complaints": 932,
      "recalls": 13,
      "top": [
       [
@@ -2386,26 +2386,26 @@
       ],
       [
        "Engine",
-       243
+       244
       ],
       [
        "Forward collision avoidance",
-       129
+       130
       ]
      ]
     },
     {
      "year": 2020,
-     "complaints": 494,
+     "complaints": 498,
      "recalls": 11,
      "top": [
       [
        "Electrical system",
-       215
+       216
       ],
       [
        "Engine",
-       101
+       102
       ],
       [
        "Forward collision avoidance",
@@ -2415,50 +2415,50 @@
     },
     {
      "year": 2021,
-     "complaints": 455,
+     "complaints": 460,
      "recalls": 10,
      "top": [
       [
        "Electrical system",
-       138
+       139
       ],
       [
        "Engine",
-       114
+       115
       ],
       [
        "Forward collision avoidance",
-       99
+       100
       ]
      ]
     },
     {
      "year": 2022,
-     "complaints": 175,
+     "complaints": 178,
      "recalls": 5,
      "top": [
       [
        "Forward collision avoidance",
-       46
+       48
       ],
       [
        "Electrical system",
-       42
+       43
       ],
       [
        "Engine",
-       36
+       37
       ]
      ]
     },
     {
      "year": 2023,
-     "complaints": 149,
-     "recalls": 5,
+     "complaints": 155,
+     "recalls": 6,
      "top": [
       [
        "Seat belts",
-       37
+       41
       ],
       [
        "Electrical system",
@@ -2472,12 +2472,12 @@
     },
     {
      "year": 2024,
-     "complaints": 118,
-     "recalls": 6,
+     "complaints": 121,
+     "recalls": 7,
      "top": [
       [
        "Seat belts",
-       26
+       29
       ],
       [
        "Steering",
@@ -2491,20 +2491,20 @@
     },
     {
      "year": 2025,
-     "complaints": 217,
-     "recalls": 4,
+     "complaints": 218,
+     "recalls": 5,
      "top": [
       [
        "Forward collision avoidance",
        57
       ],
       [
-       "Electrical system",
+       "Steering",
        45
       ],
       [
-       "Steering",
-       44
+       "Electrical system",
+       45
       ]
      ]
     }
@@ -2512,23 +2512,23 @@
    "topAreas": [
     [
      "Engine",
-     1969
+     1978
     ],
     [
      "Electrical system",
-     1680
+     1685
     ],
     [
      "Power train",
-     620
+     621
     ],
     [
      "Fuel/propulsion system",
-     567
+     572
     ],
     [
      "Forward collision avoidance",
-     517
+     521
     ]
    ]
   },
@@ -2536,12 +2536,12 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 272,
+     "complaints": 273,
      "recalls": 6,
      "top": [
       [
        "Engine",
-       93
+       94
       ],
       [
        "Electrical system",
@@ -2555,12 +2555,12 @@
     },
     {
      "year": 2017,
-     "complaints": 39,
+     "complaints": 40,
      "recalls": 2,
      "top": [
       [
        "Engine",
-       10
+       11
       ],
       [
        "Power train",
@@ -2574,12 +2574,12 @@
     },
     {
      "year": 2018,
-     "complaints": 1016,
+     "complaints": 1017,
      "recalls": 16,
      "top": [
       [
        "Electrical system",
-       265
+       266
       ],
       [
        "Forward collision avoidance",
@@ -2593,12 +2593,12 @@
     },
     {
      "year": 2019,
-     "complaints": 1000,
+     "complaints": 1009,
      "recalls": 20,
      "top": [
       [
        "Forward collision avoidance",
-       241
+       245
       ],
       [
        "Electrical system",
@@ -2606,32 +2606,32 @@
       ],
       [
        "Lane departure",
-       171
+       173
       ]
      ]
     },
     {
      "year": 2020,
-     "complaints": 493,
+     "complaints": 496,
      "recalls": 14,
      "top": [
       [
        "Forward collision avoidance",
-       187
+       188
       ],
       [
        "Electrical system",
-       174
+       176
       ],
       [
        "Lane departure",
-       129
+       130
       ]
      ]
     },
     {
      "year": 2021,
-     "complaints": 148,
+     "complaints": 149,
      "recalls": 8,
      "top": [
       [
@@ -2650,12 +2650,12 @@
     },
     {
      "year": 2022,
-     "complaints": 143,
+     "complaints": 144,
      "recalls": 9,
      "top": [
       [
        "Electrical system",
-       37
+       38
       ],
       [
        "Forward collision avoidance",
@@ -2669,12 +2669,12 @@
     },
     {
      "year": 2023,
-     "complaints": 107,
+     "complaints": 109,
      "recalls": 5,
      "top": [
       [
        "Electrical system",
-       31
+       32
       ],
       [
        "Forward collision avoidance",
@@ -2682,7 +2682,7 @@
       ],
       [
        "Engine",
-       15
+       17
       ]
      ]
     },
@@ -2707,20 +2707,20 @@
     },
     {
      "year": 2025,
-     "complaints": 458,
+     "complaints": 465,
      "recalls": 2,
      "top": [
       [
        "Engine",
-       254
+       257
       ],
       [
        "Electrical system",
-       240
+       244
       ],
       [
        "Power train",
-       44
+       46
       ]
      ]
     }
@@ -2728,23 +2728,23 @@
    "topAreas": [
     [
      "Electrical system",
-     1136
+     1145
     ],
     [
      "Engine",
-     864
+     872
     ],
     [
      "Forward collision avoidance",
-     756
+     761
     ],
     [
      "Lane departure",
-     485
+     488
     ],
     [
      "Power train",
-     439
+     443
     ]
    ]
   },
@@ -2758,7 +2758,7 @@
     },
     {
      "year": 2017,
-     "complaints": 347,
+     "complaints": 348,
      "recalls": 9,
      "top": [
       [
@@ -2767,7 +2767,7 @@
       ],
       [
        "Engine",
-       88
+       89
       ],
       [
        "Fuel/propulsion system",
@@ -2796,7 +2796,7 @@
     },
     {
      "year": 2019,
-     "complaints": 238,
+     "complaints": 240,
      "recalls": 12,
      "top": [
       [
@@ -2808,14 +2808,14 @@
        39
       ],
       [
-       "Engine",
+       "Power train",
        38
       ]
      ]
     },
     {
      "year": 2020,
-     "complaints": 171,
+     "complaints": 172,
      "recalls": 9,
      "top": [
       [
@@ -2834,7 +2834,7 @@
     },
     {
      "year": 2021,
-     "complaints": 103,
+     "complaints": 104,
      "recalls": 7,
      "top": [
       [
@@ -2853,7 +2853,7 @@
     },
     {
      "year": 2022,
-     "complaints": 119,
+     "complaints": 120,
      "recalls": 3,
      "top": [
       [
@@ -2872,7 +2872,7 @@
     },
     {
      "year": 2023,
-     "complaints": 133,
+     "complaints": 134,
      "recalls": 5,
      "top": [
       [
@@ -2891,7 +2891,7 @@
     },
     {
      "year": 2024,
-     "complaints": 76,
+     "complaints": 78,
      "recalls": 1,
      "top": [
       [
@@ -2900,7 +2900,7 @@
       ],
       [
        "Engine",
-       24
+       26
       ],
       [
        "Exterior lighting",
@@ -2931,11 +2931,11 @@
    "topAreas": [
     [
      "Electrical system",
-     344
+     345
     ],
     [
      "Engine",
-     316
+     319
     ],
     [
      "Exterior lighting",
@@ -2943,7 +2943,7 @@
     ],
     [
      "Power train",
-     140
+     142
     ],
     [
      "Fuel/propulsion system",
@@ -2955,12 +2955,12 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 114,
+     "complaints": 120,
      "recalls": 14,
      "top": [
       [
        "Power train",
-       91
+       95
       ],
       [
        "Engine",
@@ -2974,35 +2974,35 @@
     },
     {
      "year": 2017,
-     "complaints": 84,
+     "complaints": 88,
      "recalls": 18,
      "top": [
       [
        "Power train",
-       57
+       61
+      ],
+      [
+       "Vehicle speed control",
+       14
       ],
       [
        "Electrical system",
        13
-      ],
-      [
-       "Vehicle speed control",
-       11
       ]
      ]
     },
     {
      "year": 2018,
-     "complaints": 99,
+     "complaints": 105,
      "recalls": 19,
      "top": [
       [
        "Power train",
-       69
+       74
       ],
       [
        "Engine",
-       19
+       20
       ],
       [
        "Electrical system",
@@ -3012,12 +3012,12 @@
     },
     {
      "year": 2019,
-     "complaints": 72,
+     "complaints": 74,
      "recalls": 9,
      "top": [
       [
        "Power train",
-       54
+       55
       ],
       [
        "Engine",
@@ -3031,7 +3031,7 @@
     },
     {
      "year": 2020,
-     "complaints": 60,
+     "complaints": 61,
      "recalls": 11,
      "top": [
       [
@@ -3039,11 +3039,11 @@
        43
       ],
       [
-       "Electrical system",
-       7
+       "Engine",
+       8
       ],
       [
-       "Engine",
+       "Electrical system",
        7
       ]
      ]
@@ -3082,11 +3082,11 @@
    "topAreas": [
     [
      "Power train",
-     314
+     328
     ],
     [
      "Engine",
-     58
+     60
     ],
     [
      "Electrical system",
@@ -3094,11 +3094,11 @@
     ],
     [
      "Vehicle speed control",
-     22
+     27
     ],
     [
      "Service brakes",
-     19
+     21
     ]
    ]
   },
@@ -3106,12 +3106,12 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 2464,
+     "complaints": 2466,
      "recalls": 15,
      "top": [
       [
        "Structure",
-       592
+       594
       ],
       [
        "Steering",
@@ -3125,16 +3125,16 @@
     },
     {
      "year": 2017,
-     "complaints": 1715,
+     "complaints": 1717,
      "recalls": 14,
      "top": [
       [
        "Structure",
-       665
+       666
       ],
       [
        "Engine",
-       241
+       242
       ],
       [
        "Power train",
@@ -3144,7 +3144,7 @@
     },
     {
      "year": 2018,
-     "complaints": 734,
+     "complaints": 735,
      "recalls": 7,
      "top": [
       [
@@ -3182,12 +3182,12 @@
     },
     {
      "year": 2020,
-     "complaints": 1250,
+     "complaints": 1257,
      "recalls": 33,
      "top": [
       [
        "Power train",
-       505
+       507
       ],
       [
        "Electrical system",
@@ -3201,16 +3201,16 @@
     },
     {
      "year": 2021,
-     "complaints": 455,
+     "complaints": 458,
      "recalls": 26,
      "top": [
       [
        "Power train",
-       128
+       129
       ],
       [
        "Engine",
-       51
+       52
       ],
       [
        "Electrical system",
@@ -3220,12 +3220,12 @@
     },
     {
      "year": 2022,
-     "complaints": 274,
+     "complaints": 277,
      "recalls": 24,
      "top": [
       [
        "Power train",
-       61
+       62
       ],
       [
        "Electrical system",
@@ -3233,7 +3233,7 @@
       ],
       [
        "Engine",
-       31
+       32
       ]
      ]
     },
@@ -3277,16 +3277,16 @@
     },
     {
      "year": 2025,
-     "complaints": 109,
+     "complaints": 112,
      "recalls": 20,
      "top": [
       [
        "Electrical system",
-       24
+       25
       ],
       [
        "Service brakes",
-       19
+       20
       ],
       [
        "Power train",
@@ -3298,15 +3298,15 @@
    "topAreas": [
     [
      "Structure",
-     1796
+     1800
     ],
     [
      "Power train",
-     1148
+     1153
     ],
     [
      "Engine",
-     957
+     960
     ],
     [
      "Steering",
@@ -3314,7 +3314,7 @@
     ],
     [
      "Electrical system",
-     613
+     615
     ]
    ]
   },
@@ -3322,7 +3322,7 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 1186,
+     "complaints": 1194,
      "recalls": 4,
      "top": [
       [
@@ -3331,7 +3331,7 @@
       ],
       [
        "Back over prevention",
-       264
+       270
       ],
       [
        "Engine",
@@ -3341,16 +3341,16 @@
     },
     {
      "year": 2017,
-     "complaints": 2705,
+     "complaints": 2709,
      "recalls": 4,
      "top": [
       [
        "Engine",
-       1585
+       1588
       ],
       [
        "Engine and engine cooling",
-       512
+       513
       ],
       [
        "Power train",
@@ -3360,12 +3360,12 @@
     },
     {
      "year": 2018,
-     "complaints": 1825,
+     "complaints": 1831,
      "recalls": 4,
      "top": [
       [
        "Engine",
-       1173
+       1178
       ],
       [
        "Engine and engine cooling",
@@ -3373,18 +3373,18 @@
       ],
       [
        "Power train",
-       276
+       278
       ]
      ]
     },
     {
      "year": 2019,
-     "complaints": 602,
+     "complaints": 605,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       322
+       325
       ],
       [
        "Power train",
@@ -3398,7 +3398,7 @@
     },
     {
      "year": 2020,
-     "complaints": 1841,
+     "complaints": 1845,
      "recalls": 24,
      "top": [
       [
@@ -3411,13 +3411,13 @@
       ],
       [
        "Electrical system",
-       202
+       203
       ]
      ]
     },
     {
      "year": 2021,
-     "complaints": 385,
+     "complaints": 387,
      "recalls": 21,
      "top": [
       [
@@ -3436,7 +3436,7 @@
     },
     {
      "year": 2022,
-     "complaints": 388,
+     "complaints": 390,
      "recalls": 21,
      "top": [
       [
@@ -3445,22 +3445,22 @@
       ],
       [
        "Fuel system",
-       64
+       65
       ],
       [
        "Gasoline",
-       64
+       65
       ]
      ]
     },
     {
      "year": 2023,
-     "complaints": 139,
+     "complaints": 140,
      "recalls": 13,
      "top": [
       [
        "Electrical system",
-       61
+       62
       ],
       [
        "Engine",
@@ -3474,12 +3474,12 @@
     },
     {
      "year": 2024,
-     "complaints": 90,
+     "complaints": 91,
      "recalls": 10,
      "top": [
       [
        "Electrical system",
-       37
+       38
       ],
       [
        "Forward collision avoidance",
@@ -3493,12 +3493,12 @@
     },
     {
      "year": 2025,
-     "complaints": 31,
+     "complaints": 32,
      "recalls": 10,
      "top": [
       [
        "Electrical system",
-       10
+       11
       ],
       [
        "Forward collision avoidance",
@@ -3514,15 +3514,15 @@
    "topAreas": [
     [
      "Engine",
-     3679
+     3691
     ],
     [
      "Power train",
-     1524
+     1526
     ],
     [
      "Engine and engine cooling",
-     1040
+     1042
     ],
     [
      "Structure",
@@ -3530,7 +3530,7 @@
     ],
     [
      "Electrical system",
-     755
+     759
     ]
    ]
   },
@@ -3538,7 +3538,7 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 380,
+     "complaints": 381,
      "recalls": 5,
      "top": [
       [
@@ -3595,7 +3595,7 @@
     },
     {
      "year": 2019,
-     "complaints": 153,
+     "complaints": 154,
      "recalls": 6,
      "top": [
       [
@@ -3604,7 +3604,7 @@
       ],
       [
        "Electrical system",
-       33
+       34
       ],
       [
        "Power train",
@@ -3721,7 +3721,7 @@
     ],
     [
      "Electrical system",
-     257
+     258
     ],
     [
      "Power train",
@@ -3733,7 +3733,7 @@
     ],
     [
      "Structure",
-     111
+     112
     ]
    ]
   },
@@ -3771,7 +3771,7 @@
     },
     {
      "year": 2021,
-     "complaints": 716,
+     "complaints": 717,
      "recalls": 16,
      "top": [
       [
@@ -3930,12 +3930,12 @@
     },
     {
      "year": 2018,
-     "complaints": 383,
+     "complaints": 384,
      "recalls": 14,
      "top": [
       [
        "Power train",
-       149
+       150
       ],
       [
        "Engine",
@@ -3949,16 +3949,16 @@
     },
     {
      "year": 2019,
-     "complaints": 528,
+     "complaints": 533,
      "recalls": 11,
      "top": [
       [
        "Power train",
-       223
+       224
       ],
       [
        "Seat belts",
-       117
+       119
       ],
       [
        "Engine",
@@ -3968,12 +3968,12 @@
     },
     {
      "year": 2020,
-     "complaints": 430,
+     "complaints": 433,
      "recalls": 18,
      "top": [
       [
        "Power train",
-       270
+       271
       ],
       [
        "Engine",
@@ -3981,18 +3981,18 @@
       ],
       [
        "Seat belts",
-       40
+       41
       ]
      ]
     },
     {
      "year": 2021,
-     "complaints": 242,
+     "complaints": 244,
      "recalls": 12,
      "top": [
       [
        "Power train",
-       113
+       115
       ],
       [
        "Engine",
@@ -4000,13 +4000,13 @@
       ],
       [
        "Electrical system",
-       24
+       25
       ]
      ]
     },
     {
      "year": 2022,
-     "complaints": 117,
+     "complaints": 119,
      "recalls": 12,
      "top": [
       [
@@ -4014,12 +4014,12 @@
        20
       ],
       [
-       "Forward collision avoidance",
+       "Power train",
        17
       ],
       [
-       "Power train",
-       16
+       "Forward collision avoidance",
+       17
       ]
      ]
     },
@@ -4044,7 +4044,7 @@
     },
     {
      "year": 2024,
-     "complaints": 79,
+     "complaints": 80,
      "recalls": 7,
      "top": [
       [
@@ -4063,7 +4063,7 @@
     },
     {
      "year": 2025,
-     "complaints": 38,
+     "complaints": 40,
      "recalls": 6,
      "top": [
       [
@@ -4071,12 +4071,12 @@
        8
       ],
       [
-       "Steering",
+       "Electrical system",
        7
       ],
       [
-       "Seats",
-       6
+       "Steering",
+       7
       ]
      ]
     }
@@ -4084,7 +4084,7 @@
    "topAreas": [
     [
      "Power train",
-     880
+     886
     ],
     [
      "Engine",
@@ -4092,7 +4092,7 @@
     ],
     [
      "Electrical system",
-     294
+     296
     ],
     [
      "Service brakes",
@@ -4100,7 +4100,7 @@
     ],
     [
      "Seat belts",
-     190
+     194
     ]
    ]
   },
@@ -4108,12 +4108,12 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 929,
+     "complaints": 932,
      "recalls": 7,
      "top": [
       [
        "Engine",
-       335
+       337
       ],
       [
        "Service brakes",
@@ -4127,12 +4127,12 @@
     },
     {
      "year": 2017,
-     "complaints": 1386,
+     "complaints": 1389,
      "recalls": 8,
      "top": [
       [
        "Engine",
-       712
+       715
       ],
       [
        "Engine and engine cooling",
@@ -4146,12 +4146,12 @@
     },
     {
      "year": 2018,
-     "complaints": 852,
+     "complaints": 855,
      "recalls": 7,
      "top": [
       [
        "Engine",
-       473
+       476
       ],
       [
        "Engine and engine cooling",
@@ -4165,12 +4165,12 @@
     },
     {
      "year": 2019,
-     "complaints": 776,
+     "complaints": 779,
      "recalls": 3,
      "top": [
       [
        "Power train",
-       466
+       468
       ],
       [
        "Engine",
@@ -4184,7 +4184,7 @@
     },
     {
      "year": 2020,
-     "complaints": 330,
+     "complaints": 331,
      "recalls": 4,
      "top": [
       [
@@ -4193,7 +4193,7 @@
       ],
       [
        "Engine",
-       52
+       53
       ],
       [
        "Electrical system",
@@ -4203,16 +4203,16 @@
     },
     {
      "year": 2021,
-     "complaints": 114,
+     "complaints": 116,
      "recalls": 7,
      "top": [
       [
        "Power train",
-       38
+       39
       ],
       [
        "Back over prevention",
-       21
+       22
       ],
       [
        "Electrical system",
@@ -4222,12 +4222,12 @@
     },
     {
      "year": 2022,
-     "complaints": 135,
+     "complaints": 136,
      "recalls": 5,
      "top": [
       [
        "Power train",
-       47
+       48
       ],
       [
        "Back over prevention",
@@ -4287,15 +4287,15 @@
    "topAreas": [
     [
      "Engine",
-     1759
+     1769
     ],
     [
      "Power train",
-     1074
+     1079
     ],
     [
      "Engine and engine cooling",
-     576
+     577
     ],
     [
      "Service brakes",
@@ -4395,12 +4395,12 @@
     },
     {
      "year": 2017,
-     "complaints": 276,
+     "complaints": 277,
      "recalls": 0,
      "top": [
       [
        "Engine",
-       180
+       181
       ],
       [
        "Power train",
@@ -4408,7 +4408,7 @@
       ],
       [
        "Fuel/propulsion system",
-       21
+       22
       ]
      ]
     },
@@ -4452,12 +4452,12 @@
     },
     {
      "year": 2020,
-     "complaints": 320,
+     "complaints": 321,
      "recalls": 4,
      "top": [
       [
        "Service brakes",
-       116
+       117
       ],
       [
        "Engine",
@@ -4547,16 +4547,16 @@
     },
     {
      "year": 2025,
-     "complaints": 242,
+     "complaints": 247,
      "recalls": 0,
      "top": [
       [
        "Electrical system",
-       80
+       84
       ],
       [
        "Forward collision avoidance",
-       35
+       37
       ],
       [
        "Power train",
@@ -4568,19 +4568,19 @@
    "topAreas": [
     [
      "Engine",
-     765
+     767
     ],
     [
      "Service brakes",
-     421
+     423
     ],
     [
      "Fuel/propulsion system",
-     351
+     352
     ],
     [
      "Electrical system",
-     342
+     346
     ],
     [
      "Power train",
@@ -4630,16 +4630,16 @@
     },
     {
      "year": 2018,
-     "complaints": 700,
+     "complaints": 702,
      "recalls": 6,
      "top": [
       [
        "Engine",
-       281
+       282
       ],
       [
        "Electrical system",
-       192
+       193
       ],
       [
        "Power train",
@@ -4668,20 +4668,20 @@
     },
     {
      "year": 2020,
-     "complaints": 202,
+     "complaints": 203,
      "recalls": 1,
      "top": [
+      [
+       "Engine",
+       61
+      ],
       [
        "Power train",
        60
       ],
       [
-       "Engine",
-       60
-      ],
-      [
        "Electrical system",
-       57
+       58
       ]
      ]
     },
@@ -4706,20 +4706,20 @@
     },
     {
      "year": 2022,
-     "complaints": 99,
+     "complaints": 100,
      "recalls": 1,
      "top": [
       [
        "Electrical system",
-       33
+       34
       ],
       [
        "Engine",
-       29
+       30
       ],
       [
        "Power train",
-       24
+       25
       ]
      ]
     },
@@ -4784,15 +4784,15 @@
    "topAreas": [
     [
      "Engine",
-     1035
+     1038
     ],
     [
      "Electrical system",
-     814
+     817
     ],
     [
      "Power train",
-     684
+     685
     ],
     [
      "Vehicle speed control",
@@ -4800,7 +4800,7 @@
     ],
     [
      "Service brakes",
-     346
+     347
     ]
    ]
   },
@@ -4884,12 +4884,12 @@
     },
     {
      "year": 2020,
-     "complaints": 57,
+     "complaints": 58,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       14
+       15
       ],
       [
        "Power train",
@@ -4903,12 +4903,12 @@
     },
     {
      "year": 2021,
-     "complaints": 466,
+     "complaints": 469,
      "recalls": 16,
      "top": [
       [
        "Engine",
-       172
+       174
       ],
       [
        "Fuel/propulsion system",
@@ -4916,7 +4916,7 @@
       ],
       [
        "Power train",
-       90
+       92
       ]
      ]
     },
@@ -4941,7 +4941,7 @@
     },
     {
      "year": 2023,
-     "complaints": 235,
+     "complaints": 236,
      "recalls": 5,
      "top": [
       [
@@ -4954,7 +4954,7 @@
       ],
       [
        "Electrical system",
-       40
+       41
       ]
      ]
     },
@@ -5000,15 +5000,15 @@
    "topAreas": [
     [
      "Engine",
-     546
+     549
     ],
     [
      "Power train",
-     364
+     366
     ],
     [
      "Electrical system",
-     252
+     253
     ],
     [
      "Service brakes",
@@ -5138,12 +5138,12 @@
     },
     {
      "year": 2022,
-     "complaints": 103,
+     "complaints": 104,
      "recalls": 1,
      "top": [
       [
        "Power train",
-       45
+       46
       ],
       [
        "Engine",
@@ -5157,7 +5157,7 @@
     },
     {
      "year": 2023,
-     "complaints": 95,
+     "complaints": 96,
      "recalls": 2,
      "top": [
       [
@@ -5176,7 +5176,7 @@
     },
     {
      "year": 2024,
-     "complaints": 147,
+     "complaints": 148,
      "recalls": 0,
      "top": [
       [
@@ -5195,16 +5195,16 @@
     },
     {
      "year": 2025,
-     "complaints": 186,
+     "complaints": 187,
      "recalls": 0,
      "top": [
       [
        "Service brakes",
-       120
+       121
       ],
       [
        "Forward collision avoidance",
-       62
+       63
       ],
       [
        "Electrical system",
@@ -5216,7 +5216,7 @@
    "topAreas": [
     [
      "Power train",
-     586
+     588
     ],
     [
      "Air bags",
@@ -5228,11 +5228,11 @@
     ],
     [
      "Engine",
-     369
+     370
     ],
     [
      "Service brakes",
-     305
+     306
     ]
    ]
   },
@@ -5240,16 +5240,16 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 716,
+     "complaints": 717,
      "recalls": 4,
      "top": [
       [
        "Steering",
-       465
+       466
       ],
       [
        "Electrical system",
-       120
+       121
       ],
       [
        "Power train",
@@ -5259,20 +5259,20 @@
     },
     {
      "year": 2017,
-     "complaints": 216,
+     "complaints": 218,
      "recalls": 1,
      "top": [
       [
        "Power train",
-       107
+       108
       ],
       [
        "Electrical system",
-       41
+       42
       ],
       [
        "Engine",
-       26
+       27
       ]
      ]
     },
@@ -5335,16 +5335,16 @@
     },
     {
      "year": 2021,
-     "complaints": 80,
+     "complaints": 81,
      "recalls": 1,
      "top": [
       [
        "Service brakes",
-       21
+       22
       ],
       [
        "Engine",
-       19
+       20
       ],
       [
        "Power train",
@@ -5354,7 +5354,7 @@
     },
     {
      "year": 2022,
-     "complaints": 57,
+     "complaints": 58,
      "recalls": 1,
      "top": [
       [
@@ -5373,7 +5373,7 @@
     },
     {
      "year": 2023,
-     "complaints": 139,
+     "complaints": 142,
      "recalls": 3,
      "top": [
       [
@@ -5382,17 +5382,17 @@
       ],
       [
        "Electrical system",
-       44
+       45
       ],
       [
        "Service brakes",
-       29
+       30
       ]
      ]
     },
     {
      "year": 2024,
-     "complaints": 126,
+     "complaints": 127,
      "recalls": 3,
      "top": [
       [
@@ -5401,7 +5401,7 @@
       ],
       [
        "Service brakes",
-       30
+       31
       ],
       [
        "Forward collision avoidance",
@@ -5432,23 +5432,23 @@
    "topAreas": [
     [
      "Steering",
-     569
+     571
     ],
     [
      "Power train",
-     423
+     425
     ],
     [
      "Electrical system",
-     344
+     347
     ],
     [
      "Engine",
-     208
+     211
     ],
     [
      "Service brakes",
-     180
+     183
     ]
    ]
   },
@@ -5669,7 +5669,7 @@
     },
     {
      "year": 2019,
-     "complaints": 190,
+     "complaints": 191,
      "recalls": 2,
      "top": [
       [
@@ -5726,7 +5726,7 @@
     },
     {
      "year": 2022,
-     "complaints": 55,
+     "complaints": 56,
      "recalls": 1,
      "top": [
       [
@@ -5735,7 +5735,7 @@
       ],
       [
        "Engine",
-       15
+       16
       ],
       [
        "Power train",
@@ -5764,12 +5764,12 @@
     },
     {
      "year": 2024,
-     "complaints": 55,
+     "complaints": 58,
      "recalls": 1,
      "top": [
       [
        "Service brakes",
-       13
+       14
       ],
       [
        "Forward collision avoidance",
@@ -5777,7 +5777,7 @@
       ],
       [
        "Electrical system",
-       9
+       10
       ]
      ]
     },
@@ -5804,11 +5804,11 @@
    "topAreas": [
     [
      "Electrical system",
-     228
+     229
     ],
     [
      "Engine",
-     192
+     193
     ],
     [
      "Power train",
@@ -5820,7 +5820,7 @@
     ],
     [
      "Service brakes",
-     81
+     83
     ]
    ]
   },
@@ -5828,26 +5828,26 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 1564,
+     "complaints": 1568,
      "recalls": 17,
      "top": [
       [
        "Steering",
-       316
+       317
       ],
       [
        "Engine",
-       292
+       293
       ],
       [
        "Service brakes",
-       287
+       289
       ]
      ]
     },
     {
      "year": 2017,
-     "complaints": 886,
+     "complaints": 887,
      "recalls": 13,
      "top": [
       [
@@ -5866,12 +5866,12 @@
     },
     {
      "year": 2018,
-     "complaints": 667,
+     "complaints": 669,
      "recalls": 15,
      "top": [
       [
        "Electrical system",
-       159
+       160
       ],
       [
        "Engine",
@@ -5885,16 +5885,16 @@
     },
     {
      "year": 2019,
-     "complaints": 1498,
+     "complaints": 1504,
      "recalls": 30,
      "top": [
       [
        "Electrical system",
-       382
+       384
       ],
       [
        "Steering",
-       340
+       342
       ],
       [
        "Engine",
@@ -5904,16 +5904,16 @@
     },
     {
      "year": 2020,
-     "complaints": 644,
+     "complaints": 647,
      "recalls": 14,
      "top": [
       [
        "Electrical system",
-       166
+       167
       ],
       [
        "Engine",
-       156
+       157
       ],
       [
        "Steering",
@@ -5923,26 +5923,26 @@
     },
     {
      "year": 2021,
-     "complaints": 687,
+     "complaints": 691,
      "recalls": 15,
      "top": [
       [
        "Engine",
-       277
+       278
       ],
       [
        "Electrical system",
-       199
+       202
       ],
       [
        "Power train",
-       100
+       102
       ]
      ]
     },
     {
      "year": 2022,
-     "complaints": 639,
+     "complaints": 642,
      "recalls": 16,
      "top": [
       [
@@ -5951,22 +5951,22 @@
       ],
       [
        "Electrical system",
-       202
+       203
       ],
       [
        "Power train",
-       109
+       110
       ]
      ]
     },
     {
      "year": 2023,
-     "complaints": 205,
+     "complaints": 209,
      "recalls": 11,
      "top": [
       [
        "Electrical system",
-       70
+       71
       ],
       [
        "Engine",
@@ -5980,12 +5980,12 @@
     },
     {
      "year": 2024,
-     "complaints": 78,
+     "complaints": 79,
      "recalls": 6,
      "top": [
       [
        "Electrical system",
-       28
+       29
       ],
       [
        "Engine",
@@ -5993,22 +5993,22 @@
       ],
       [
        "Power train",
-       15
+       16
       ]
      ]
     },
     {
      "year": 2025,
-     "complaints": 378,
+     "complaints": 382,
      "recalls": 8,
      "top": [
       [
        "Electrical system",
-       199
+       203
       ],
       [
        "Engine",
-       78
+       80
       ],
       [
        "Exterior lighting",
@@ -6020,23 +6020,23 @@
    "topAreas": [
     [
      "Electrical system",
-     1709
+     1724
     ],
     [
      "Engine",
-     1629
+     1634
     ],
     [
      "Steering",
-     1179
+     1184
     ],
     [
      "Power train",
-     937
+     943
     ],
     [
      "Service brakes",
-     850
+     854
     ]
    ]
   },
@@ -6044,7 +6044,7 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 260,
+     "complaints": 261,
      "recalls": 14,
      "top": [
       [
@@ -6082,12 +6082,12 @@
     },
     {
      "year": 2018,
-     "complaints": 2609,
+     "complaints": 2614,
      "recalls": 10,
      "top": [
       [
        "Service brakes",
-       2368
+       2371
       ],
       [
        "Electrical system",
@@ -6095,7 +6095,7 @@
       ],
       [
        "Hydraulic",
-       465
+       468
       ]
      ]
     },
@@ -6177,7 +6177,7 @@
     },
     {
      "year": 2023,
-     "complaints": 49,
+     "complaints": 50,
      "recalls": 8,
      "top": [
       [
@@ -6196,7 +6196,7 @@
     },
     {
      "year": 2024,
-     "complaints": 59,
+     "complaints": 60,
      "recalls": 5,
      "top": [
       [
@@ -6215,12 +6215,12 @@
     },
     {
      "year": 2025,
-     "complaints": 67,
+     "complaints": 68,
      "recalls": 6,
      "top": [
       [
        "Electrical system",
-       40
+       41
       ],
       [
        "Exterior lighting",
@@ -6236,15 +6236,15 @@
    "topAreas": [
     [
      "Service brakes",
-     3013
+     3016
     ],
     [
      "Electrical system",
-     842
+     843
     ],
     [
      "Hydraulic",
-     579
+     582
     ],
     [
      "Vehicle speed control",
@@ -6252,7 +6252,7 @@
     ],
     [
      "Power train",
-     326
+     327
     ]
    ]
   },
@@ -6260,7 +6260,7 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 312,
+     "complaints": 313,
      "recalls": 9,
      "top": [
       [
@@ -6269,7 +6269,7 @@
       ],
       [
        "Engine",
-       76
+       77
       ],
       [
        "Electrical system",
@@ -6298,7 +6298,7 @@
     },
     {
      "year": 2018,
-     "complaints": 855,
+     "complaints": 857,
      "recalls": 11,
      "top": [
       [
@@ -6317,20 +6317,20 @@
     },
     {
      "year": 2019,
-     "complaints": 370,
+     "complaints": 371,
      "recalls": 7,
      "top": [
       [
        "Service brakes",
-       116
+       117
       ],
       [
        "Electrical system",
        84
       ],
       [
-       "Engine",
-       64
+       "Hydraulic",
+       65
       ]
      ]
     },
@@ -6355,7 +6355,7 @@
     },
     {
      "year": 2021,
-     "complaints": 510,
+     "complaints": 511,
      "recalls": 16,
      "top": [
       [
@@ -6374,12 +6374,12 @@
     },
     {
      "year": 2022,
-     "complaints": 460,
+     "complaints": 461,
      "recalls": 13,
      "top": [
       [
        "Electrical system",
-       203
+       204
       ],
       [
        "Forward collision avoidance",
@@ -6393,7 +6393,7 @@
     },
     {
      "year": 2023,
-     "complaints": 606,
+     "complaints": 607,
      "recalls": 21,
      "top": [
       [
@@ -6412,39 +6412,39 @@
     },
     {
      "year": 2024,
-     "complaints": 322,
+     "complaints": 325,
      "recalls": 18,
      "top": [
       [
        "Electrical system",
-       148
+       150
       ],
       [
        "Engine",
-       128
+       130
       ],
       [
        "Fuel/propulsion system",
-       47
+       48
       ]
      ]
     },
     {
      "year": 2025,
-     "complaints": 120,
+     "complaints": 122,
      "recalls": 5,
      "top": [
       [
        "Electrical system",
-       46
+       48
       ],
       [
        "Engine",
-       31
+       32
       ],
       [
        "Power train",
-       21
+       22
       ]
      ]
     }
@@ -6452,23 +6452,23 @@
    "topAreas": [
     [
      "Electrical system",
-     1441
+     1446
     ],
     [
      "Engine",
-     841
+     845
     ],
     [
      "Power train",
-     592
+     593
     ],
     [
      "Service brakes",
-     395
+     397
     ],
     [
      "Fuel/propulsion system",
-     353
+     354
     ]
    ]
   },
@@ -6476,7 +6476,7 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 464,
+     "complaints": 465,
      "recalls": 5,
      "top": [
       [
@@ -6489,7 +6489,7 @@
       ],
       [
        "Air bags",
-       77
+       78
       ]
      ]
     },
@@ -6514,7 +6514,7 @@
     },
     {
      "year": 2018,
-     "complaints": 1829,
+     "complaints": 1830,
      "recalls": 14,
      "top": [
       [
@@ -6552,7 +6552,7 @@
     },
     {
      "year": 2020,
-     "complaints": 619,
+     "complaints": 620,
      "recalls": 12,
      "top": [
       [
@@ -6565,13 +6565,13 @@
       ],
       [
        "Engine",
-       56
+       57
       ]
      ]
     },
     {
      "year": 2021,
-     "complaints": 961,
+     "complaints": 962,
      "recalls": 15,
      "top": [
       [
@@ -6590,7 +6590,7 @@
     },
     {
      "year": 2022,
-     "complaints": 414,
+     "complaints": 417,
      "recalls": 15,
      "top": [
       [
@@ -6603,13 +6603,13 @@
       ],
       [
        "Steering",
-       88
+       90
       ]
      ]
     },
     {
      "year": 2023,
-     "complaints": 377,
+     "complaints": 379,
      "recalls": 14,
      "top": [
       [
@@ -6634,7 +6634,7 @@
     },
     {
      "year": 2025,
-     "complaints": 74,
+     "complaints": 76,
      "recalls": 4,
      "top": [
       [
@@ -6643,11 +6643,11 @@
       ],
       [
        "Engine",
-       29
+       30
       ],
       [
        "Fuel/propulsion system",
-       25
+       26
       ]
      ]
     }
@@ -6655,7 +6655,7 @@
    "topAreas": [
     [
      "Steering",
-     2256
+     2258
     ],
     [
      "Electrical system",
@@ -6663,11 +6663,11 @@
     ],
     [
      "Suspension",
-     825
+     828
     ],
     [
      "Engine",
-     807
+     809
     ],
     [
      "Power train",
@@ -6698,12 +6698,12 @@
     },
     {
      "year": 2017,
-     "complaints": 1339,
+     "complaints": 1343,
      "recalls": 6,
      "top": [
       [
        "Power train",
-       651
+       654
       ],
       [
        "Electrical system",
@@ -6717,12 +6717,12 @@
     },
     {
      "year": 2018,
-     "complaints": 690,
+     "complaints": 692,
      "recalls": 7,
      "top": [
       [
        "Power train",
-       297
+       299
       ],
       [
        "Electrical system",
@@ -6736,16 +6736,16 @@
     },
     {
      "year": 2019,
-     "complaints": 1677,
+     "complaints": 1686,
      "recalls": 11,
      "top": [
       [
        "Power train",
-       835
+       842
       ],
       [
        "Engine",
-       459
+       460
       ],
       [
        "Electrical system",
@@ -6755,12 +6755,12 @@
     },
     {
      "year": 2020,
-     "complaints": 336,
+     "complaints": 338,
      "recalls": 3,
      "top": [
       [
        "Power train",
-       201
+       203
       ],
       [
        "Engine",
@@ -6774,16 +6774,16 @@
     },
     {
      "year": 2021,
-     "complaints": 180,
+     "complaints": 185,
      "recalls": 4,
      "top": [
       [
        "Power train",
-       106
+       111
       ],
       [
        "Engine",
-       28
+       29
       ],
       [
        "Electrical system",
@@ -6845,11 +6845,11 @@
    "topAreas": [
     [
      "Power train",
-     2759
+     2778
     ],
     [
      "Engine",
-     1271
+     1273
     ],
     [
      "Electrical system",
@@ -6857,7 +6857,7 @@
     ],
     [
      "Service brakes",
-     340
+     342
     ],
     [
      "Steering",
@@ -6907,20 +6907,20 @@
     },
     {
      "year": 2018,
-     "complaints": 950,
+     "complaints": 952,
      "recalls": 6,
      "top": [
       [
        "Engine",
-       476
+       477
       ],
       [
        "Electrical system",
-       380
+       382
       ],
       [
        "Power train",
-       152
+       153
       ]
      ]
     },
@@ -6945,7 +6945,7 @@
     },
     {
      "year": 2020,
-     "complaints": 143,
+     "complaints": 144,
      "recalls": 1,
      "top": [
       [
@@ -6954,7 +6954,7 @@
       ],
       [
        "Electrical system",
-       66
+       67
       ],
       [
        "Power train",
@@ -6964,12 +6964,12 @@
     },
     {
      "year": 2021,
-     "complaints": 82,
+     "complaints": 83,
      "recalls": 0,
      "top": [
       [
        "Electrical system",
-       34
+       35
       ],
       [
        "Engine",
@@ -7061,15 +7061,15 @@
    "topAreas": [
     [
      "Engine",
-     998
+     999
     ],
     [
      "Electrical system",
-     926
+     930
     ],
     [
      "Power train",
-     346
+     347
     ],
     [
      "Service brakes",
@@ -7128,7 +7128,7 @@
     },
     {
      "year": 2021,
-     "complaints": 293,
+     "complaints": 295,
      "recalls": 8,
      "top": [
       [
@@ -7137,7 +7137,7 @@
       ],
       [
        "Power train",
-       71
+       73
       ],
       [
        "Engine",
@@ -7204,7 +7204,7 @@
     },
     {
      "year": 2025,
-     "complaints": 17,
+     "complaints": 18,
      "recalls": 1,
      "top": [
       [
@@ -7212,11 +7212,11 @@
        4
       ],
       [
-       "Fuel/propulsion system",
+       "Steering",
        3
       ],
       [
-       "Vehicle speed control",
+       "Fuel/propulsion system",
        3
       ]
      ]
@@ -7225,7 +7225,7 @@
    "topAreas": [
     [
      "Steering",
-     333
+     334
     ],
     [
      "Electrical system",
@@ -7233,7 +7233,7 @@
     ],
     [
      "Power train",
-     158
+     160
     ],
     [
      "Engine",
@@ -7249,7 +7249,7 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 555,
+     "complaints": 556,
      "recalls": 4,
      "top": [
       [
@@ -7268,7 +7268,7 @@
     },
     {
      "year": 2017,
-     "complaints": 394,
+     "complaints": 395,
      "recalls": 3,
      "top": [
       [
@@ -7306,7 +7306,7 @@
     },
     {
      "year": 2019,
-     "complaints": 234,
+     "complaints": 235,
      "recalls": 7,
      "top": [
       [
@@ -7315,7 +7315,7 @@
       ],
       [
        "Engine",
-       48
+       49
       ],
       [
        "Forward collision avoidance",
@@ -7344,7 +7344,7 @@
     },
     {
      "year": 2021,
-     "complaints": 71,
+     "complaints": 72,
      "recalls": 2,
      "top": [
       [
@@ -7449,7 +7449,7 @@
     ],
     [
      "Engine",
-     249
+     250
     ],
     [
      "Air bags",
@@ -7560,7 +7560,7 @@
     },
     {
      "year": 2021,
-     "complaints": 296,
+     "complaints": 298,
      "recalls": 10,
      "top": [
       [
@@ -7573,18 +7573,18 @@
       ],
       [
        "Fuel/propulsion system",
-       33
+       34
       ]
      ]
     },
     {
      "year": 2022,
-     "complaints": 270,
+     "complaints": 274,
      "recalls": 6,
      "top": [
       [
        "Engine",
-       147
+       151
       ],
       [
        "Fuel/propulsion system",
@@ -7598,12 +7598,12 @@
     },
     {
      "year": 2023,
-     "complaints": 770,
+     "complaints": 780,
      "recalls": 6,
      "top": [
       [
        "Engine",
-       312
+       316
       ],
       [
        "Engine and engine cooling",
@@ -7617,26 +7617,26 @@
     },
     {
      "year": 2024,
-     "complaints": 233,
+     "complaints": 239,
      "recalls": 4,
      "top": [
       [
        "Engine",
-       71
+       72
       ],
       [
        "Power train",
        44
       ],
       [
-       "Visibility/wiper",
+       "Visibility",
        29
       ]
      ]
     },
     {
      "year": 2025,
-     "complaints": 204,
+     "complaints": 208,
      "recalls": 3,
      "top": [
       [
@@ -7645,11 +7645,11 @@
       ],
       [
        "Visibility",
-       41
+       42
       ],
       [
        "Engine",
-       14
+       15
       ]
      ]
     }
@@ -7657,7 +7657,7 @@
    "topAreas": [
     [
      "Engine",
-     811
+     821
     ],
     [
      "Service brakes",
@@ -7665,15 +7665,15 @@
     ],
     [
      "Power train",
-     569
+     570
     ],
     [
      "Electrical system",
-     557
+     561
     ],
     [
      "Forward collision avoidance",
-     514
+     515
     ]
    ]
   },
@@ -7738,7 +7738,7 @@
     },
     {
      "year": 2019,
-     "complaints": 223,
+     "complaints": 224,
      "recalls": 2,
      "top": [
       [
@@ -7852,20 +7852,20 @@
     },
     {
      "year": 2025,
-     "complaints": 32,
+     "complaints": 34,
      "recalls": 4,
      "top": [
       [
+       "Power train",
+       6
+      ],
+      [
        "Electrical system",
-       5
+       6
       ],
       [
        "Tires",
        5
-      ],
-      [
-       "Forward collision avoidance",
-       4
       ]
      ]
     }
@@ -7873,11 +7873,11 @@
    "topAreas": [
     [
      "Power train",
-     338
+     340
     ],
     [
      "Electrical system",
-     305
+     306
     ],
     [
      "Forward collision avoidance",
@@ -7935,7 +7935,7 @@
     },
     {
      "year": 2018,
-     "complaints": 78,
+     "complaints": 79,
      "recalls": 3,
      "top": [
       [
@@ -7944,7 +7944,7 @@
       ],
       [
        "Electrical system",
-       14
+       15
       ],
       [
        "Engine",
@@ -8017,7 +8017,7 @@
     },
     {
      "year": 2023,
-     "complaints": 107,
+     "complaints": 108,
      "recalls": 1,
      "top": [
       [
@@ -8036,7 +8036,7 @@
     },
     {
      "year": 2024,
-     "complaints": 87,
+     "complaints": 88,
      "recalls": 2,
      "top": [
       [
@@ -8049,13 +8049,13 @@
       ],
       [
        "Electrical system",
-       17
+       18
       ]
      ]
     },
     {
      "year": 2025,
-     "complaints": 62,
+     "complaints": 64,
      "recalls": 1,
      "top": [
       [
@@ -8067,7 +8067,7 @@
        9
       ],
       [
-       "Power train",
+       "Forward collision avoidance",
        8
       ]
      ]
@@ -8076,7 +8076,7 @@
    "topAreas": [
     [
      "Engine",
-     216
+     217
     ],
     [
      "Service brakes",
@@ -8084,7 +8084,7 @@
     ],
     [
      "Electrical system",
-     142
+     144
     ],
     [
      "Power train",
@@ -8092,7 +8092,7 @@
     ],
     [
      "Forward collision avoidance",
-     58
+     59
     ]
    ]
   },
@@ -8195,7 +8195,7 @@
     },
     {
      "year": 2021,
-     "complaints": 20,
+     "complaints": 21,
      "recalls": 2,
      "top": [
       [
@@ -8207,7 +8207,7 @@
        5
       ],
       [
-       "Air bags",
+       "Engine",
        3
       ]
      ]
@@ -8252,7 +8252,7 @@
     },
     {
      "year": 2024,
-     "complaints": 22,
+     "complaints": 23,
      "recalls": 3,
      "top": [
       [
@@ -8260,18 +8260,18 @@
        6
       ],
       [
-       "Service brakes",
+       "Visibility",
        4
       ],
       [
-       "Electrical system",
-       3
+       "Service brakes",
+       4
       ]
      ]
     },
     {
      "year": 2025,
-     "complaints": 10,
+     "complaints": 11,
      "recalls": 3,
      "top": [
       [
@@ -8308,7 +8308,7 @@
     ],
     [
      "Engine",
-     43
+     44
     ]
    ]
   },
@@ -8354,7 +8354,7 @@
     },
     {
      "year": 2018,
-     "complaints": 16,
+     "complaints": 17,
      "recalls": 2,
      "top": [
       [
@@ -8532,12 +8532,12 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 300,
+     "complaints": 301,
      "recalls": 2,
      "top": [
       [
        "Engine",
-       116
+       117
       ],
       [
        "Power train",
@@ -8551,12 +8551,12 @@
     },
     {
      "year": 2017,
-     "complaints": 796,
+     "complaints": 797,
      "recalls": 4,
      "top": [
       [
        "Engine",
-       312
+       313
       ],
       [
        "Structure",
@@ -8589,12 +8589,12 @@
     },
     {
      "year": 2019,
-     "complaints": 256,
+     "complaints": 257,
      "recalls": 1,
      "top": [
       [
        "Engine",
-       138
+       139
       ],
       [
        "Exterior lighting",
@@ -8665,12 +8665,12 @@
     },
     {
      "year": 2023,
-     "complaints": 170,
+     "complaints": 173,
      "recalls": 4,
      "top": [
       [
        "Electrical system",
-       44
+       46
       ],
       [
        "Forward collision avoidance",
@@ -8684,7 +8684,7 @@
     },
     {
      "year": 2024,
-     "complaints": 63,
+     "complaints": 64,
      "recalls": 1,
      "top": [
       [
@@ -8724,11 +8724,11 @@
    "topAreas": [
     [
      "Engine",
-     940
+     943
     ],
     [
      "Electrical system",
-     396
+     398
     ],
     [
      "Power train",
@@ -8805,16 +8805,16 @@
     },
     {
      "year": 2019,
-     "complaints": 385,
+     "complaints": 387,
      "recalls": 1,
      "top": [
       [
        "Engine",
-       201
+       202
       ],
       [
        "Service brakes",
-       118
+       119
       ],
       [
        "Hydraulic",
@@ -8824,16 +8824,16 @@
     },
     {
      "year": 2020,
-     "complaints": 179,
+     "complaints": 180,
      "recalls": 1,
      "top": [
       [
        "Engine",
-       73
+       74
       ],
       [
        "Service brakes",
-       44
+       45
       ],
       [
        "Electrical system",
@@ -8843,12 +8843,12 @@
     },
     {
      "year": 2021,
-     "complaints": 80,
+     "complaints": 84,
      "recalls": 1,
      "top": [
       [
        "Engine",
-       39
+       42
       ],
       [
        "Electrical system",
@@ -8862,7 +8862,7 @@
     },
     {
      "year": 2022,
-     "complaints": 391,
+     "complaints": 389,
      "recalls": 3,
      "top": [
       [
@@ -8871,7 +8871,7 @@
       ],
       [
        "Engine",
-       116
+       115
       ],
       [
        "Power train",
@@ -8881,16 +8881,16 @@
     },
     {
      "year": 2023,
-     "complaints": 136,
+     "complaints": 138,
      "recalls": 2,
      "top": [
       [
-       "Forward collision avoidance",
+       "Electrical system",
        28
       ],
       [
-       "Electrical system",
-       27
+       "Forward collision avoidance",
+       28
       ],
       [
        "Engine",
@@ -8900,7 +8900,7 @@
     },
     {
      "year": 2024,
-     "complaints": 104,
+     "complaints": 103,
      "recalls": 4,
      "top": [
       [
@@ -8913,18 +8913,18 @@
       ],
       [
        "Service brakes",
-       18
+       17
       ]
      ]
     },
     {
      "year": 2025,
-     "complaints": 300,
+     "complaints": 298,
      "recalls": 6,
      "top": [
       [
        "Forward collision avoidance",
-       152
+       151
       ],
       [
        "Electrical system",
@@ -8940,7 +8940,7 @@
    "topAreas": [
     [
      "Engine",
-     1750
+     1754
     ],
     [
      "Power train",
@@ -8948,15 +8948,15 @@
     ],
     [
      "Electrical system",
-     580
+     582
     ],
     [
      "Service brakes",
-     426
+     428
     ],
     [
      "Fuel/propulsion system",
-     355
+     356
     ]
    ]
   },
@@ -8964,12 +8964,12 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 310,
+     "complaints": 311,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       197
+       198
       ],
       [
        "Power train",
@@ -8983,12 +8983,12 @@
     },
     {
      "year": 2017,
-     "complaints": 1330,
+     "complaints": 1335,
      "recalls": 7,
      "top": [
       [
        "Engine",
-       860
+       862
       ],
       [
        "Power train",
@@ -9021,16 +9021,16 @@
     },
     {
      "year": 2019,
-     "complaints": 232,
+     "complaints": 234,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       85
+       87
       ],
       [
        "Power train",
-       38
+       39
       ],
       [
        "Electrical system",
@@ -9078,7 +9078,7 @@
     },
     {
      "year": 2022,
-     "complaints": 204,
+     "complaints": 205,
      "recalls": 5,
      "top": [
       [
@@ -9097,12 +9097,12 @@
     },
     {
      "year": 2023,
-     "complaints": 215,
+     "complaints": 217,
      "recalls": 1,
      "top": [
       [
        "Power train",
-       45
+       46
       ],
       [
        "Electrical system",
@@ -9116,35 +9116,35 @@
     },
     {
      "year": 2024,
-     "complaints": 157,
+     "complaints": 166,
      "recalls": 7,
      "top": [
       [
        "Power train",
-       45
+       47
       ],
       [
        "Electrical system",
-       31
+       34
       ],
       [
        "Forward collision avoidance",
-       16
+       19
       ]
      ]
     },
     {
      "year": 2025,
-     "complaints": 143,
+     "complaints": 141,
      "recalls": 5,
      "top": [
       [
        "Electrical system",
-       33
+       31
       ],
       [
        "Power train",
-       24
+       22
       ],
       [
        "Forward collision avoidance",
@@ -9156,15 +9156,15 @@
    "topAreas": [
     [
      "Engine",
-     1638
+     1644
     ],
     [
      "Power train",
-     554
+     556
     ],
     [
      "Electrical system",
-     357
+     358
     ],
     [
      "Service brakes",
@@ -9172,7 +9172,7 @@
     ],
     [
      "Fuel/propulsion system",
-     227
+     229
     ]
    ]
   },
@@ -9237,20 +9237,20 @@
     },
     {
      "year": 2019,
-     "complaints": 172,
+     "complaints": 173,
      "recalls": 0,
      "top": [
       [
        "Engine",
-       91
+       92
+      ],
+      [
+       "Fuel/propulsion system",
+       18
       ],
       [
        "Exterior lighting",
        18
-      ],
-      [
-       "Fuel/propulsion system",
-       17
       ]
      ]
     },
@@ -9294,16 +9294,16 @@
     },
     {
      "year": 2022,
-     "complaints": 96,
+     "complaints": 98,
      "recalls": 3,
      "top": [
       [
-       "Engine",
+       "Power train",
        25
       ],
       [
-       "Power train",
-       24
+       "Engine",
+       25
       ],
       [
        "Fuel/propulsion system",
@@ -9337,15 +9337,15 @@
      "top": [
       [
        "Electrical system",
-       20
-      ],
-      [
-       "Exterior lighting",
-       8
+       19
       ],
       [
        "Forward collision avoidance",
        8
+      ],
+      [
+       "Exterior lighting",
+       7
       ]
      ]
     },
@@ -9372,23 +9372,23 @@
    "topAreas": [
     [
      "Engine",
-     1423
+     1424
     ],
     [
      "Electrical system",
-     417
+     416
     ],
     [
      "Power train",
-     298
+     299
     ],
     [
      "Fuel/propulsion system",
-     269
+     270
     ],
     [
      "Steering",
-     247
+     246
     ]
    ]
   },
@@ -9420,7 +9420,7 @@
     },
     {
      "year": 2020,
-     "complaints": 542,
+     "complaints": 543,
      "recalls": 5,
      "top": [
       [
@@ -9439,7 +9439,7 @@
     },
     {
      "year": 2021,
-     "complaints": 448,
+     "complaints": 449,
      "recalls": 6,
      "top": [
       [
@@ -9448,7 +9448,7 @@
       ],
       [
        "Engine",
-       62
+       63
       ],
       [
        "Electrical system",
@@ -9458,7 +9458,7 @@
     },
     {
      "year": 2022,
-     "complaints": 320,
+     "complaints": 323,
      "recalls": 5,
      "top": [
       [
@@ -9467,7 +9467,7 @@
       ],
       [
        "Engine",
-       51
+       52
       ],
       [
        "Visibility/wiper",
@@ -9477,12 +9477,12 @@
     },
     {
      "year": 2023,
-     "complaints": 411,
+     "complaints": 412,
      "recalls": 5,
      "top": [
       [
        "Service brakes",
-       84
+       85
       ],
       [
        "Seat belts",
@@ -9515,7 +9515,7 @@
     },
     {
      "year": 2025,
-     "complaints": 257,
+     "complaints": 258,
      "recalls": 3,
      "top": [
       [
@@ -9536,7 +9536,7 @@
    "topAreas": [
     [
      "Service brakes",
-     440
+     441
     ],
     [
      "Seat belts",
@@ -9544,7 +9544,7 @@
     ],
     [
      "Engine",
-     313
+     315
     ],
     [
      "Visibility/wiper",
@@ -9667,7 +9667,7 @@
     },
     {
      "year": 2023,
-     "complaints": 75,
+     "complaints": 76,
      "recalls": 3,
      "top": [
       [
@@ -9953,12 +9953,12 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 134,
+     "complaints": 135,
      "recalls": 2,
      "top": [
       [
        "Engine",
-       62
+       63
       ],
       [
        "Service brakes",
@@ -9991,16 +9991,16 @@
     },
     {
      "year": 2018,
-     "complaints": 165,
+     "complaints": 166,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       91
+       92
       ],
       [
        "Electrical system",
-       30
+       31
       ],
       [
        "Power train",
@@ -10010,12 +10010,12 @@
     },
     {
      "year": 2019,
-     "complaints": 71,
+     "complaints": 72,
      "recalls": 2,
      "top": [
       [
        "Engine",
-       37
+       38
       ],
       [
        "Electrical system",
@@ -10029,7 +10029,7 @@
     },
     {
      "year": 2020,
-     "complaints": 169,
+     "complaints": 172,
      "recalls": 2,
      "top": [
       [
@@ -10086,16 +10086,16 @@
     },
     {
      "year": 2023,
-     "complaints": 197,
+     "complaints": 196,
      "recalls": 6,
      "top": [
       [
        "Electrical system",
-       48
+       46
       ],
       [
        "Engine",
-       39
+       40
       ],
       [
        "Service brakes",
@@ -10105,7 +10105,7 @@
     },
     {
      "year": 2024,
-     "complaints": 75,
+     "complaints": 76,
      "recalls": 3,
      "top": [
       [
@@ -10129,14 +10129,14 @@
      "top": [
       [
        "Electrical system",
-       16
+       15
       ],
       [
        "Forward collision avoidance",
        10
       ],
       [
-       "Power train",
+       "Engine",
        7
       ]
      ]
@@ -10145,11 +10145,11 @@
    "topAreas": [
     [
      "Engine",
-     595
+     599
     ],
     [
      "Electrical system",
-     235
+     233
     ],
     [
      "Service brakes",
@@ -10193,26 +10193,26 @@
     },
     {
      "year": 2020,
-     "complaints": 780,
+     "complaints": 783,
      "recalls": 7,
      "top": [
       [
        "Exterior lighting",
-       185
+       186
       ],
       [
        "Engine",
-       153
+       154
       ],
       [
        "Visibility/wiper",
-       136
+       137
       ]
      ]
     },
     {
      "year": 2021,
-     "complaints": 377,
+     "complaints": 378,
      "recalls": 5,
      "top": [
       [
@@ -10221,7 +10221,7 @@
       ],
       [
        "Visibility/wiper",
-       64
+       65
       ],
       [
        "Electrical system",
@@ -10231,7 +10231,7 @@
     },
     {
      "year": 2022,
-     "complaints": 331,
+     "complaints": 334,
      "recalls": 7,
      "top": [
       [
@@ -10240,7 +10240,7 @@
       ],
       [
        "Electrical system",
-       70
+       71
       ],
       [
        "Engine",
@@ -10250,7 +10250,7 @@
     },
     {
      "year": 2023,
-     "complaints": 214,
+     "complaints": 215,
      "recalls": 6,
      "top": [
       [
@@ -10288,7 +10288,7 @@
     },
     {
      "year": 2025,
-     "complaints": 126,
+     "complaints": 128,
      "recalls": 3,
      "top": [
       [
@@ -10301,7 +10301,7 @@
       ],
       [
        "Visibility/wiper",
-       18
+       19
       ]
      ]
     }
@@ -10309,19 +10309,19 @@
    "topAreas": [
     [
      "Visibility/wiper",
-     351
+     354
     ],
     [
      "Engine",
-     343
+     344
     ],
     [
      "Electrical system",
-     302
+     303
     ],
     [
      "Exterior lighting",
-     210
+     212
     ],
     [
      "Power train",
@@ -10363,16 +10363,16 @@
     },
     {
      "year": 2021,
-     "complaints": 170,
+     "complaints": 172,
      "recalls": 6,
      "top": [
       [
-       "Electrical system",
+       "Fuel/propulsion system",
        46
       ],
       [
-       "Fuel/propulsion system",
-       45
+       "Electrical system",
+       46
       ],
       [
        "Engine",
@@ -10420,7 +10420,7 @@
     },
     {
      "year": 2024,
-     "complaints": 31,
+     "complaints": 32,
      "recalls": 2,
      "top": [
       [
@@ -10428,12 +10428,12 @@
        9
       ],
       [
-       "Structure",
+       "Electrical system",
        7
       ],
       [
-       "Electrical system",
-       6
+       "Structure",
+       7
       ]
      ]
     },
@@ -10460,11 +10460,11 @@
    "topAreas": [
     [
      "Fuel/propulsion system",
-     124
+     125
     ],
     [
      "Electrical system",
-     95
+     96
     ],
     [
      "Engine",
@@ -10484,12 +10484,12 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 766,
+     "complaints": 767,
      "recalls": 5,
      "top": [
       [
        "Engine",
-       430
+       431
       ],
       [
        "Electrical system",
@@ -10497,18 +10497,18 @@
       ],
       [
        "Power train",
-       76
+       77
       ]
      ]
     },
     {
      "year": 2017,
-     "complaints": 306,
+     "complaints": 309,
      "recalls": 4,
      "top": [
       [
        "Engine",
-       192
+       195
       ],
       [
        "Electrical system",
@@ -10516,13 +10516,13 @@
       ],
       [
        "Power train",
-       26
+       27
       ]
      ]
     },
     {
      "year": 2018,
-     "complaints": 244,
+     "complaints": 246,
      "recalls": 3,
      "top": [
       [
@@ -10535,7 +10535,7 @@
       ],
       [
        "Power train",
-       21
+       23
       ]
      ]
     },
@@ -10611,7 +10611,7 @@
    "topAreas": [
     [
      "Engine",
-     959
+     963
     ],
     [
      "Electrical system",
@@ -10619,15 +10619,15 @@
     ],
     [
      "Power train",
-     169
+     173
     ],
     [
      "Fuel/propulsion system",
      118
     ],
     [
-     "Exterior lighting",
-     82
+     "Service brakes",
+     83
     ]
    ]
   },
@@ -10635,12 +10635,12 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 831,
+     "complaints": 832,
      "recalls": 5,
      "top": [
       [
        "Engine",
-       566
+       567
       ],
       [
        "Engine and engine cooling",
@@ -10654,12 +10654,12 @@
     },
     {
      "year": 2017,
-     "complaints": 291,
+     "complaints": 292,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       194
+       195
       ],
       [
        "Electrical system",
@@ -10673,12 +10673,12 @@
     },
     {
      "year": 2018,
-     "complaints": 224,
+     "complaints": 225,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       143
+       144
       ],
       [
        "Power train",
@@ -10692,12 +10692,12 @@
     },
     {
      "year": 2019,
-     "complaints": 143,
+     "complaints": 145,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       90
+       91
       ],
       [
        "Electrical system",
@@ -10711,12 +10711,12 @@
     },
     {
      "year": 2020,
-     "complaints": 390,
+     "complaints": 394,
      "recalls": 1,
      "top": [
       [
        "Engine",
-       246
+       248
       ],
       [
        "Power train",
@@ -10730,12 +10730,12 @@
     },
     {
      "year": 2021,
-     "complaints": 244,
+     "complaints": 246,
      "recalls": 2,
      "top": [
       [
        "Engine",
-       142
+       144
       ],
       [
        "Engine and engine cooling",
@@ -10749,7 +10749,7 @@
     },
     {
      "year": 2022,
-     "complaints": 97,
+     "complaints": 98,
      "recalls": 1,
      "top": [
       [
@@ -10758,7 +10758,7 @@
       ],
       [
        "Engine and engine cooling",
-       21
+       22
       ],
       [
        "Power train",
@@ -10768,12 +10768,12 @@
     },
     {
      "year": 2023,
-     "complaints": 54,
+     "complaints": 55,
      "recalls": 4,
      "top": [
       [
        "Engine",
-       14
+       15
       ],
       [
        "Electrical system",
@@ -10806,7 +10806,7 @@
     },
     {
      "year": 2025,
-     "complaints": 13,
+     "complaints": 14,
      "recalls": 0,
      "top": [
       [
@@ -10814,11 +10814,11 @@
        4
       ],
       [
-       "Engine",
+       "Electrical system",
        2
       ],
       [
-       "Lane departure",
+       "Engine",
        2
       ]
      ]
@@ -10827,7 +10827,7 @@
    "topAreas": [
     [
      "Engine",
-     1457
+     1466
     ],
     [
      "Power train",
@@ -10835,11 +10835,11 @@
     ],
     [
      "Engine and engine cooling",
-     214
+     215
     ],
     [
      "Electrical system",
-     202
+     203
     ],
     [
      "Fuel/propulsion system",
@@ -10881,12 +10881,12 @@
     },
     {
      "year": 2021,
-     "complaints": 384,
+     "complaints": 385,
      "recalls": 2,
      "top": [
       [
        "Engine",
-       237
+       238
       ],
       [
        "Power train",
@@ -10900,7 +10900,7 @@
     },
     {
      "year": 2022,
-     "complaints": 76,
+     "complaints": 77,
      "recalls": 1,
      "top": [
       [
@@ -10912,7 +10912,7 @@
        10
       ],
       [
-       "Engine and engine cooling",
+       "Electrical system",
        9
       ]
      ]
@@ -10978,11 +10978,11 @@
    "topAreas": [
     [
      "Engine",
-     304
+     305
     ],
     [
      "Electrical system",
-     93
+     94
     ],
     [
      "Power train",
@@ -11078,7 +11078,7 @@
     },
     {
      "year": 2020,
-     "complaints": 906,
+     "complaints": 907,
      "recalls": 6,
      "top": [
       [
@@ -11116,7 +11116,7 @@
     },
     {
      "year": 2022,
-     "complaints": 466,
+     "complaints": 467,
      "recalls": 4,
      "top": [
       [
@@ -11125,7 +11125,7 @@
       ],
       [
        "Electrical system",
-       53
+       54
       ],
       [
        "Visibility",
@@ -11154,7 +11154,7 @@
     },
     {
      "year": 2024,
-     "complaints": 101,
+     "complaints": 102,
      "recalls": 0,
      "top": [
       [
@@ -11173,12 +11173,12 @@
     },
     {
      "year": 2025,
-     "complaints": 83,
+     "complaints": 85,
      "recalls": 0,
      "top": [
       [
        "Forward collision avoidance",
-       21
+       22
       ],
       [
        "Lane departure",
@@ -11194,15 +11194,15 @@
    "topAreas": [
     [
      "Electrical system",
-     1766
+     1767
     ],
     [
      "Visibility/wiper",
-     1555
+     1556
     ],
     [
      "Engine",
-     281
+     282
     ],
     [
      "Visibility",
@@ -11210,7 +11210,7 @@
     ],
     [
      "Forward collision avoidance",
-     246
+     247
     ]
    ]
   },
@@ -11256,7 +11256,7 @@
     },
     {
      "year": 2018,
-     "complaints": 498,
+     "complaints": 500,
      "recalls": 3,
      "top": [
       [
@@ -11265,11 +11265,11 @@
       ],
       [
        "Air bags",
-       99
+       100
       ],
       [
        "Electrical system",
-       71
+       72
       ]
      ]
     },
@@ -11294,7 +11294,7 @@
     },
     {
      "year": 2020,
-     "complaints": 603,
+     "complaints": 604,
      "recalls": 0,
      "top": [
       [
@@ -11351,7 +11351,7 @@
     },
     {
      "year": 2023,
-     "complaints": 74,
+     "complaints": 76,
      "recalls": 1,
      "top": [
       [
@@ -11370,7 +11370,7 @@
     },
     {
      "year": 2024,
-     "complaints": 31,
+     "complaints": 32,
      "recalls": 2,
      "top": [
       [
@@ -11389,7 +11389,7 @@
     },
     {
      "year": 2025,
-     "complaints": 100,
+     "complaints": 102,
      "recalls": 3,
      "top": [
       [
@@ -11414,11 +11414,11 @@
     ],
     [
      "Electrical system",
-     571
+     573
     ],
     [
      "Air bags",
-     418
+     419
     ],
     [
      "Engine",
@@ -11453,7 +11453,7 @@
     },
     {
      "year": 2017,
-     "complaints": 98,
+     "complaints": 99,
      "recalls": 1,
      "top": [
       [
@@ -11462,7 +11462,7 @@
       ],
       [
        "Electrical system",
-       18
+       19
       ],
       [
        "Power train",
@@ -11491,7 +11491,7 @@
     },
     {
      "year": 2019,
-     "complaints": 286,
+     "complaints": 288,
      "recalls": 7,
      "top": [
       [
@@ -11500,7 +11500,7 @@
       ],
       [
        "Electrical system",
-       53
+       54
       ],
       [
        "Engine",
@@ -11529,7 +11529,7 @@
     },
     {
      "year": 2021,
-     "complaints": 116,
+     "complaints": 117,
      "recalls": 2,
      "top": [
       [
@@ -11538,7 +11538,7 @@
       ],
       [
        "Electrical system",
-       17
+       18
       ],
       [
        "Engine",
@@ -11548,7 +11548,7 @@
     },
     {
      "year": 2022,
-     "complaints": 31,
+     "complaints": 32,
      "recalls": 0,
      "top": [
       [
@@ -11556,11 +11556,11 @@
        6
       ],
       [
-       "Electrical system",
+       "Engine",
        4
       ],
       [
-       "Service brakes",
+       "Electrical system",
        4
       ]
      ]
@@ -11605,12 +11605,12 @@
     },
     {
      "year": 2025,
-     "complaints": 47,
+     "complaints": 49,
      "recalls": 0,
      "top": [
       [
        "Lane departure",
-       10
+       11
       ],
       [
        "Visibility",
@@ -11630,19 +11630,19 @@
     ],
     [
      "Electrical system",
-     193
+     196
     ],
     [
      "Engine",
-     133
+     134
     ],
     [
      "Power train",
-     101
+     102
     ],
     [
      "Steering",
-     56
+     57
     ]
    ]
   },
@@ -11884,7 +11884,7 @@
     },
     {
      "year": 2019,
-     "complaints": 443,
+     "complaints": 444,
      "recalls": 9,
      "top": [
       [
@@ -11903,7 +11903,7 @@
     },
     {
      "year": 2020,
-     "complaints": 324,
+     "complaints": 325,
      "recalls": 5,
      "top": [
       [
@@ -11912,7 +11912,7 @@
       ],
       [
        "Power train",
-       59
+       60
       ],
       [
        "Visibility/wiper",
@@ -11960,7 +11960,7 @@
     },
     {
      "year": 2023,
-     "complaints": 47,
+     "complaints": 48,
      "recalls": 4,
      "top": [
       [
@@ -12023,7 +12023,7 @@
     ],
     [
      "Power train",
-     190
+     191
     ],
     [
      "Visibility/wiper",
@@ -12068,7 +12068,7 @@
     },
     {
      "year": 2018,
-     "complaints": 1037,
+     "complaints": 1039,
      "recalls": 19,
      "top": [
       [
@@ -12077,7 +12077,7 @@
       ],
       [
        "Suspension",
-       193
+       194
       ],
       [
        "Electrical system",
@@ -12125,7 +12125,7 @@
     },
     {
      "year": 2021,
-     "complaints": 674,
+     "complaints": 677,
      "recalls": 22,
      "top": [
       [
@@ -12144,12 +12144,12 @@
     },
     {
      "year": 2022,
-     "complaints": 774,
+     "complaints": 775,
      "recalls": 18,
      "top": [
       [
        "Forward collision avoidance",
-       536
+       537
       ],
       [
        "Vehicle speed control",
@@ -12163,16 +12163,16 @@
     },
     {
      "year": 2023,
-     "complaints": 429,
+     "complaints": 431,
      "recalls": 12,
      "top": [
       [
        "Forward collision avoidance",
-       179
+       181
       ],
       [
        "Steering",
-       89
+       91
       ],
       [
        "Vehicle speed control",
@@ -12201,7 +12201,7 @@
     },
     {
      "year": 2025,
-     "complaints": 125,
+     "complaints": 127,
      "recalls": 3,
      "top": [
       [
@@ -12214,7 +12214,7 @@
       ],
       [
        "Electrical system",
-       24
+       25
       ]
      ]
     }
@@ -12222,11 +12222,11 @@
    "topAreas": [
     [
      "Forward collision avoidance",
-     1744
+     1747
     ],
     [
      "Vehicle speed control",
-     635
+     636
     ],
     [
      "Service brakes",
@@ -12234,11 +12234,11 @@
     ],
     [
      "Electrical system",
-     569
+     572
     ],
     [
      "Steering",
-     411
+     413
     ]
    ]
   },
@@ -12289,7 +12289,7 @@
     },
     {
      "year": 2021,
-     "complaints": 1098,
+     "complaints": 1101,
      "recalls": 23,
      "top": [
       [
@@ -12302,13 +12302,13 @@
       ],
       [
        "Vehicle speed control",
-       162
+       163
       ]
      ]
     },
     {
      "year": 2022,
-     "complaints": 880,
+     "complaints": 882,
      "recalls": 20,
      "top": [
       [
@@ -12327,7 +12327,7 @@
     },
     {
      "year": 2023,
-     "complaints": 1197,
+     "complaints": 1198,
      "recalls": 17,
      "top": [
       [
@@ -12336,7 +12336,7 @@
       ],
       [
        "Steering",
-       219
+       220
       ],
       [
        "Vehicle speed control",
@@ -12346,7 +12346,7 @@
     },
     {
      "year": 2024,
-     "complaints": 338,
+     "complaints": 340,
      "recalls": 5,
      "top": [
       [
@@ -12365,7 +12365,7 @@
     },
     {
      "year": 2025,
-     "complaints": 110,
+     "complaints": 116,
      "recalls": 3,
      "top": [
       [
@@ -12374,11 +12374,11 @@
       ],
       [
        "Lane departure",
-       22
+       23
       ],
       [
        "Electrical system",
-       20
+       21
       ]
      ]
     }
@@ -12390,19 +12390,19 @@
     ],
     [
      "Vehicle speed control",
-     554
+     556
     ],
     [
      "Service brakes",
-     549
+     551
     ],
     [
      "Electrical system",
-     512
+     516
     ],
     [
      "Steering",
-     438
+     443
     ]
    ]
   },
@@ -12626,12 +12626,12 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 51,
+     "complaints": 53,
      "recalls": 10,
      "top": [
       [
        "Power train",
-       13
+       14
       ],
       [
        "Service brakes",
@@ -12651,7 +12651,7 @@
     },
     {
      "year": 2018,
-     "complaints": 305,
+     "complaints": 306,
      "recalls": 7,
      "top": [
       [
@@ -12660,7 +12660,7 @@
       ],
       [
        "Engine",
-       67
+       68
       ],
       [
        "Service brakes",
@@ -12670,12 +12670,12 @@
     },
     {
      "year": 2019,
-     "complaints": 694,
+     "complaints": 696,
      "recalls": 17,
      "top": [
       [
        "Engine",
-       323
+       324
       ],
       [
        "Power train",
@@ -12689,7 +12689,7 @@
     },
     {
      "year": 2020,
-     "complaints": 564,
+     "complaints": 566,
      "recalls": 16,
      "top": [
       [
@@ -12708,12 +12708,12 @@
     },
     {
      "year": 2021,
-     "complaints": 655,
+     "complaints": 661,
      "recalls": 10,
      "top": [
       [
        "Engine",
-       333
+       337
       ],
       [
        "Power train",
@@ -12727,12 +12727,12 @@
     },
     {
      "year": 2022,
-     "complaints": 608,
+     "complaints": 613,
      "recalls": 6,
      "top": [
       [
        "Engine",
-       244
+       245
       ],
       [
        "Power train",
@@ -12740,22 +12740,22 @@
       ],
       [
        "Structure",
-       107
+       108
       ]
      ]
     },
     {
      "year": 2023,
-     "complaints": 550,
+     "complaints": 554,
      "recalls": 4,
      "top": [
       [
        "Engine",
-       220
+       222
       ],
       [
        "Power train",
-       115
+       117
       ],
       [
        "Structure",
@@ -12765,16 +12765,16 @@
     },
     {
      "year": 2024,
-     "complaints": 384,
+     "complaints": 386,
      "recalls": 1,
      "top": [
       [
        "Engine",
-       191
+       192
       ],
       [
        "Power train",
-       73
+       74
       ],
       [
        "Electrical system",
@@ -12784,12 +12784,12 @@
     },
     {
      "year": 2025,
-     "complaints": 130,
+     "complaints": 132,
      "recalls": 1,
      "top": [
       [
        "Engine",
-       63
+       65
       ],
       [
        "Power train",
@@ -12805,23 +12805,23 @@
    "topAreas": [
     [
      "Engine",
-     1703
+     1715
     ],
     [
      "Power train",
-     905
+     909
     ],
     [
      "Electrical system",
-     553
+     556
     ],
     [
      "Service brakes",
-     341
+     342
     ],
     [
      "Structure",
-     302
+     304
     ]
    ]
   },
@@ -12867,16 +12867,16 @@
     },
     {
      "year": 2018,
-     "complaints": 70,
+     "complaints": 71,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       27
+       28
       ],
       [
        "Power train",
-       18
+       19
       ],
       [
        "Suspension",
@@ -12905,7 +12905,7 @@
     },
     {
      "year": 2020,
-     "complaints": 37,
+     "complaints": 38,
      "recalls": 4,
      "top": [
       [
@@ -12914,7 +12914,7 @@
       ],
       [
        "Engine",
-       12
+       13
       ],
       [
        "Service brakes",
@@ -12924,20 +12924,20 @@
     },
     {
      "year": 2021,
-     "complaints": 347,
+     "complaints": 351,
      "recalls": 13,
      "top": [
       [
        "Engine",
-       190
+       192
       ],
       [
        "Power train",
-       55
+       56
       ],
       [
        "Fuel/propulsion system",
-       45
+       46
       ]
      ]
     },
@@ -12962,20 +12962,20 @@
     },
     {
      "year": 2023,
-     "complaints": 246,
+     "complaints": 249,
      "recalls": 4,
      "top": [
       [
        "Engine",
-       160
+       162
       ],
       [
        "Power train",
-       47
+       48
       ],
       [
        "Electrical system",
-       28
+       29
       ]
      ]
     },
@@ -13000,16 +13000,16 @@
     },
     {
      "year": 2025,
-     "complaints": 58,
+     "complaints": 59,
      "recalls": 2,
      "top": [
       [
        "Engine",
-       38
+       39
       ],
       [
        "Electrical system",
-       9
+       10
       ],
       [
        "Power train",
@@ -13021,15 +13021,15 @@
    "topAreas": [
     [
      "Engine",
-     766
+     773
     ],
     [
      "Power train",
-     293
+     296
     ],
     [
      "Electrical system",
-     219
+     221
     ],
     [
      "Exterior lighting",
@@ -13083,7 +13083,7 @@
     },
     {
      "year": 2018,
-     "complaints": 226,
+     "complaints": 227,
      "recalls": 5,
      "top": [
       [
@@ -13102,7 +13102,7 @@
     },
     {
      "year": 2019,
-     "complaints": 187,
+     "complaints": 188,
      "recalls": 3,
      "top": [
       [
@@ -13159,7 +13159,7 @@
     },
     {
      "year": 2022,
-     "complaints": 89,
+     "complaints": 90,
      "recalls": 2,
      "top": [
       [
@@ -13216,19 +13216,19 @@
     },
     {
      "year": 2025,
-     "complaints": 13,
+     "complaints": 14,
      "recalls": 0,
      "top": [
+      [
+       "Electrical system",
+       5
+      ],
       [
        "Power train",
        4
       ],
       [
-       "Electrical system",
-       4
-      ],
-      [
-       "Service brakes",
+       "Forward collision avoidance",
        3
       ]
      ]
@@ -13241,7 +13241,7 @@
     ],
     [
      "Service brakes",
-     253
+     254
     ],
     [
      "Power train",
@@ -13249,7 +13249,7 @@
     ],
     [
      "Electrical system",
-     155
+     156
     ],
     [
      "Fuel/propulsion system",
@@ -13299,16 +13299,16 @@
     },
     {
      "year": 2018,
-     "complaints": 60,
+     "complaints": 61,
      "recalls": 0,
      "top": [
       [
        "Engine",
-       19
+       20
       ],
       [
        "Electrical system",
-       15
+       16
       ],
       [
        "Fuel/propulsion system",
@@ -13318,7 +13318,7 @@
     },
     {
      "year": 2019,
-     "complaints": 41,
+     "complaints": 42,
      "recalls": 0,
      "top": [
       [
@@ -13327,7 +13327,7 @@
       ],
       [
        "Electrical system",
-       7
+       8
       ],
       [
        "Power train",
@@ -13453,11 +13453,11 @@
    "topAreas": [
     [
      "Engine",
-     121
+     122
     ],
     [
      "Electrical system",
-     103
+     105
     ],
     [
      "Power train",
@@ -13478,7 +13478,7 @@
     {
      "year": 2016,
      "complaints": 74,
-     "recalls": 5,
+     "recalls": 6,
      "top": [
       [
        "Electrical system",
@@ -13496,8 +13496,8 @@
     },
     {
      "year": 2017,
-     "complaints": 75,
-     "recalls": 6,
+     "complaints": 76,
+     "recalls": 7,
      "top": [
       [
        "Electrical system",
@@ -13516,7 +13516,7 @@
     {
      "year": 2018,
      "complaints": 73,
-     "recalls": 5,
+     "recalls": 6,
      "top": [
       [
        "Electrical system",
@@ -13553,7 +13553,7 @@
     },
     {
      "year": 2020,
-     "complaints": 114,
+     "complaints": 115,
      "recalls": 11,
      "top": [
       [
@@ -13591,7 +13591,7 @@
     },
     {
      "year": 2022,
-     "complaints": 72,
+     "complaints": 74,
      "recalls": 1,
      "top": [
       [
@@ -13629,7 +13629,7 @@
     },
     {
      "year": 2024,
-     "complaints": 145,
+     "complaints": 146,
      "recalls": 8,
      "top": [
       [
@@ -13669,7 +13669,7 @@
    "topAreas": [
     [
      "Electrical system",
-     262
+     263
     ],
     [
      "Engine",
@@ -13677,7 +13677,7 @@
     ],
     [
      "Service brakes",
-     166
+     167
     ],
     [
      "Power train",
@@ -13693,7 +13693,7 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 323,
+     "complaints": 324,
      "recalls": 0,
      "top": [
       [
@@ -13731,7 +13731,7 @@
     },
     {
      "year": 2018,
-     "complaints": 130,
+     "complaints": 131,
      "recalls": 0,
      "top": [
       [
@@ -13750,20 +13750,20 @@
     },
     {
      "year": 2019,
-     "complaints": 79,
+     "complaints": 80,
      "recalls": 0,
      "top": [
       [
        "Engine",
-       18
+       19
       ],
       [
        "Electrical system",
        15
       ],
       [
-       "Power train",
-       8
+       "Fuel/propulsion system",
+       9
       ]
      ]
     },
@@ -13872,7 +13872,7 @@
    "topAreas": [
     [
      "Engine",
-     266
+     267
     ],
     [
      "Electrical system",
@@ -13880,11 +13880,11 @@
     ],
     [
      "Fuel/propulsion system",
-     119
+     120
     ],
     [
      "Structure",
-     95
+     96
     ],
     [
      "Power train",
@@ -13935,16 +13935,16 @@
     },
     {
      "year": 2021,
-     "complaints": 68,
+     "complaints": 70,
      "recalls": 0,
      "top": [
       [
        "Engine",
-       30
+       31
       ],
       [
        "Exterior lighting",
-       13
+       14
       ],
       [
        "Fuel/propulsion system",
@@ -13966,7 +13966,7 @@
     },
     {
      "year": 2024,
-     "complaints": 31,
+     "complaints": 33,
      "recalls": 0,
      "top": [
       [
@@ -13974,11 +13974,11 @@
        8
       ],
       [
-       "Power train",
+       "Forward collision avoidance",
        7
       ],
       [
-       "Electrical system",
+       "Power train",
        7
       ]
      ]
@@ -13993,11 +13993,11 @@
    "topAreas": [
     [
      "Engine",
-     38
+     39
     ],
     [
      "Exterior lighting",
-     16
+     17
     ],
     [
      "Electrical system",
@@ -14248,7 +14248,7 @@
     },
     {
      "year": 2017,
-     "complaints": 42,
+     "complaints": 44,
      "recalls": 5,
      "top": [
       [
@@ -14257,7 +14257,7 @@
       ],
       [
        "Fuel/propulsion system",
-       5
+       6
       ],
       [
        "Service brakes",
@@ -14286,7 +14286,7 @@
     },
     {
      "year": 2019,
-     "complaints": 53,
+     "complaints": 54,
      "recalls": 5,
      "top": [
       [
@@ -14298,7 +14298,7 @@
        10
       ],
       [
-       "Service brakes",
+       "Steering",
        8
       ]
      ]
@@ -14387,12 +14387,12 @@
     },
     {
      "year": 2025,
-     "complaints": 47,
+     "complaints": 49,
      "recalls": 1,
      "top": [
       [
        "Forward collision avoidance",
-       24
+       25
       ],
       [
        "Electrical system",
@@ -14412,11 +14412,11 @@
     ],
     [
      "Engine",
-     127
+     128
     ],
     [
      "Forward collision avoidance",
-     93
+     94
     ],
     [
      "Service brakes",
@@ -14516,15 +14516,15 @@
     },
     {
      "year": 2017,
-     "complaints": 26,
+     "complaints": 28,
      "recalls": 1,
      "top": [
       [
-       "Service brakes",
-       3
+       "Structure",
+       5
       ],
       [
-       "Structure",
+       "Service brakes",
        3
       ],
       [
@@ -14554,7 +14554,7 @@
     },
     {
      "year": 2019,
-     "complaints": 34,
+     "complaints": 35,
      "recalls": 1,
      "top": [
       [
@@ -14751,12 +14751,12 @@
     },
     {
      "year": 2018,
-     "complaints": 124,
+     "complaints": 126,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       100
+       102
       ],
       [
        "Power train",
@@ -14770,12 +14770,12 @@
     },
     {
      "year": 2019,
-     "complaints": 273,
+     "complaints": 274,
      "recalls": 2,
      "top": [
       [
        "Engine",
-       132
+       133
       ],
       [
        "Electrical system",
@@ -14905,7 +14905,7 @@
    "topAreas": [
     [
      "Engine",
-     423
+     426
     ],
     [
      "Electrical system",
@@ -14948,12 +14948,12 @@
     },
     {
      "year": 2017,
-     "complaints": 61,
+     "complaints": 62,
      "recalls": 0,
      "top": [
       [
        "Engine",
-       43
+       44
       ],
       [
        "Fuel/propulsion system",
@@ -14986,12 +14986,12 @@
     },
     {
      "year": 2019,
-     "complaints": 53,
+     "complaints": 54,
      "recalls": 2,
      "top": [
       [
        "Engine",
-       23
+       24
       ],
       [
        "Electrical system",
@@ -15095,7 +15095,7 @@
    "topAreas": [
     [
      "Engine",
-     229
+     231
     ],
     [
      "Electrical system",
@@ -15214,7 +15214,7 @@
     },
     {
      "year": 2021,
-     "complaints": 55,
+     "complaints": 56,
      "recalls": 1,
      "top": [
       [
@@ -15290,19 +15290,19 @@
     },
     {
      "year": 2025,
-     "complaints": 8,
+     "complaints": 10,
      "recalls": 1,
      "top": [
+      [
+       "Power train",
+       2
+      ],
       [
        "Forward collision avoidance",
        2
       ],
       [
        "Vehicle speed control",
-       1
-      ],
-      [
-       "Seat belts",
        1
       ]
      ]
@@ -15327,7 +15327,7 @@
     ],
     [
      "Power train",
-     40
+     43
     ]
    ]
   },
@@ -15449,12 +15449,12 @@
     },
     {
      "year": 2022,
-     "complaints": 16,
+     "complaints": 17,
      "recalls": 3,
      "top": [
       [
        "Electrical system",
-       4
+       5
       ],
       [
        "Air bags",
@@ -15506,12 +15506,12 @@
     },
     {
      "year": 2025,
-     "complaints": 41,
+     "complaints": 43,
      "recalls": 3,
      "top": [
       [
        "Electrical system",
-       27
+       29
       ],
       [
        "Fuel/propulsion system",
@@ -15527,7 +15527,7 @@
    "topAreas": [
     [
      "Electrical system",
-     207
+     210
     ],
     [
      "Air bags",
@@ -15570,12 +15570,12 @@
     },
     {
      "year": 2017,
-     "complaints": 214,
+     "complaints": 215,
      "recalls": 2,
      "top": [
       [
        "Exterior lighting",
-       81
+       82
       ],
       [
        "Electrical system",
@@ -15646,16 +15646,16 @@
     },
     {
      "year": 2021,
-     "complaints": 208,
+     "complaints": 209,
      "recalls": 8,
      "top": [
       [
        "Exterior lighting",
-       94
+       95
       ],
       [
        "Electrical system",
-       41
+       42
       ],
       [
        "Engine",
@@ -15665,7 +15665,7 @@
     },
     {
      "year": 2022,
-     "complaints": 61,
+     "complaints": 62,
      "recalls": 7,
      "top": [
       [
@@ -15743,11 +15743,11 @@
    "topAreas": [
     [
      "Exterior lighting",
-     397
+     399
     ],
     [
      "Electrical system",
-     311
+     312
     ],
     [
      "Engine",
@@ -15786,12 +15786,12 @@
     },
     {
      "year": 2017,
-     "complaints": 1625,
+     "complaints": 1626,
      "recalls": 11,
      "top": [
       [
        "Engine",
-       543
+       544
       ],
       [
        "Power train",
@@ -15799,37 +15799,37 @@
       ],
       [
        "Electrical system",
-       428
+       429
       ]
      ]
     },
     {
      "year": 2018,
-     "complaints": 1120,
+     "complaints": 1126,
      "recalls": 12,
      "top": [
       [
        "Engine",
-       441
+       443
       ],
       [
        "Electrical system",
        375
       ],
       [
-       "Power train",
-       199
+       "Steering",
+       201
       ]
      ]
     },
     {
      "year": 2019,
-     "complaints": 363,
+     "complaints": 364,
      "recalls": 7,
      "top": [
       [
        "Electrical system",
-       120
+       121
       ],
       [
        "Engine",
@@ -15837,13 +15837,13 @@
       ],
       [
        "Power train",
-       89
+       90
       ]
      ]
     },
     {
      "year": 2020,
-     "complaints": 233,
+     "complaints": 234,
      "recalls": 6,
      "top": [
       [
@@ -15856,7 +15856,7 @@
       ],
       [
        "Power train",
-       56
+       57
       ]
      ]
     },
@@ -15881,7 +15881,7 @@
     },
     {
      "year": 2022,
-     "complaints": 337,
+     "complaints": 338,
      "recalls": 10,
      "top": [
       [
@@ -15959,19 +15959,19 @@
    "topAreas": [
     [
      "Engine",
-     1525
+     1528
     ],
     [
      "Electrical system",
-     1372
+     1374
     ],
     [
      "Power train",
-     1174
+     1176
     ],
     [
      "Steering",
-     617
+     622
     ],
     [
      "Fuel/propulsion system",
@@ -15983,7 +15983,7 @@
    "years": [
     {
      "year": 2016,
-     "complaints": 80,
+     "complaints": 81,
      "recalls": 2,
      "top": [
       [
@@ -16078,7 +16078,7 @@
     },
     {
      "year": 2021,
-     "complaints": 63,
+     "complaints": 64,
      "recalls": 2,
      "top": [
       [
@@ -16087,7 +16087,7 @@
       ],
       [
        "Power train",
-       14
+       15
       ],
       [
        "Service brakes",
@@ -16135,12 +16135,12 @@
     },
     {
      "year": 2024,
-     "complaints": 35,
+     "complaints": 36,
      "recalls": 2,
      "top": [
       [
        "Electrical system",
-       22
+       23
       ],
       [
        "Exterior lighting",
@@ -16154,7 +16154,7 @@
     },
     {
      "year": 2025,
-     "complaints": 15,
+     "complaints": 16,
      "recalls": 1,
      "top": [
       [
@@ -16162,12 +16162,12 @@
        6
       ],
       [
-       "Power train",
+       "Back over prevention",
        3
       ],
       [
-       "Forward collision avoidance",
-       2
+       "Power train",
+       3
       ]
      ]
     }
@@ -16179,11 +16179,11 @@
     ],
     [
      "Power train",
-     101
+     102
     ],
     [
      "Electrical system",
-     100
+     102
     ],
     [
      "Service brakes",
@@ -16294,7 +16294,7 @@
     },
     {
      "year": 2021,
-     "complaints": 26,
+     "complaints": 27,
      "recalls": 2,
      "top": [
       [
@@ -16510,12 +16510,12 @@
     },
     {
      "year": 2021,
-     "complaints": 170,
+     "complaints": 171,
      "recalls": 11,
      "top": [
       [
        "Engine",
-       107
+       108
       ],
       [
        "Electrical system",
@@ -16548,16 +16548,16 @@
     },
     {
      "year": 2023,
-     "complaints": 237,
+     "complaints": 242,
      "recalls": 4,
      "top": [
       [
        "Engine",
-       176
+       180
       ],
       [
        "Power train",
-       41
+       42
       ],
       [
        "Electrical system",
@@ -16607,11 +16607,11 @@
    "topAreas": [
     [
      "Engine",
-     607
+     612
     ],
     [
      "Power train",
-     176
+     177
     ],
     [
      "Electrical system",
@@ -16619,7 +16619,7 @@
     ],
     [
      "Fuel/propulsion system",
-     71
+     72
     ],
     [
      "Engine and engine cooling",
@@ -16675,12 +16675,12 @@
     },
     {
      "year": 2019,
-     "complaints": 34,
+     "complaints": 35,
      "recalls": 0,
      "top": [
       [
        "Steering",
-       10
+       11
       ],
       [
        "Engine",
@@ -16751,12 +16751,12 @@
     },
     {
      "year": 2023,
-     "complaints": 16,
+     "complaints": 17,
      "recalls": 4,
      "top": [
       [
        "Power train",
-       7
+       8
       ],
       [
        "Engine",
@@ -16810,7 +16810,7 @@
    "topAreas": [
     [
      "Power train",
-     63
+     64
     ],
     [
      "Engine",
@@ -16818,11 +16818,11 @@
     ],
     [
      "Electrical system",
-     53
+     54
     ],
     [
      "Steering",
-     46
+     47
     ],
     [
      "Service brakes",
@@ -16872,12 +16872,12 @@
     },
     {
      "year": 2018,
-     "complaints": 94,
+     "complaints": 95,
      "recalls": 6,
      "top": [
       [
        "Electrical system",
-       21
+       22
       ],
       [
        "Air bags",
@@ -17026,7 +17026,7 @@
    "topAreas": [
     [
      "Electrical system",
-     143
+     144
     ],
     [
      "Power train",
@@ -17200,7 +17200,7 @@
     },
     {
      "year": 2018,
-     "complaints": 170,
+     "complaints": 171,
      "recalls": 10,
      "top": [
       [
@@ -17238,12 +17238,12 @@
     },
     {
      "year": 2020,
-     "complaints": 232,
+     "complaints": 233,
      "recalls": 8,
      "top": [
       [
        "Engine",
-       87
+       88
       ],
       [
        "Electrical system",
@@ -17263,12 +17263,12 @@
     },
     {
      "year": 2022,
-     "complaints": 185,
-     "recalls": 3,
+     "complaints": 186,
+     "recalls": 4,
      "top": [
       [
        "Power train",
-       94
+       95
       ],
       [
        "Electrical system",
@@ -17283,7 +17283,7 @@
     {
      "year": 2023,
      "complaints": 49,
-     "recalls": 3,
+     "recalls": 4,
      "top": [
       [
        "Power train",
@@ -17301,8 +17301,8 @@
     },
     {
      "year": 2024,
-     "complaints": 43,
-     "recalls": 3,
+     "complaints": 44,
+     "recalls": 4,
      "top": [
       [
        "Electrical system",
@@ -17320,16 +17320,16 @@
     },
     {
      "year": 2025,
-     "complaints": 117,
+     "complaints": 118,
      "recalls": 3,
      "top": [
       [
        "Engine",
-       72
+       73
       ],
       [
        "Electrical system",
-       54
+       55
       ],
       [
        "Fuel/propulsion system",
@@ -17341,15 +17341,15 @@
    "topAreas": [
     [
      "Engine",
-     501
+     503
     ],
     [
      "Power train",
-     382
+     383
     ],
     [
      "Electrical system",
-     295
+     296
     ],
     [
      "Forward collision avoidance",
@@ -17441,12 +17441,12 @@
     },
     {
      "year": 2020,
-     "complaints": 351,
+     "complaints": 352,
      "recalls": 5,
      "top": [
       [
        "Visibility/wiper",
-       84
+       85
       ],
       [
        "Engine",
@@ -17536,7 +17536,7 @@
     },
     {
      "year": 2025,
-     "complaints": 30,
+     "complaints": 31,
      "recalls": 1,
      "top": [
       [
@@ -17557,7 +17557,7 @@
    "topAreas": [
     [
      "Visibility/wiper",
-     208
+     209
     ],
     [
      "Engine",
@@ -17565,7 +17565,7 @@
     ],
     [
      "Electrical system",
-     124
+     125
     ],
     [
      "Power train",
@@ -17638,7 +17638,7 @@
     },
     {
      "year": 2019,
-     "complaints": 552,
+     "complaints": 553,
      "recalls": 11,
      "top": [
       [
@@ -17651,7 +17651,7 @@
       ],
       [
        "Engine",
-       147
+       148
       ]
      ]
     },
@@ -17752,16 +17752,16 @@
     },
     {
      "year": 2025,
-     "complaints": 32,
+     "complaints": 34,
      "recalls": 2,
      "top": [
       [
        "Power train",
-       8
+       9
       ],
       [
        "Forward collision avoidance",
-       7
+       8
       ],
       [
        "Fuel/propulsion system",
@@ -17777,11 +17777,11 @@
     ],
     [
      "Engine",
-     280
+     281
     ],
     [
      "Power train",
-     231
+     232
     ],
     [
      "Service brakes",
@@ -17854,7 +17854,7 @@
     },
     {
      "year": 2019,
-     "complaints": 196,
+     "complaints": 197,
      "recalls": 5,
      "top": [
       [
@@ -17892,16 +17892,16 @@
     },
     {
      "year": 2021,
-     "complaints": 144,
+     "complaints": 146,
      "recalls": 5,
      "top": [
       [
        "Engine",
-       54
+       55
       ],
       [
        "Electrical system",
-       25
+       26
       ],
       [
        "Fuel/propulsion system",
@@ -17911,7 +17911,7 @@
     },
     {
      "year": 2022,
-     "complaints": 279,
+     "complaints": 283,
      "recalls": 5,
      "top": [
       [
@@ -17920,11 +17920,11 @@
       ],
       [
        "Electrical system",
-       64
+       67
       ],
       [
        "Lane departure",
-       44
+       45
       ]
      ]
     },
@@ -17949,12 +17949,12 @@
     },
     {
      "year": 2024,
-     "complaints": 79,
+     "complaints": 82,
      "recalls": 2,
      "top": [
       [
        "Electrical system",
-       29
+       30
       ],
       [
        "Engine",
@@ -17962,7 +17962,7 @@
       ],
       [
        "Back over prevention",
-       10
+       11
       ]
      ]
     },
@@ -17989,11 +17989,11 @@
    "topAreas": [
     [
      "Engine",
-     405
+     406
     ],
     [
      "Electrical system",
-     327
+     332
     ],
     [
      "Power train",
