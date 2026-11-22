@@ -130,6 +130,20 @@ ${pages.map(({ url }) => `  <url><loc>${SITE_URL}${url === "/" ? "/" : url}</loc
 `;
 fs.writeFileSync(path.join(dist, "sitemap.xml"), sitemap);
 
+// Previews (VERCEL_ENV=preview) must never be crawlable; production must
+// never ship a sitemap page that tells crawlers to go away.
+const vercelEnv = process.env.VERCEL_ENV;
+if (vercelEnv && vercelEnv !== "production") {
+  fs.writeFileSync(path.join(dist, "robots.txt"), "User-agent: *\nDisallow: /\n");
+  console.log(`prerender: ${vercelEnv} build — robots.txt disallows everything, pages are noindex`);
+} else {
+  const blocked = pages.filter(({ url }) => /<meta[^>]*name="robots"[^>]*noindex/.test(fs.readFileSync(url === "/" ? path.join(dist, "index.html") : path.join(dist, url.slice(1), "index.html"), "utf8")));
+  if (blocked.length) {
+    console.error(`prerender: refusing to publish — noindex on sitemap pages: ${blocked.map((p) => p.url).join(", ")}`);
+    process.exit(1);
+  }
+}
+
 fs.rmSync(path.join(root, "dist-ssr"), { recursive: true, force: true });
 const perMake = makes.map((m) => `${m} ${pages.filter((p) => p.url.startsWith(`/wikilot/${slugify(m)}/`)).length}`).join(", ");
 console.log(`prerender: wrote ${pages.length} pages (model pages per make: ${perMake})`);

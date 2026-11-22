@@ -386,6 +386,20 @@ const SITE_URL = "https://www.highwaylot.com";
 // in this SPA inherits the same static tags from index.html, which means
 // Google sees duplicate titles across listings/categories and shared links
 // show the generic homepage preview instead of the actual car.
+// Non-production builds (Vercel previews) are never indexable — set in
+// vite.config.js from VERCEL_ENV, so production is the only copy Google sees.
+const HOLD_INDEX = typeof __HL_HOLD_INDEX__ !== "undefined" && __HL_HOLD_INDEX__;
+const DEFAULT_SHARE_IMAGE = `${SITE_URL}/og.png`;
+const ORG_ID = `${SITE_URL}/#org`;
+// First published date for the guide/tool pages (the site's relaunch).
+const SITE_PUBLISHED = "2026-10-26";
+function JsonLd({ data }) {
+  return <Helmet><script type="application/ld+json">{JSON.stringify(data).replace(/</g, "\\u003c")}</script></Helmet>;
+}
+// Titles stay within ~60 characters: the brand suffix is dropped before
+// the words people search for are.
+const fitTitle = (main, brand) => (`${main} | ${brand}`.length <= 60 ? `${main} | ${brand}` : main);
+
 function SEOHead({ title, description, path, image, noindex }) {
   const canonicalUrl = path ? `${SITE_URL}${path}` : undefined;
   return (
@@ -396,8 +410,12 @@ function SEOHead({ title, description, path, image, noindex }) {
       {description && <meta property="og:description" content={description} />}
       {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
       {canonicalUrl && <meta property="og:url" content={canonicalUrl} />}
-      {image && <meta property="og:image" content={image} />}
-      {noindex && <meta name="robots" content="noindex, nofollow" />}
+      <meta property="og:site_name" content="HIGHWAYLOT" />
+      <meta property="og:image" content={image || DEFAULT_SHARE_IMAGE} />
+      <meta property="og:image:width" content="1200" />
+      <meta property="og:image:height" content="630" />
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="robots" content={noindex || HOLD_INDEX ? "noindex, nofollow" : "index, follow"} />
     </Helmet>
   );
 }
@@ -2632,10 +2650,18 @@ function ValueMyCar({ log }) {
   return (
     <div className={cn("bg-background", (liveEstimate || unpriced) && !result && "max-[900px]:pb-16")}>
       <SEOHead
-        title="valueLOT — Free Car Valuation | HIGHWAYLOT"
-        description="A free, honest car value estimate — built for people who don't know cars. No dealer jargon, no sales pitch, just a real depreciation-based number."
+        title="What's My Car Worth? Free Car Value Estimate | valueLOT"
+        description="Free car value estimate for people who don't know cars. Enter year, make, model and mileage to see what your car is worth. No sign-up, no dealer pitch."
         path="/value"
       />
+      <JsonLd data={{
+        "@context": "https://schema.org", "@type": "WebApplication",
+        name: "valueLOT", url: `${SITE_URL}/value`,
+        description: "Free car value estimate: enter year, make, model and mileage to see what your car is worth.",
+        applicationCategory: "UtilitiesApplication", operatingSystem: "Any",
+        offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        publisher: { "@id": ORG_ID },
+      }} />
       <PriceTagHero />
       <style dangerouslySetInnerHTML={{ __html: REVEAL_CSS }} />
       <style dangerouslySetInnerHTML={{ __html: `
@@ -4329,15 +4355,16 @@ function LandingHome() {
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-background px-6 py-24">
       <ThemeToggle className="absolute right-4 top-4" />
-      <Helmet>
-        <script type="application/ld+json">{JSON.stringify([
-          { "@context": "https://schema.org", "@type": "WebSite", name: "HIGHWAYLOT", url: `${SITE_URL}/` },
-          { "@context": "https://schema.org", "@type": "Organization", name: "HIGHWAYLOT", url: `${SITE_URL}/`, logo: `${SITE_URL}/favicon.svg` },
-        ])}</script>
-      </Helmet>
+      <JsonLd data={{
+        "@context": "https://schema.org",
+        "@graph": [
+          { "@type": "Organization", "@id": ORG_ID, name: "HIGHWAYLOT", url: `${SITE_URL}/`, logo: `${SITE_URL}/icon-512.png` },
+          { "@type": "WebSite", "@id": `${SITE_URL}/#website`, name: "HIGHWAYLOT", url: `${SITE_URL}/`, publisher: { "@id": ORG_ID } },
+        ],
+      }} />
       <SEOHead
         title="Free Car Value Estimate & Used Car Price Guide | HIGHWAYLOT"
-        description="Free car knowledge for people who don't know cars — valueLOT's honest value estimate and wikiLOT's price guide by make and model, no dealer jargon, no sales pitch."
+        description="Free, honest car knowledge: valueLOT estimates what your car is worth, and wikiLOT shows used car prices, problems and mileage by make and model."
         path="/"
       />
       <div className="mx-auto flex max-w-xl flex-col items-center text-center">
@@ -4394,10 +4421,16 @@ function GuideIndex() {
   return (
     <div>
       <SEOHead
-        title="wikiLOT — Car Price Guide | HIGHWAYLOT"
-        description="Real depreciation-based price guides by make and model — what a car should cost at 3, 5, 8, and 10 years old, so you know if an asking price is fair."
+        title="Used Car Price Guide by Make, Model & Year | wikiLOT"
+        description={`What a used car should cost at 3, 5, 8 and 10 years old, plus NHTSA complaints and recalls by year, for ${GUIDE_CATALOG.length} popular models across ${Object.keys(MAKE_BASE_PRICE).length} makes.`}
         path="/wikilot"
       />
+      <JsonLd data={{
+        "@context": "https://schema.org", "@type": "CollectionPage",
+        name: "wikiLOT used car price guide", url: `${SITE_URL}/wikilot`,
+        publisher: { "@id": ORG_ID },
+        mainEntity: { "@type": "ItemList", itemListElement: allMakes.map((m, i) => ({ "@type": "ListItem", position: i + 1, name: m, url: `${SITE_URL}/wikilot/${slugify(m)}` })) },
+      }} />
       <SplitHero />
       <div className="min-h-[calc(100vh-64px)] bg-background">
         <div className="mx-auto max-w-4xl px-5 py-10">
@@ -4475,13 +4508,28 @@ function GuideMake() {
   return (
     <div>
       <SEOHead
-        title={`${make} Price Guide — What ${make}s Actually Cost | wikiLOT`}
-        description={`What a ${make} should cost by age and mileage, plus resale strength vs. other brands — a reasoned reference, not a sticker price.`}
+        title={`Used ${make} Prices by Model & Year | wikiLOT`}
+        description={`What a used ${make} costs by model and age, how its resale value and repair costs compare with other brands, and what to check before you buy.`}
         path={`/wikilot/${makeSlug}`}
       />
+      <JsonLd data={[
+        {
+          "@context": "https://schema.org", "@type": "CollectionPage",
+          name: `Used ${make} prices`, url: `${SITE_URL}/wikilot/${makeSlug}`,
+          publisher: { "@id": ORG_ID },
+          mainEntity: { "@type": "ItemList", itemListElement: models.map((g, i) => ({ "@type": "ListItem", position: i + 1, name: `${make} ${g.label}`, url: `${SITE_URL}/wikilot/${makeSlug}/${slugify(g.modelKey)}` })) },
+        },
+        {
+          "@context": "https://schema.org", "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "wikiLOT", item: `${SITE_URL}/wikilot` },
+            { "@type": "ListItem", position: 2, name: make, item: `${SITE_URL}/wikilot/${makeSlug}` },
+          ],
+        },
+      ]} />
       <GuideHero
         eyebrow={<><Link to="/wikilot" className="underline">Price Guide</Link> / {make}</>}
-        title={`${make} Price Guide`}
+        title={`Used ${make} prices by model`}
         subtitle={`See specific models below for age-by-age numbers, or use valueLOT for your exact car.`}
         stat={{ value: `$${anchor.toLocaleString()}`, note: `${make}, new` }}
       />
@@ -4716,6 +4764,18 @@ function guideBuyingInsights({ make, modelKey, label, prices, history }) {
   return { verdict, tone, reasons, notes, stripYears, flagFor, anyFlagged, mileageRows, valuePer12k, faq, nhtsaSummary };
 }
 
+// Three comparable curated models: same body style first, then other makes,
+// then closest 5-year price, so no model page is a dead end.
+function similarModels(entry) {
+  const body = GUIDE_MODEL_BODY[entry.make]?.[entry.modelKey];
+  const p5 = guidePriceAtAge(entry.make, entry.modelKey, 5);
+  return GUIDE_CATALOG
+    .filter((g) => g !== entry)
+    .map((g) => ({ ...g, p5: guidePriceAtAge(g.make, g.modelKey, 5), otherBody: GUIDE_MODEL_BODY[g.make]?.[g.modelKey] !== body }))
+    .sort((a, b) => a.otherBody - b.otherBody || (a.make === entry.make) - (b.make === entry.make) || Math.abs(a.p5 - p5) - Math.abs(b.p5 - p5))
+    .slice(0, 3);
+}
+
 // Other spellings of a curated model's URL, sent to the curated page.
 const GUIDE_SLUG_ALIASES = { "mercedes-benz/glc-class": "mercedes-benz/glc", "mercedes-benz/c-class-sedan": "mercedes-benz/c-class" };
 
@@ -4755,7 +4815,21 @@ function GuidePage() {
   const body = GUIDE_MODEL_BODY[make]?.[modelKey];
   const valueLink = (year) => `/value?${new URLSearchParams({ make, model: label, ...(body ? { body } : {}), ...(year ? { year: String(year) } : {}) })}`;
   const pageUrl = `${SITE_URL}/wikilot/${makeSlug}/${modelSlug}`;
+  const p5Entry = prices.find((p) => p.age === 5);
+  const updated = prerenderData.updatedAt || SITE_PUBLISHED;
+  const similar = similarModels(entry);
+  const worst = insights.nhtsaSummary?.worst;
+  const shortAnswer = `A 5-year-old (${currentYear - 5}) ${make} ${label} is worth about $${p5Entry.price.toLocaleString()} with average mileage in good condition. Is it a good used buy? ${insights.verdict}.${worst?.complaints ? ` The ${worst.year} model year has the most owner complaints filed with NHTSA.` : ""}`;
   const structuredData = [
+    {
+      "@context": "https://schema.org", "@type": "Article",
+      headline: `Used ${make} ${label} value by year & problems`,
+      description: shortAnswer,
+      image: DEFAULT_SHARE_IMAGE,
+      datePublished: SITE_PUBLISHED, dateModified: updated,
+      mainEntityOfPage: pageUrl,
+      author: { "@id": ORG_ID }, publisher: { "@id": ORG_ID },
+    },
     {
       "@context": "https://schema.org", "@type": "BreadcrumbList",
       itemListElement: [
@@ -4773,8 +4847,8 @@ function GuidePage() {
   return (
     <div>
       <SEOHead
-        title={`${make} ${label} Price Guide — Value, Problems & Mileage | wikiLOT`}
-        description={`What a used ${make} ${label} should cost by age, whether it's a good used car, problem model years to check, and what mileage is too high.`}
+        title={fitTitle(`Used ${make} ${label} Value by Year & Problems`, "wikiLOT")}
+        description={`What a used ${make} ${label} is worth by year, whether it's a good buy, NHTSA complaints and recalls by model year, and what mileage is too high.`}
         path={`/wikilot/${makeSlug}/${modelSlug}`}
       />
       <Helmet>
@@ -4782,12 +4856,16 @@ function GuidePage() {
       </Helmet>
       <GuideHero
         eyebrow={<><Link to="/wikilot" className="underline">Price Guide</Link> / <Link to={`/wikilot/${makeSlug}`} className="underline">{make}</Link> / {label}</>}
-        title={`${make} ${label} Price Guide`}
+        title={`Used ${make} ${label} value by year`}
         subtitle="A reference range, not a personalized estimate."
         stat={{ value: `$${prices.find((p) => p.age === 5).price.toLocaleString()}`, note: "at 5 years old" }}
       />
       <div className="min-h-[calc(100vh-64px)] bg-background">
         <div className="mx-auto max-w-3xl px-5 py-10">
+          <section aria-labelledby="hl-short-answer" className="mb-7 rounded-lg border border-primary/50 bg-card p-4">
+            <h2 id="hl-short-answer" className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary-text">Short answer</h2>
+            <p className="leading-relaxed text-foreground">{shortAnswer}</p>
+          </section>
           <div className="mb-7 flex flex-wrap gap-3">
             <GuideStat icon={<DollarSign size={13} />} label="New, typical" value={`$${maxPrice.toLocaleString()}`} />
             {BRAND_REPAIR_COST[make] && (
@@ -4923,7 +5001,32 @@ function GuidePage() {
             <MarketTrend className="mt-3" />
           </div>
 
+          {similar.length > 0 && (
+            <section className="mb-7">
+              <h2 className="mb-2.5 font-heading text-base text-foreground">Similar models to compare</h2>
+              <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5">
+                {similar.map((g) => (
+                  <Link key={`${g.make}-${g.modelKey}`} to={`/wikilot/${slugify(g.make)}/${slugify(g.modelKey)}`} className="hl-listing-card block rounded-lg border bg-card p-3.5 no-underline">
+                    <div className="mb-0.5 font-heading text-sm text-foreground">{g.make} {g.label}</div>
+                    <div className="text-xs font-semibold text-primary-text">${g.p5.toLocaleString()} <span className="font-normal text-muted-foreground">at 5 years old</span></div>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
+
           <Link to={valueLink()} className={cn(buttonVariants({ variant: "default" }))}>Get my {make} {label}'s real value →</Link>
+
+          <section className="mt-9 border-t pt-5 text-xs leading-relaxed text-muted-foreground">
+            <h2 className="mb-1.5 font-semibold text-foreground">Sources</h2>
+            <ul className="list-disc space-y-1 pl-4">
+              <li>Prices: HIGHWAYLOT depreciation model, price list reviewed {PRICE_LIST_REVIEWED} (<Link to="/how-we-calculate" className="underline underline-offset-2">how we calculate</Link>)</li>
+              <li>Owner complaints and recalls: <a href="https://www.nhtsa.gov/recalls" className="underline underline-offset-2">NHTSA</a></li>
+              <li>Brand repair costs: <a href="https://repairpal.com/reliability" className="underline underline-offset-2">RepairPal</a></li>
+              <li>Used-car price trend: <a href="https://data.bls.gov/timeseries/CUUR0000SETA02" className="underline underline-offset-2">BLS consumer price index, used cars and trucks</a></li>
+            </ul>
+            <p className="mt-2">Updated <time dateTime={updated}>{updated}</time></p>
+          </section>
         </div>
       </div>
     </div>
@@ -4943,7 +5046,7 @@ function HowWeCalculate() {
   ];
   return (
     <div className="mx-auto max-w-2xl px-5 py-12">
-      <SEOHead title="How We Calculate | HIGHWAYLOT" description="How valueLOT and wikiLOT work out a car's value: a starting price, depreciation by age and body style, brand, mileage, condition and known issues — and which outside data is used." path="/how-we-calculate" />
+      <SEOHead title="How We Calculate Car Values | HIGHWAYLOT" description="How valueLOT and wikiLOT work out a car's value: starting price, depreciation by age and body style, brand, mileage, condition, known issues and data sources." path="/how-we-calculate" />
       <h1 className="mb-2 font-heading text-3xl font-semibold text-foreground">How we calculate</h1>
       <p className="mb-6 text-muted-foreground">valueLOT and the wikiLOT price guide use the same formula. It's a reasoned estimate built from public data and our own price list — not live market sales.</p>
       <ol className="mb-8 space-y-3">
